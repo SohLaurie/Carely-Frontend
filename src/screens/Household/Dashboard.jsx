@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import HouseholdLayout from './layout/HouseholdLayout';
 import ExploreTab from './components/ExploreTab';
 import HomeTab from './components/HomeTab';
+import BookingWizard from './components/booking/BookingWizard';
 import DiscussionsTab from './components/DiscussionsTab';
 import RequestsTab from './components/RequestsTab';
 import BookingsTab from './components/BookingsTab';
@@ -21,6 +22,20 @@ import RateReview from './screens/RateReview';
 import { useHouseholdDashboard } from './hooks/useHouseholdDashboard';
 
 export default function HouseholdDashboard({ onNavigate: topNavigate, screenParams }) {
+  // Booking wizard overlay state
+  const [wizardOpen, setWizardOpen]     = useState(false);
+  const [wizardParams, setWizardParams] = useState({});
+
+  const openBookingWizard = (params = {}) => {
+    setWizardParams(params);
+    setWizardOpen(true);
+  };
+
+  const handleWizardComplete = (bookingData) => {
+    setWizardOpen(false);
+    // Navigate to Requests tab so the user can see their pending request
+    setActiveTab('requests');
+  };
   const {
     activeTab,
     setActiveTab,
@@ -104,7 +119,7 @@ export default function HouseholdDashboard({ onNavigate: topNavigate, screenPara
     }
   };
 
-  return (
+  return (<>
     <HouseholdLayout
       activeTab={activeTab}
       setActiveTab={setActiveTab}
@@ -125,6 +140,7 @@ export default function HouseholdDashboard({ onNavigate: topNavigate, screenPara
       {activeTab === 'home' && (
         <HomeTab
           onNavigate={handleInternalNavigate}
+          openBookingWizard={openBookingWizard}
           userFirstName="there"
         />
       )}
@@ -157,6 +173,7 @@ export default function HouseholdDashboard({ onNavigate: topNavigate, screenPara
           handleAiRecommend={handleAiRecommend}
           onNavigate={handleInternalNavigate}
           openDiscussionWithCaregiver={openDiscussionWithCaregiver}
+          openBookingWizard={openBookingWizard}
         />
       )}
 
@@ -287,5 +304,14 @@ export default function HouseholdDashboard({ onNavigate: topNavigate, screenPara
         />
       )}
     </HouseholdLayout>
-  );
+
+    {/* ── Booking Wizard Overlay ─────────────────────────── */}
+    {wizardOpen && (
+      <BookingWizard
+        {...wizardParams}
+        onClose={() => setWizardOpen(false)}
+        onComplete={handleWizardComplete}
+      />
+    )}
+  </>);
 }

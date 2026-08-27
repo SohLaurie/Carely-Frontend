@@ -193,7 +193,7 @@ const STATS = [
 ];
 
 /* ── Component ───────────────────────────────────────────── */
-export default function HomeTab({ onNavigate, userFirstName = 'there' }) {
+export default function HomeTab({ onNavigate, openBookingWizard, userFirstName = 'there' }) {
   const [hoveredService, setHoveredService] = useState(null);
 
   const greetingHour = new Date().getHours();
@@ -202,7 +202,10 @@ export default function HomeTab({ onNavigate, userFirstName = 'there' }) {
     greetingHour < 18 ? 'Good afternoon' : 'Good evening';
 
   const handleServiceClick = (service) => {
-    if (onNavigate) {
+    if (openBookingWizard) {
+      // Pre-fill service → wizard starts at Location step (step 2)
+      openBookingWizard({ initialService: service });
+    } else if (onNavigate) {
       onNavigate('explore', { presetSpecialty: service.specialty });
     }
   };
@@ -309,7 +312,7 @@ export default function HomeTab({ onNavigate, userFirstName = 'there' }) {
       <div className="home-section">
         <button
           className="home-book-cta"
-          onClick={() => onNavigate && onNavigate('explore')}
+          onClick={() => openBookingWizard ? openBookingWizard({}) : onNavigate && onNavigate('explore')}
         >
           <Sparkles size={16} />
           Book a Service

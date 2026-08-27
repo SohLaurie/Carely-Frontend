@@ -1,4 +1,4 @@
-﻿import React from 'react';
+import React from 'react';
 import {
   Compass, SlidersHorizontal, LayoutGrid, Stethoscope, Baby, Sparkles, MapPin, ArrowLeft, Heart,
   Search as SearchIcon, Calendar, Check, Send, ChevronDown, MessageSquare, User, Droplets, Leaf,
@@ -31,7 +31,8 @@ export default function ExploreTab({
   aiResult,
   handleAiRecommend,
   onNavigate,
-  openDiscussionWithCaregiver
+  openDiscussionWithCaregiver,
+  openBookingWizard,
 }) {
   
   const SPECIALTY_ICON_MAP = {
@@ -457,11 +458,18 @@ export default function ExploreTab({
             {/* Action Buttons */}
             <div className="pt-3 border-t border-[#E2D9CF] space-y-2">
               <button
-                onClick={() => onNavigate('booking', { caregiver: selectedCaregiver })}
+                onClick={() => {
+                  if (openBookingWizard) {
+                    // Pre-fill provider + default service → wizard skips steps 1 & 4
+                    openBookingWizard({ initialProvider: selectedCaregiver });
+                  } else {
+                    onNavigate('booking', { caregiver: selectedCaregiver });
+                  }
+                }}
                 className="w-full bg-[#1E4030] hover:bg-[#152e22] text-white py-3 px-4 rounded-xl text-xs font-bold transition-all shadow-sm hover:shadow-md flex items-center justify-center gap-2 cursor-pointer"
               >
                 <Calendar size={14} />
-                <span>Book This Caregiver</span>
+                <span>Request Booking</span>
               </button>
 
               {openDiscussionWithCaregiver && (
