@@ -1,5 +1,5 @@
-﻿import React from 'react';
-import { Compass, ClipboardList, Calendar, Bell, Heart, User, LogOut, X, MessageSquare } from 'lucide-react';
+import React from 'react';
+import { Home, Compass, ClipboardList, Calendar, Bell, Heart, User, LogOut, X, MessageSquare } from 'lucide-react';
 
 export default function Sidebar({
   activeTab,
@@ -13,6 +13,7 @@ export default function Sidebar({
   onNavigate
 }) {
   const menuItems = [
+    { id: 'home', label: 'Home', Icon: Home },
     { id: 'explore', label: 'Explore', Icon: Compass },
     { id: 'discussions', label: 'Discussions', Icon: MessageSquare, badge: unreadMessagesCount },
     { id: 'requests', label: 'Requests', Icon: ClipboardList, badge: pendingRequestsCount },
@@ -33,7 +34,7 @@ export default function Sidebar({
           <div
             className="flex items-center gap-3 cursor-pointer"
             onClick={() => {
-              setActiveTab('explore');
+              setActiveTab('home');
               setSidebarOpen(false);
             }}
           >

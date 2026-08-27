@@ -1,6 +1,7 @@
-﻿import React, { useState } from 'react';
+import React, { useState } from 'react';
 import HouseholdLayout from './layout/HouseholdLayout';
 import ExploreTab from './components/ExploreTab';
+import HomeTab from './components/HomeTab';
 import DiscussionsTab from './components/DiscussionsTab';
 import RequestsTab from './components/RequestsTab';
 import BookingsTab from './components/BookingsTab';
@@ -86,7 +87,7 @@ export default function HouseholdDashboard({ onNavigate: topNavigate, screenPara
   // Internal navigator that keeps the Sidebar and TopNavbar visible
   const handleInternalNavigate = (target, params = {}) => {
     const internalTabs = [
-      'explore', 'discussions', 'requests', 'bookings',
+      'home', 'explore', 'discussions', 'requests', 'bookings',
       'notifications', 'saved', 'profile', 'booking',
       'pending', 'payment', 'confirmed', 'otp',
       'completion', 'review', 'search'
@@ -120,6 +121,14 @@ export default function HouseholdDashboard({ onNavigate: topNavigate, screenPara
       clearNotifications={clearNotifications}
       openDiscussionWithCaregiver={openDiscussionWithCaregiver}
     >
+      {/* 0. Home Tab */}
+      {activeTab === 'home' && (
+        <HomeTab
+          onNavigate={handleInternalNavigate}
+          userFirstName="there"
+        />
+      )}
+
       {/* 1. Explore Tab */}
       {activeTab === 'explore' && (
         <ExploreTab

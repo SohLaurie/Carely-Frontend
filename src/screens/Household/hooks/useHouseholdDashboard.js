@@ -1,4 +1,4 @@
-﻿import { useState } from 'react';
+import { useState } from 'react';
 import { CAREGIVERS, SPECIALTY_META } from '../../../data';
 import {
   initialRequests,
@@ -8,7 +8,7 @@ import {
 } from '../data/mockHouseholdData';
 
 export function useHouseholdDashboard(screenParams) {
-  const [activeTab, setActiveTab] = useState(screenParams?.defaultTab || 'explore');
+  const [activeTab, setActiveTab] = useState(screenParams?.defaultTab || 'home');
   const [sidebarOpen, setSidebarOpen] = useState(false);
 
   const [selectedId, setSelectedId] = useState('1');
