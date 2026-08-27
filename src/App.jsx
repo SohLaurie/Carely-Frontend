@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+﻿import { useState, useEffect } from 'react'
 import { useNavigate, useLocation } from 'react-router-dom'
 import { Bot, X, Send, Maximize2, Minimize2 } from 'lucide-react'
 import Landing from './screens/Landing'
@@ -151,7 +151,7 @@ export default function App() {
         {chatOpen && (
           <div className={
             chatExpanded
-              ? "fixed inset-4 sm:inset-10 z-[1000] w-auto h-auto max-w-none mb-0 bg-white border border-[#E2D9CF] rounded-3xl shadow-2xl flex flex-col overflow-hidden animate-fadeIn"
+              ? "fixed top-16 left-0 right-0 bottom-0 z-[998] w-auto h-auto max-w-none mb-0 bg-white border-t border-[#E2D9CF] shadow-2xl flex flex-col overflow-hidden"
               : "w-80 sm:w-96 h-[480px] bg-white border border-[#E2D9CF] rounded-2xl shadow-xl flex flex-col overflow-hidden mb-4 animate-fadeIn"
           }>
             {/* Chat header */}
@@ -272,3 +272,8 @@ export default function App() {
     </div>
   )
 }
+
+
+
+
+

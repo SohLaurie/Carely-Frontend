@@ -1,4 +1,4 @@
-import {
+﻿import {
   Globe,
   ChevronRight,
   ShieldCheck,
@@ -8,6 +8,9 @@ import {
   Stethoscope,
   Baby,
   Sparkles,
+  Droplets,
+  Shirt,
+  Utensils,
   Users,
   TrendingUp,
   Leaf,
@@ -42,9 +45,12 @@ const SERVICES = [
   {
     key: "cleaning",
     title: "Domestic Cleaning",
-    desc: "Expert cleaners for full housekeeping, ironing, and organization — one-off or recurring.",
+    desc: "Expert cleaners for full housekeeping, ironing, and organization â€” one-off or recurring.",
     cta: "Find a Cleaner",
     Icon: Sparkles,
+  Droplets,
+  Shirt,
+  Utensils,
   },
 ];
 
@@ -105,7 +111,7 @@ export default function Landing({ onNavigate }) {
   return (
     <div className="bg-background min-h-screen">
       {/* Header / Navbar */}
-      <header className="bg-card border-b border-border sticky top-0 z-40">
+      <header className="bg-card border-b border-border sticky top-0 z-40 shadow-sm">
         <div className="max-w-7xl mx-auto px-6 lg:px-12 h-16 flex items-center justify-between">
           <div
             className="flex items-center gap-2 cursor-pointer"
@@ -123,28 +129,28 @@ export default function Landing({ onNavigate }) {
             <a
               href="#home"
               onClick={(e) => handleScrollTo(e, "top")}
-              className="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors"
+              className="text-base font-semibold text-muted-foreground hover:text-foreground transition-colors"
             >
               Home
             </a>
             <a
               href="#how-it-works"
               onClick={(e) => handleScrollTo(e, "how-it-works")}
-              className="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors"
+              className="text-base font-semibold text-muted-foreground hover:text-foreground transition-colors"
             >
               How it works
             </a>
             <a
               href="#services"
               onClick={(e) => handleScrollTo(e, "services")}
-              className="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors"
+              className="text-base font-semibold text-muted-foreground hover:text-foreground transition-colors"
             >
               Services
             </a>
             <a
               href="#reviews"
               onClick={(e) => handleScrollTo(e, "reviews")}
-              className="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors"
+              className="text-base font-semibold text-muted-foreground hover:text-foreground transition-colors"
             >
               Reviews
             </a>
@@ -153,14 +159,14 @@ export default function Landing({ onNavigate }) {
           <div className="flex items-center gap-4">
             <button
               onClick={() => onNavigate('login')}
-              className="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors flex items-center gap-1.5 cursor-pointer"
+              className="text-base font-semibold text-muted-foreground hover:text-foreground transition-colors flex items-center gap-1.5 cursor-pointer"
             >
               <LogIn size={15} />
               <span>Log in</span>
             </button>
             <button
               onClick={() => onNavigate("pack")}
-              className="bg-[#1E4030] text-white text-sm font-semibold px-4 py-2 rounded-xl hover:bg-[#152e22] transition-colors inline-flex items-center gap-1"
+              className="bg-[#1E4030] text-white text-base font-bold px-5 py-2.5 rounded-xl hover:bg-[#152e22] transition-colors inline-flex items-center gap-1 shadow-sm"
             >
               <span>Get Started</span>
               <span className="font-bold">&rarr;</span>
@@ -170,7 +176,7 @@ export default function Landing({ onNavigate }) {
       </header>
 
       {/* Hero */}
-      <section className="bg-background pt-8 pb-16 lg:pt-10 lg:pb-24">
+      <section className="bg-background pt-10 pb-20 lg:pt-16 lg:pb-28">
         <div className="max-w-7xl mx-auto px-6 lg:px-12">
           <div className="grid lg:grid-cols-2 gap-12 items-center">
             {/* Left side text content */}
@@ -182,7 +188,7 @@ export default function Landing({ onNavigate }) {
               </div>
 
               {/* Title */}
-              <h1 className="font-display text-4xl lg:text-5xl font-semibold leading-tight text-[#1E4030]">
+              <h1 className="font-display text-4xl lg:text-5xl xl:text-6xl font-semibold leading-tight tracking-tight text-[#1E4030]">
                 Trusted services <br />
                 <span className="text-[#E29578]">for your everyday needs</span>
               </h1>
@@ -197,7 +203,7 @@ export default function Landing({ onNavigate }) {
               <div className="flex flex-col sm:flex-row gap-4">
                 <button
                   onClick={() => onNavigate("search")}
-                  className="bg-[#1E4030] text-white hover:bg-[#152e22] px-8 py-3.5 rounded-full font-semibold text-sm transition-colors text-center"
+                  className="bg-[#1E4030] text-white hover:bg-[#152e22] px-8 py-4 rounded-full font-bold text-sm transition-all text-center shadow-lg hover:shadow-xl"
                 >
                   Find a provider
                 </button>
@@ -213,7 +219,7 @@ export default function Landing({ onNavigate }) {
               <div className="border-t border-[#E2D9CF] pt-6 mt-8">
                 <div className="flex flex-wrap items-center gap-6 lg:gap-8">
                   <div>
-                    <div className="font-display text-2xl font-bold text-[#1E4030]">
+                    <div className="font-display text-3xl font-bold text-[#1E4030]">
                       847
                     </div>
                     <div className="text-[#8A7E74] text-xs mt-0.5">
@@ -222,8 +228,8 @@ export default function Landing({ onNavigate }) {
                   </div>
                   <div className="hidden sm:block w-[1px] h-8 bg-[#E2D9CF]"></div>
                   <div>
-                    <div className="font-display text-2xl font-bold text-[#1E4030]">
-                      4.8★
+                    <div className="font-display text-3xl font-bold text-[#1E4030]">
+                      4.8â˜…
                     </div>
                     <div className="text-[#8A7E74] text-xs mt-0.5">
                       Average rating
@@ -231,7 +237,7 @@ export default function Landing({ onNavigate }) {
                   </div>
                   <div className="hidden sm:block w-[1px] h-8 bg-[#E2D9CF]"></div>
                   <div>
-                    <div className="font-display text-2xl font-bold text-[#1E4030]">
+                    <div className="font-display text-3xl font-bold text-[#1E4030]">
                       2,400+
                     </div>
                     <div className="text-[#8A7E74] text-xs mt-0.5">
@@ -370,14 +376,14 @@ export default function Landing({ onNavigate }) {
             Find the right provider for your needs
           </p>
         </div>
-        <div className="grid md:grid-cols-3 gap-6">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
           {SERVICES.map(({ key, title, desc, cta, Icon }) => {
             const meta = SPECIALTY_META[key];
             return (
               <div
                 key={key}
                 onClick={() => onNavigate("search")}
-                className="bg-card rounded-2xl border border-border p-6 cursor-pointer hover:border-primary/40 hover:shadow-lg transition-all group"
+                className="bg-card rounded-2xl border border-border p-6 cursor-pointer hover:border-primary/40 hover:shadow-xl hover:-translate-y-0.5 transition-all duration-200 group"
               >
                 <div
                   className="w-12 h-12 rounded-xl flex items-center justify-center mb-4"
@@ -415,7 +421,7 @@ export default function Landing({ onNavigate }) {
               Trust at the heart of every booking
             </p>
           </div>
-          <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-6">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
             {TRUST_POINTS.map(({ Icon, title, desc }) => (
               <div
                 key={title}
@@ -583,7 +589,7 @@ export default function Landing({ onNavigate }) {
                     </div>
                     <div>
                       <p className="font-semibold text-sm text-white">
-                        Thierry &amp; Aimée Fotso
+                        Thierry &amp; AimÃ©e Fotso
                       </p>
                       <p className="text-white/50 text-[11px]">Douala</p>
                     </div>
@@ -597,7 +603,7 @@ export default function Landing({ onNavigate }) {
 
       {/* CTA Section */}
       <section className="max-w-7xl mx-auto px-6 lg:px-12 py-12">
-        <div className="bg-[#EFECE6] rounded-[32px] px-8 py-16 text-center">
+        <div className="bg-gradient-to-br from-[#EFECE6] to-[#E0D8CE] rounded-[32px] px-8 py-20 text-center">
           <h2 className="font-display text-3xl lg:text-4xl font-semibold text-[#1E4030] mb-4">
             Ready to find your caregiver?
           </h2>
@@ -866,3 +872,7 @@ export default function Landing({ onNavigate }) {
     </div>
   );
 }
+
+
+
+

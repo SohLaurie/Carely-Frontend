@@ -1,14 +1,25 @@
-import React from 'react';
+﻿import React, { useState } from 'react';
 import HouseholdLayout from './layout/HouseholdLayout';
 import ExploreTab from './components/ExploreTab';
+import DiscussionsTab from './components/DiscussionsTab';
 import RequestsTab from './components/RequestsTab';
 import BookingsTab from './components/BookingsTab';
 import NotificationsTab from './components/NotificationsTab';
 import SavedTab from './components/SavedTab';
+import ProfileTab from './components/ProfileTab';
+
+// Workflow Screens (Rendered inside the Household layout!)
+import BookingForm from './screens/BookingForm';
+import RequestPending from './screens/RequestPending';
+import Payment from './screens/Payment';
+import BookingConfirmed from './screens/BookingConfirmed';
+import OTPArrival from './screens/OTPArrival';
+import Completion from './screens/Completion';
+import RateReview from './screens/RateReview';
 
 import { useHouseholdDashboard } from './hooks/useHouseholdDashboard';
 
-export default function HouseholdDashboard({ onNavigate, screenParams }) {
+export default function HouseholdDashboard({ onNavigate: topNavigate, screenParams }) {
   const {
     activeTab,
     setActiveTab,
@@ -54,8 +65,43 @@ export default function HouseholdDashboard({ onNavigate, screenParams }) {
     deleteNotification,
     markAllNotificationsRead,
     archiveAllNotifications,
-    clearNotifications
+    clearNotifications,
+    addMessageNotification,
+    markAsReplied,
+    // Discussions
+    discussions,
+    activeDiscussionId,
+    setActiveDiscussionId,
+    sendMessage,
+    deleteDiscussion,
+    clearDiscussionChat,
+    deleteMessage,
+    openDiscussionWithCaregiver,
+    unreadMessagesCount
   } = useHouseholdDashboard(screenParams);
+
+  // Workflow state parameters (keeps booking data flowing seamlessly inside layout)
+  const [workflowParams, setWorkflowParams] = useState(screenParams || {});
+
+  // Internal navigator that keeps the Sidebar and TopNavbar visible
+  const handleInternalNavigate = (target, params = {}) => {
+    const internalTabs = [
+      'explore', 'discussions', 'requests', 'bookings',
+      'notifications', 'saved', 'profile', 'booking',
+      'pending', 'payment', 'confirmed', 'otp',
+      'completion', 'review', 'search'
+    ];
+
+    if (target === 'search') {
+      setActiveTab('explore');
+      setWorkflowParams(params);
+    } else if (internalTabs.includes(target)) {
+      setActiveTab(target);
+      setWorkflowParams(prev => ({ ...prev, ...params }));
+    } else if (topNavigate) {
+      topNavigate(target, params);
+    }
+  };
 
   return (
     <HouseholdLayout
@@ -66,9 +112,15 @@ export default function HouseholdDashboard({ onNavigate, screenParams }) {
       pendingRequestsCount={requests.filter(r => r.status === 'Pending' || r.status === 'Accepted').length}
       pendingBookingsCount={bookings.filter(b => b.status === 'Confirmed').length}
       unreadNotificationsCount={unreadCount}
-      onNavigate={onNavigate}
+      unreadMessagesCount={unreadMessagesCount}
+      onNavigate={handleInternalNavigate}
+      notifications={notifications}
+      readToggleNotification={readToggleNotification}
+      deleteNotification={deleteNotification}
+      clearNotifications={clearNotifications}
+      openDiscussionWithCaregiver={openDiscussionWithCaregiver}
     >
-      {/* Explore view tab */}
+      {/* 1. Explore Tab */}
       {activeTab === 'explore' && (
         <ExploreTab
           selectedId={selectedId}
@@ -94,32 +146,48 @@ export default function HouseholdDashboard({ onNavigate, screenParams }) {
           aiLoading={aiLoading}
           aiResult={aiResult}
           handleAiRecommend={handleAiRecommend}
-          onNavigate={onNavigate}
+          onNavigate={handleInternalNavigate}
+          openDiscussionWithCaregiver={openDiscussionWithCaregiver}
         />
       )}
 
-      {/* Requests tab */}
+      {/* 2. Discussions Tab (WhatsApp style messaging) */}
+      {activeTab === 'discussions' && (
+        <DiscussionsTab
+          discussions={discussions}
+          activeDiscussionId={activeDiscussionId}
+          setActiveDiscussionId={setActiveDiscussionId}
+          sendMessage={sendMessage}
+          deleteDiscussion={deleteDiscussion}
+          clearDiscussionChat={clearDiscussionChat}
+          deleteMessage={deleteMessage}
+          onNavigate={handleInternalNavigate}
+        />
+      )}
+
+      {/* 3. Requests Tab */}
       {activeTab === 'requests' && (
         <RequestsTab
           requests={requests}
           activeDropdownId={activeDropdownId}
           setActiveDropdownId={setActiveDropdownId}
           cancelDeleteRequest={cancelDeleteRequest}
-          onNavigate={onNavigate}
+          onNavigate={handleInternalNavigate}
+          openDiscussionWithCaregiver={openDiscussionWithCaregiver}
         />
       )}
 
-      {/* Bookings tab */}
+      {/* 4. Bookings Tab */}
       {activeTab === 'bookings' && (
         <BookingsTab
           bookings={bookings}
           activeBookingDropdownId={activeBookingDropdownId}
           setActiveBookingDropdownId={setActiveBookingDropdownId}
-          onNavigate={onNavigate}
+          onNavigate={handleInternalNavigate}
         />
       )}
 
-      {/* Notifications tab */}
+      {/* 5. Notifications Tab */}
       {activeTab === 'notifications' && (
         <NotificationsTab
           notifications={notifications}
@@ -133,14 +201,80 @@ export default function HouseholdDashboard({ onNavigate, screenParams }) {
           markAllNotificationsRead={markAllNotificationsRead}
           archiveAllNotifications={archiveAllNotifications}
           clearNotifications={clearNotifications}
+          addMessageNotification={addMessageNotification}
+          markAsReplied={markAsReplied}
+          openDiscussionWithCaregiver={openDiscussionWithCaregiver}
         />
       )}
 
-      {/* Saved tab */}
+      {/* 6. Saved Caregivers Tab */}
       {activeTab === 'saved' && (
         <SavedTab
           setSelectedId={setSelectedId}
           setActiveTab={setActiveTab}
+        />
+      )}
+
+      {/* 7. Current User Profile Tab */}
+      {activeTab === 'profile' && (
+        <ProfileTab
+          onNavigate={handleInternalNavigate}
+        />
+      )}
+
+      {/* 8. Booking Form (Inside Dashboard Layout) */}
+      {activeTab === 'booking' && (
+        <BookingForm
+          onNavigate={handleInternalNavigate}
+          screenParams={workflowParams}
+        />
+      )}
+
+      {/* 9. Request Pending (Inside Dashboard Layout) */}
+      {activeTab === 'pending' && (
+        <RequestPending
+          onNavigate={handleInternalNavigate}
+          screenParams={workflowParams}
+        />
+      )}
+
+      {/* 10. Payment (Inside Dashboard Layout) */}
+      {activeTab === 'payment' && (
+        <Payment
+          onNavigate={handleInternalNavigate}
+          screenParams={workflowParams}
+        />
+      )}
+
+      {/* 11. Booking Confirmed (Inside Dashboard Layout) */}
+      {activeTab === 'confirmed' && (
+        <BookingConfirmed
+          onNavigate={handleInternalNavigate}
+          screenParams={workflowParams}
+        />
+      )}
+
+      {/* 12. Arrival OTP Verification (Inside Dashboard Layout) */}
+      {activeTab === 'otp' && (
+        <OTPArrival
+          onNavigate={handleInternalNavigate}
+          screenParams={workflowParams}
+        />
+      )}
+
+      {/* 13. Completion & Escrow Release (Inside Dashboard Layout) */}
+      {activeTab === 'completion' && (
+        <Completion
+          onNavigate={handleInternalNavigate}
+          screenParams={workflowParams}
+        />
+      )}
+
+      {/* 14. Rate & Review (Inside Dashboard Layout) */}
+      {activeTab === 'review' && (
+        <RateReview
+          onNavigate={handleInternalNavigate}
+          screenParams={workflowParams}
         />
       )}
     </HouseholdLayout>

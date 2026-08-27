@@ -1,4 +1,4 @@
-// Shared data — specialty icons are handled in components via lucide-react
+﻿// Shared data — specialty icons are handled in components via lucide-react
 
 export const SPECIALTY_META = {
   nursing: {
@@ -8,16 +8,52 @@ export const SPECIALTY_META = {
     iconName: 'stethoscope',
   },
   babysitting: {
-    label: 'Babysitting',
+    label: 'Babysitting & Childcare',
     color: '#6D28D9',
     bg: '#F5F3FF',
     iconName: 'baby',
   },
   cleaning: {
-    label: 'Domestic Cleaning',
+    label: 'Indoor Cleaning',
     color: '#059669',
     bg: '#ECFDF5',
     iconName: 'sparkles',
+  },
+  outdoor_cleaning: {
+    label: 'Outdoor Cleaning',
+    color: '#0284C7',
+    bg: '#F0F9FF',
+    iconName: 'droplets',
+  },
+  gardening: {
+    label: 'Gardening & Lawn Care',
+    color: '#15803D',
+    bg: '#F0FDF4',
+    iconName: 'leaf',
+  },
+  pet_care: {
+    label: 'Pet Care & Walking',
+    color: '#D97706',
+    bg: '#FFFBEB',
+    iconName: 'heart',
+  },
+  elderly_care: {
+    label: 'Elderly Care',
+    color: '#BE185D',
+    bg: '#FDF2F8',
+    iconName: 'user-check',
+  },
+  laundry_ironing: {
+    label: 'Laundry & Ironing',
+    color: '#4F46E5',
+    bg: '#EEF2FF',
+    iconName: 'shirt',
+  },
+  cooking: {
+    label: 'Cooking & Meal Prep',
+    color: '#EA580C',
+    bg: '#FFF7ED',
+    iconName: 'utensils',
   },
 }
 
@@ -104,6 +140,66 @@ export const CAREGIVERS = [
     serviceArea: 'Douala — 12 km radius',
     reviews: [
       { author: 'Essomba Family', rating: 5, date: 'June 2025', comment: 'Paul accompanied our father during recovery with great humanity. He explains every procedure and reassures the family.' },
+    ],
+  },
+  {
+    id: '5',
+    name: 'Samuel Eto’o Nkodo',
+    specialty: 'gardening',
+    rating: 4.9,
+    reviewCount: 42,
+    pricePerHour: 2500,
+    location: 'Mvan, Yaounde',
+    photo: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=400&h=400&fit=crop&auto=format',
+    bio: 'Professional gardener and landscaper with 7 years of experience. Specializing in lawn grooming, hedge trimming, flower planting, and organic garden maintenance across Yaounde.',
+    certifications: ['ID Verified', 'Horticulture Certificate', 'References Checked'],
+    available: true,
+    languages: ['French', 'English'],
+    responseTime: '< 1h',
+    experience: 7,
+    serviceArea: 'Yaounde — 15 km radius',
+    reviews: [
+      { author: 'Abena Pierre', rating: 5, date: 'August 2025', comment: 'Transformed our front yard completely! Very reliable and neat.' },
+    ],
+  },
+  {
+    id: '6',
+    name: 'Nathalie Eyenga',
+    specialty: 'pet_care',
+    rating: 4.8,
+    reviewCount: 38,
+    pricePerHour: 2000,
+    location: 'Bonamoussadi, Douala',
+    photo: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=400&h=400&fit=crop&auto=format',
+    bio: 'Passionate animal caregiver with 4+ years of veterinary assistant experience. Specializing in dog walking, feeding routines, medication administration, and loving companionship while families travel.',
+    certifications: ['ID Verified', 'Vet Assistant Diploma', 'Pet First Aid'],
+    available: true,
+    languages: ['French', 'English'],
+    responseTime: '< 2h',
+    experience: 4,
+    serviceArea: 'Douala — 10 km radius',
+    reviews: [
+      { author: 'Chantal M.', rating: 5, date: 'July 2025', comment: 'Our two dogs adore Nathalie. She sends updates with photos during every visit.' },
+    ],
+  },
+  {
+    id: '7',
+    name: 'Chef Brigitte Manga',
+    specialty: 'cooking',
+    rating: 4.9,
+    reviewCount: 56,
+    pricePerHour: 3000,
+    location: 'Bonapriso, Douala',
+    photo: 'https://images.unsplash.com/photo-1567532939604-b6b5b0db2604?w=400&h=400&fit=crop&auto=format',
+    bio: 'Professional home chef and dietary nutritionist with 9 years of culinary experience. Specializing in Cameroonian traditional meals, healthy diabetic/low-sodium diets, and weekly family meal prepping.',
+    certifications: ['ID Verified', 'Culinary Arts Diploma', 'Hygiene & Food Safety'],
+    available: true,
+    languages: ['French', 'English', 'Duala'],
+    responseTime: '< 1h',
+    experience: 9,
+    serviceArea: 'Douala — 15 km radius',
+    reviews: [
+      { author: 'Kouam Family', rating: 5, date: 'August 2025', comment: 'Brigitte cooks the most exquisite and healthy family meals. Highly recommended!' },
     ],
   },
 ]

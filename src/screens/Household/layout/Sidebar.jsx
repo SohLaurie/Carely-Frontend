@@ -1,5 +1,5 @@
-import React from 'react';
-import { Compass, ClipboardList, Calendar, Bell, Heart, User, LogOut, X } from 'lucide-react';
+﻿import React from 'react';
+import { Compass, ClipboardList, Calendar, Bell, Heart, User, LogOut, X, MessageSquare } from 'lucide-react';
 
 export default function Sidebar({
   activeTab,
@@ -9,10 +9,12 @@ export default function Sidebar({
   pendingRequestsCount = 2,
   pendingBookingsCount = 1,
   unreadNotificationsCount = 4,
+  unreadMessagesCount = 1,
   onNavigate
 }) {
   const menuItems = [
     { id: 'explore', label: 'Explore', Icon: Compass },
+    { id: 'discussions', label: 'Discussions', Icon: MessageSquare, badge: unreadMessagesCount },
     { id: 'requests', label: 'Requests', Icon: ClipboardList, badge: pendingRequestsCount },
     { id: 'bookings', label: 'Bookings', Icon: Calendar, badge: pendingBookingsCount },
     { id: 'notifications', label: 'Notifications', Icon: Bell, badge: unreadNotificationsCount },
@@ -28,7 +30,13 @@ export default function Sidebar({
       >
         {/* Header Branding */}
         <div className="p-6 border-b border-white/10 flex items-center justify-between">
-          <div className="flex items-center gap-3">
+          <div
+            className="flex items-center gap-3 cursor-pointer"
+            onClick={() => {
+              setActiveTab('explore');
+              setSidebarOpen(false);
+            }}
+          >
             <div className="w-10 h-10 bg-[#1E4030] rounded-xl flex items-center justify-center border border-white/10 shadow-sm">
               <Heart size={18} className="fill-white text-[#1E4030]" />
             </div>
@@ -76,14 +84,21 @@ export default function Sidebar({
           })}
         </nav>
 
-        {/* Footer Configuration */}
+        {/* Footer Configuration: Profile stays inside dashboard layout! */}
         <div className="p-4 border-t border-white/10 space-y-1">
           <button
-            onClick={() => onNavigate('profile')}
-            className="w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium text-white/50 hover:text-white hover:bg-white/5 transition-all cursor-pointer"
+            onClick={() => {
+              setActiveTab('profile');
+              setSidebarOpen(false);
+            }}
+            className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium transition-all cursor-pointer ${
+              activeTab === 'profile'
+                ? 'bg-white/10 text-white shadow-sm font-semibold'
+                : 'text-white/50 hover:text-white hover:bg-white/5'
+            }`}
           >
             <User size={18} />
-            <span>Profile</span>
+            <span>My Profile</span>
           </button>
           <button
             onClick={() => onNavigate('landing')}
@@ -99,8 +114,8 @@ export default function Sidebar({
       {sidebarOpen && (
         <div
           onClick={() => setSidebarOpen(false)}
-          className="fixed inset-0 bg-black/40 z-40 lg:hidden"
-        ></div>
+          className="fixed inset-0 z-40 bg-black/60 backdrop-blur-xs lg:hidden"
+        />
       )}
     </>
   );
