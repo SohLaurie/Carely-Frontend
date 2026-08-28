@@ -1,9 +1,13 @@
 import React from 'react'
 import { CAREGIVER_CONSTANTS } from '../constants/dashboardConstants'
 
-export default function ProfileDropdown() {
+export default function ProfileDropdown({ onClick }) {
   return (
-    <div className="flex items-center gap-2 bg-[#FAF8F5] border border-[#E2D9CF] pl-1.5 pr-3.5 py-1 rounded-full">
+    <button
+      type="button"
+      onClick={onClick}
+      className="flex items-center gap-2 bg-[#FAF8F5] border border-[#E2D9CF] pl-1.5 pr-3.5 py-1 rounded-full cursor-pointer hover:border-[#1E4030] transition-colors"
+    >
       <img
         src={CAREGIVER_CONSTANTS.DEFAULT_AVATAR}
         alt={CAREGIVER_CONSTANTS.DEFAULT_FULL_NAME}
@@ -12,6 +16,6 @@ export default function ProfileDropdown() {
       <span className="text-xs font-semibold text-[#1C1A17] hidden md:inline">
         {CAREGIVER_CONSTANTS.DEFAULT_CAREGIVER_NAME}
       </span>
-    </div>
+    </button>
   )
 }

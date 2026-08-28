@@ -8,6 +8,10 @@ export default function CaregiverLayout({
   sidebarOpen,
   setSidebarOpen,
   notificationsCount = 5,
+  notifications = [],
+  onMarkRead,
+  onMarkAllRead,
+  onReplyClick,
   onNavigate,
   children
 }) {
@@ -29,7 +33,12 @@ export default function CaregiverLayout({
           activeTab={activeTab}
           setSidebarOpen={setSidebarOpen}
           notificationsCount={notificationsCount}
-          onBellClick={() => setActiveTab('notifications')}
+          notifications={notifications}
+          onMarkRead={onMarkRead}
+          onMarkAllRead={onMarkAllRead}
+          onReplyClick={onReplyClick}
+          onViewAllNotifications={() => setActiveTab('notifications')}
+          onProfileClick={() => setActiveTab('profile')}
         />
 
         {/* Content body */}

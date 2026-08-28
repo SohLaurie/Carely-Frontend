@@ -24,6 +24,7 @@ export function useAdminDashboard() {
   const [selectedApplication, setSelectedApplication] = useState(null);
   const [selectedDispute, setSelectedDispute] = useState(null);
   const [selectedUser, setSelectedUser] = useState(null);
+  const [selectedBooking, setSelectedBooking] = useState(null);
   const [editUserModalOpen, setEditUserModalOpen] = useState(false);
 
   // Filtering & Search
@@ -141,6 +142,17 @@ export function useAdminDashboard() {
     }));
   };
 
+  const toggleUser2FA = (userId) => {
+    setUsers(prev => prev.map(u => {
+      if (u.id === userId) {
+        const nextState = !u.twoFactor;
+        addActivity(`User 2FA ${nextState ? 'Enabled' : 'Disabled'}`, `${u.name} 2FA security status updated`, 'completed');
+        return { ...u, twoFactor: nextState };
+      }
+      return u;
+    }));
+  };
+
   const deleteUser = (userId) => {
     const user = users.find(u => u.id === userId);
     if (user) {
@@ -177,6 +189,8 @@ export function useAdminDashboard() {
     setSelectedDispute,
     selectedUser,
     setSelectedUser,
+    selectedBooking,
+    setSelectedBooking,
     editUserModalOpen,
     setEditUserModalOpen,
     appSearchQuery,
@@ -199,6 +213,7 @@ export function useAdminDashboard() {
     askForInfo,
     resolveDispute,
     toggleUserStatus,
+    toggleUser2FA,
     deleteUser,
     editUser
   };

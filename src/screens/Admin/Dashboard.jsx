@@ -8,10 +8,12 @@ import BookingsTab from './components/BookingsTab';
 import PaymentsTab from './components/PaymentsTab';
 import AnalyticsTab from './components/AnalyticsTab';
 import SettingsTab from './components/SettingsTab';
+import AdminProfileTab from './components/AdminProfileTab';
 
 import ReviewApplicationModal from './components/ReviewApplicationModal';
 import DisputeModal from './components/DisputeModal';
 import UserModal from './components/UserModal';
+import AdminBookingModal from './components/AdminBookingModal';
 
 import { useAdminDashboard } from './hooks/useAdminDashboard';
 
@@ -33,6 +35,8 @@ export default function AdminDashboard({ onNavigate }) {
     setSelectedDispute,
     selectedUser,
     setSelectedUser,
+    selectedBooking,
+    setSelectedBooking,
     editUserModalOpen,
     setEditUserModalOpen,
     appSearchQuery,
@@ -55,6 +59,7 @@ export default function AdminDashboard({ onNavigate }) {
     askForInfo,
     resolveDispute,
     toggleUserStatus,
+    toggleUser2FA,
     deleteUser,
     editUser
   } = useAdminDashboard();
@@ -122,13 +127,18 @@ export default function AdminDashboard({ onNavigate }) {
           userStatusFilter={userStatusFilter}
           setUserStatusFilter={setUserStatusFilter}
           toggleUserStatus={toggleUserStatus}
+          toggleUser2FA={toggleUser2FA}
           deleteUser={deleteUser}
         />
       )}
 
       {/* Bookings tab */}
       {activeTab === 'bookings' && (
-        <BookingsTab bookings={bookings} setSelectedUser={setSelectedUser} />
+        <BookingsTab
+          bookings={bookings}
+          setSelectedUser={setSelectedUser}
+          onSelectBooking={setSelectedBooking}
+        />
       )}
 
       {/* Payments tab */}
@@ -148,31 +158,7 @@ export default function AdminDashboard({ onNavigate }) {
 
       {/* Profile tab view details */}
       {activeTab === 'profile' && (
-        <div className="bg-white border border-[#E2D9CF] rounded-2xl p-6 shadow-sm space-y-4 max-w-md">
-          <h3 className="font-display text-lg font-bold text-[#1C1A17]">System Admin Configuration</h3>
-          <div className="divide-y divide-[#EFECE6] text-xs">
-            <div className="py-3 flex justify-between">
-              <span className="text-[#8A7E74]">Admin Name</span>
-              <strong className="text-[#1C1A17]">Samuel Ntamack</strong>
-            </div>
-            <div className="py-3 flex justify-between">
-              <span className="text-[#8A7E74]">Access Credentials</span>
-              <strong className="text-[#1C1A17]">System Administrator (Super)</strong>
-            </div>
-            <div className="py-3 flex justify-between">
-              <span className="text-[#8A7E74]">Security Auth Tokens</span>
-              <span className="bg-green-100 text-green-800 text-[9px] font-bold px-2 py-0.5 rounded-full border border-green-200">
-                MFA Verified
-              </span>
-            </div>
-          </div>
-          <button
-            onClick={() => setActiveTab('overview')}
-            className="w-full bg-[#1E4030] hover:bg-[#152e22] text-white font-semibold text-xs py-2 rounded-xl transition-all shadow-sm"
-          >
-            Return to console
-          </button>
-        </div>
+        <AdminProfileTab onNavigate={onNavigate} />
       )}
 
       {/* MODALS RENDERING */}
@@ -198,6 +184,12 @@ export default function AdminDashboard({ onNavigate }) {
           setEditUserModalOpen(false);
         }}
         onSave={editUser}
+      />
+
+      <AdminBookingModal
+        booking={selectedBooking}
+        onClose={() => setSelectedBooking(null)}
+        onSelectUser={setSelectedUser}
       />
     </AdminLayout>
   );

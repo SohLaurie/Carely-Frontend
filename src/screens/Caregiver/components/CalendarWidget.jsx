@@ -1,72 +1,97 @@
 import React from 'react'
-import { ArrowRight, Sparkles } from 'lucide-react'
+import { ArrowRight, Sparkles, ChevronLeft, ChevronRight } from 'lucide-react'
 
 export default function CalendarWidget({
   onFullViewClick,
   selectedDay,
   setSelectedDay,
-  dayStates
+  dayStates = {},
+  calendarDate = new Date(2026, 10, 1),
+  onPrevMonth,
+  onNextMonth
 }) {
+  const year = calendarDate.getFullYear()
+  const month = calendarDate.getMonth()
+  const monthName = calendarDate.toLocaleString('default', { month: 'long', year: 'numeric' })
+
+  const firstDayIndex = new Date(year, month, 1).getDay()
+  const totalDays = new Date(year, month + 1, 0).getDate()
+
   return (
     <div className="bg-white border border-[#E2D9CF] rounded-3xl p-5 shadow-sm space-y-4 relative">
-      <div className="flex justify-between items-center">
-        <h3 className="font-semibold text-[#1C1A17] text-xs uppercase tracking-wider">Calendar</h3>
+      <div className="flex justify-between items-center pb-2 border-b border-[#F0EBE5]">
+        <h3 className="font-bold text-[#1C1A17] text-xs uppercase tracking-wider">Calendar</h3>
         <button
           onClick={onFullViewClick}
-          className="text-xs text-[#1E4030] font-bold flex items-center gap-0.5 hover:underline"
+          className="text-xs text-[#1E4030] font-bold flex items-center gap-0.5 hover:underline cursor-pointer"
         >
           <span>Full view</span>
           <ArrowRight size={12} />
         </button>
       </div>
+
       <div>
-        <h4 className="text-xs text-[#8A7E74] font-semibold mb-3">November 2026</h4>
+        <div className="flex items-center justify-between mb-3">
+          <h4 className="text-xs font-bold text-[#1C1A17]">{monthName}</h4>
+          <div className="flex items-center gap-1">
+            <button
+              onClick={onPrevMonth}
+              title="Previous month"
+              className="w-6 h-6 rounded-full border border-[#E2D9CF] bg-[#FAF8F5] text-[#1E4030] flex items-center justify-center hover:bg-[#1E4030] hover:text-white transition-colors cursor-pointer"
+            >
+              <ChevronLeft size={13} />
+            </button>
+            <button
+              onClick={onNextMonth}
+              title="Next month"
+              className="w-6 h-6 rounded-full border border-[#E2D9CF] bg-[#FAF8F5] text-[#1E4030] flex items-center justify-center hover:bg-[#1E4030] hover:text-white transition-colors cursor-pointer"
+            >
+              <ChevronRight size={13} />
+            </button>
+          </div>
+        </div>
         
         {/* Days label row */}
         <div className="grid grid-cols-7 text-center text-[10px] text-[#8A7E74] font-bold mb-2">
           <span>S</span><span>M</span><span>T</span><span>W</span><span>T</span><span>F</span><span>S</span>
         </div>
 
-        {/* Calendar Grid Numbers */}
+        {/* Dynamic Calendar Grid Numbers */}
         <div className="grid grid-cols-7 gap-1 text-center text-xs font-semibold">
-          <span className="text-[#8A7E74]/30 py-1">26</span>
-          <span className="text-[#8A7E74]/30 py-1">27</span>
-          <span className="text-[#8A7E74]/30 py-1">28</span>
-          <span className="text-[#8A7E74]/30 py-1">29</span>
-          <span className="text-[#8A7E74]/30 py-1">30</span>
-          <span className="text-[#8A7E74]/30 py-1">31</span>
-          <span className="py-1 text-[#8A7E74]">1</span>
-          
-          {/* Highlighted Booked / Blocked / Available days */}
-          <span className="py-1 bg-[#EDF7F2] text-[#1E4030] rounded-full border border-green-200">2</span>
-          <span className="py-1 text-[#1C1A17]">3</span>
-          <span className="py-1 bg-amber-100 text-amber-800 rounded-full border border-amber-300 font-bold">4</span>
-          <span className="py-1 bg-[#EDF7F2] text-[#1E4030] rounded-full border border-green-200">5</span>
-          <span className="py-1 bg-[#EDF7F2] text-[#1E4030] rounded-full border border-green-200">6</span>
-          <span className="py-1 text-[#1C1A17]">7</span>
-          <span className="py-1 bg-[#EDF7F2] text-[#1E4030] rounded-full border border-green-200">8</span>
-          <span className="py-1 text-[#1C1A17]">9</span>
-          <span className="py-1 text-[#1C1A17]">10</span>
-          <span className="py-1 text-red-650 line-through">11</span>
-          <span className="py-1 bg-[#EDF7F2] text-[#1E4030] rounded-full border border-green-200">12</span>
-          <span className="py-1 text-[#1C1A17]">13</span>
-          <span className="py-1 bg-[#EDF7F2] text-[#1E4030] rounded-full border border-green-200">14</span>
-          <span className="py-1 text-[#1C1A17]">15</span>
-          <span className="py-1 text-[#1C1A17]">16</span>
-          <span className="py-1 text-[#1C1A17]">17</span>
-          <span className="py-1 text-red-650 line-through">18</span>
-          <span className="py-1 bg-[#EDF7F2] text-[#1E4030] rounded-full border border-green-200">19</span>
-          <span className="py-1 text-[#1C1A17]">20</span>
-          <span className="py-1 bg-[#EDF7F2] text-[#1E4030] rounded-full border border-green-200">21</span>
-          <span className="py-1 text-[#1C1A17]">22</span>
-          <span className="py-1 text-[#1C1A17]">23</span>
-          <span className="py-1 text-[#1C1A17]">24</span>
-          <span className="py-1 text-red-650 line-through">25</span>
-          <span className="py-1 bg-[#EDF7F2] text-[#1E4030] rounded-full border border-green-200">26</span>
-          <span className="py-1 text-[#1C1A17]">27</span>
-          <span className="py-1 text-[#1C1A17]">28</span>
-          <span className="py-1 text-[#1C1A17]">29</span>
-          <span className="py-1 text-[#1C1A17]">30</span>
+          {Array.from({ length: firstDayIndex }).map((_, i) => (
+            <span key={`empty-${i}`} className="py-1 text-[#8A7E74]/20">&middot;</span>
+          ))}
+
+          {Array.from({ length: totalDays }).map((_, idx) => {
+            const dayNum = idx + 1
+            const isBooked = [2, 5, 6, 8, 12, 14, 19, 21, 26].includes(dayNum) && month === 10
+            const isRecurring = [4, 11, 18, 25].includes(dayNum) && month === 10
+            const isBlocked = [15, 22, 29].includes(dayNum) && month === 10
+            const isSelected = selectedDay === dayNum
+
+            let dayStyle = 'text-[#1C1A17] hover:bg-[#FAF8F5]'
+            if (isBooked) {
+              dayStyle = 'bg-[#1E4030] text-white rounded-full font-bold shadow-xs'
+            } else if (isRecurring) {
+              dayStyle = 'bg-amber-100 text-amber-900 rounded-full border border-amber-300 font-bold'
+            } else if (isBlocked) {
+              dayStyle = 'text-red-500/80 line-through'
+            }
+
+            if (isSelected) {
+              dayStyle += ' ring-2 ring-amber-500'
+            }
+
+            return (
+              <button
+                key={dayNum}
+                onClick={() => setSelectedDay(dayNum)}
+                className={`py-1 rounded-full transition-all cursor-pointer ${dayStyle}`}
+              >
+                {dayNum}
+              </button>
+            )
+          })}
         </div>
 
         {/* Legend */}
@@ -85,11 +110,6 @@ export default function CalendarWidget({
           </span>
         </div>
       </div>
-
-      {/* Floating plus action button inside calendar */}
-      <button className="absolute bottom-11 right-5 w-8 h-8 rounded-full bg-[#1E4030] text-white hover:bg-[#152e22] flex items-center justify-center shadow-lg transition-transform hover:scale-105">
-        <Sparkles size={13} />
-      </button>
     </div>
   )
 }

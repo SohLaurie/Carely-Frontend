@@ -11,13 +11,19 @@ export default function IncomingRequests({
   showViewAll = true
 }) {
   return (
-    <div className="bg-white border border-[#E2D9CF] rounded-2xl p-5 shadow-sm space-y-4">
-      <div className="flex justify-between items-center">
-        <h3 className="font-semibold text-[#1C1A17] text-sm">Incoming Requests</h3>
+    <div className="bg-white border border-[#E2D9CF] rounded-3xl p-6 shadow-sm space-y-4">
+      <div className="flex justify-between items-center pb-2 border-b border-[#F0EBE5]">
+        <div className="flex items-center gap-2">
+          <ClipboardList size={18} className="text-[#1E4030]" />
+          <h3 className="font-bold text-[#1C1A17] text-sm">Incoming Requests</h3>
+          <span className="text-[10px] bg-[#EDF7F2] text-[#1E4030] font-bold px-2 py-0.5 rounded-full border border-green-200">
+            {requests.length} New
+          </span>
+        </div>
         {showViewAll && (
           <button
             onClick={onViewAllClick}
-            className="text-xs text-[#1E4030] font-bold flex items-center gap-1 hover:underline"
+            className="text-xs text-[#1E4030] font-bold flex items-center gap-1 hover:underline cursor-pointer"
           >
             <span>View all</span>
             <ArrowRight size={12} />
@@ -25,7 +31,7 @@ export default function IncomingRequests({
         )}
       </div>
 
-      <div className="divide-y divide-[#E2D9CF]">
+      <div className="space-y-3.5 pt-1">
         {requests.map(r => (
           <RequestCard
             key={r.id}

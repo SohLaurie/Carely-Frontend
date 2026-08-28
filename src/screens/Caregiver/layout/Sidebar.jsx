@@ -17,7 +17,8 @@ export default function Sidebar({
     calendar: Clock,
     earnings: Wallet,
     reviews: Star,
-    notifications: Bell
+    notifications: Bell,
+    profile: User
   }
 
   return (
@@ -31,7 +32,7 @@ export default function Sidebar({
         <div className="p-6 border-b border-white/10 flex items-center justify-between">
           <div className="flex items-center gap-3">
             <div className="w-10 h-10 bg-[#1E4030] rounded-xl flex items-center justify-center border border-white/10 shadow-sm">
-              <HeartIcon size={18} className="fill-white text-[#1E4030]" />
+              <span className="font-display font-black text-lg text-white">C</span>
             </div>
             <div>
               <h2 className="font-display text-base font-bold text-white tracking-wide">
@@ -66,8 +67,8 @@ export default function Sidebar({
                   setActiveTab(id)
                   setSidebarOpen(false)
                 }}
-                className={`w-full flex items-center justify-between px-4 py-3 rounded-xl text-sm font-medium transition-all ${
-                  active ? 'bg-white/10 text-white shadow-sm' : 'text-white/50 hover:text-white hover:bg-white/5'
+                className={`w-full flex items-center justify-between px-4 py-3 rounded-xl text-sm font-medium transition-all cursor-pointer ${
+                  active ? 'bg-white/10 text-white shadow-sm font-semibold' : 'text-white/50 hover:text-white hover:bg-white/5'
                 }`}
               >
                 <div className="flex items-center gap-3">
@@ -86,13 +87,21 @@ export default function Sidebar({
 
         {/* Sidebar Footer */}
         <div className="p-4 border-t border-white/10 space-y-1">
-          <button className="w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium text-white/50 hover:text-white hover:bg-white/5 transition-all">
+          <button
+            onClick={() => {
+              setActiveTab('profile')
+              setSidebarOpen(false)
+            }}
+            className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium transition-all cursor-pointer ${
+              activeTab === 'profile' ? 'bg-white/10 text-white shadow-sm font-semibold' : 'text-white/50 hover:text-white hover:bg-white/5'
+            }`}
+          >
             <User size={18} />
-            <span>Profile</span>
+            <span>My Profile</span>
           </button>
           <button
             onClick={() => onNavigate && onNavigate('landing')}
-            className="w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium text-white/50 hover:text-white hover:bg-white/5 transition-all"
+            className="w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium text-white/50 hover:text-white hover:bg-white/5 transition-all cursor-pointer"
           >
             <LogOut size={18} />
             <span>Log out</span>

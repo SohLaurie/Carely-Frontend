@@ -1,5 +1,5 @@
 import React from 'react'
-import { Menu, Bell, ShieldCheck, ClipboardList, Calendar, Clock, Wallet, Star } from 'lucide-react'
+import { Menu, Bell, ShieldCheck, ClipboardList, Calendar, Clock, Wallet, Star, User } from 'lucide-react'
 import { CAREGIVER_CONSTANTS } from '../constants/dashboardConstants'
 import NotificationBell from '../components/NotificationBell'
 import ProfileDropdown from '../components/ProfileDropdown'
@@ -8,7 +8,12 @@ export default function TopNavbar({
   activeTab,
   setSidebarOpen,
   notificationsCount,
-  onBellClick
+  notifications = [],
+  onMarkRead,
+  onMarkAllRead,
+  onReplyClick,
+  onViewAllNotifications,
+  onProfileClick
 }) {
   const getHeaderInfo = () => {
     switch (activeTab) {
@@ -53,6 +58,12 @@ export default function TopNavbar({
           subtitle: 'Requests, messages, payouts and reminders.',
           Icon: Bell
         }
+      case 'profile':
+        return {
+          title: 'My Profile & Information',
+          subtitle: 'Manage your professional caregiver details, specialties, and contact credentials.',
+          Icon: User
+        }
       default:
         return {
           title: activeTab.charAt(0).toUpperCase() + activeTab.slice(1),
@@ -69,7 +80,7 @@ export default function TopNavbar({
       <div className="flex items-center gap-3">
         <button
           onClick={() => setSidebarOpen(true)}
-          className="lg:hidden text-[#1C1A17] hover:text-primary"
+          className="lg:hidden text-[#1C1A17] hover:text-primary cursor-pointer"
         >
           <Menu size={22} />
         </button>
@@ -98,11 +109,18 @@ export default function TopNavbar({
           <span className="font-medium">{CAREGIVER_CONSTANTS.BACKGROUND_CHECK_APPROVED}</span>
         </div>
 
-        {/* Notification bell component */}
-        <NotificationBell count={notificationsCount} onClick={onBellClick} />
+        {/* Notification bell popover component */}
+        <NotificationBell
+          count={notificationsCount}
+          notifications={notifications}
+          onMarkRead={onMarkRead}
+          onMarkAllRead={onMarkAllRead}
+          onReplyClick={onReplyClick}
+          onViewAll={onViewAllNotifications}
+        />
 
         {/* Profile Avatar dropdown component */}
-        <ProfileDropdown />
+        <ProfileDropdown onClick={onProfileClick} />
       </div>
     </header>
   )
