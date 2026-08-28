@@ -61,7 +61,7 @@ export const ADDRESSES = [
   { id: 'd28', full: 'Rond-Point Deido, Deido, Douala',              city: 'Douala' },
 ];
 
-export const EXTRA_TASKS = [
+export const CLEANING_EXTRAS = [
   { id: 'fridge',   label: 'Inside Fridge' },
   { id: 'oven',     label: 'Inside Oven' },
   { id: 'cabinets', label: 'Inside Cabinets' },
@@ -72,6 +72,41 @@ export const EXTRA_TASKS = [
   { id: 'laundry',  label: 'Laundry' },
   { id: 'flatlet',  label: 'Small Flatlet' },
 ];
+
+export const OUTDOOR_CLEANING_EXTRAS = [
+  { id: 'garden_care',      label: 'Garden Care' },
+  { id: 'general_cleaning', label: 'General Cleaning' },
+  { id: 'outside_windows',  label: 'Outside Windows' },
+  { id: 'heavy_lifting',    label: 'Heavy Lifting' },
+  { id: 'pool_cleaning',    label: 'Pool Cleaning' },
+  { id: 'car_washing',      label: 'Car Washing' },
+  { id: 'dog_walk_1h',      label: 'Dog Walking (1hour)' },
+  { id: 'dog_walk_30m',     label: 'Dog Walking (30min)' },
+];
+
+export const BABYSITTING_EXTRAS = [
+  { id: 'looking_after_kids', label: 'Looking after kids' },
+  { id: 'newborn_support',    label: 'Newborn support' },
+  { id: 'prep_snacks',        label: 'Preparing snacks & meals' },
+  { id: 'playtime',           label: 'Playtime' },
+  { id: 'kids_laundry',       label: 'Kids Laundry' },
+  { id: 'organising_kids',    label: 'Organising kids rooms' },
+];
+
+export const ELDER_CARE_EXTRAS = [
+  { id: 'light_cleaning',      label: 'Light Cleaning' },
+  { id: 'medication_admin',    label: 'Medication Admin' },
+  { id: 'trusted_companion',   label: 'Trusted Companion' },
+  { id: 'meal_prep',           label: 'Meal Preparation' },
+  { id: 'mobility_assistance', label: 'Mobility Assistance' },
+];
+
+export function getExtraTasksForService(serviceId) {
+  if (serviceId === 'outdoor-cleaning') return OUTDOOR_CLEANING_EXTRAS;
+  if (serviceId === 'babysitting') return BABYSITTING_EXTRAS;
+  if (serviceId === 'elder-care') return ELDER_CARE_EXTRAS;
+  return CLEANING_EXTRAS;
+}
 
 // ── 30-minute time slots 06:00 → 20:00 ───────────────────────────────────────
 export const TIME_SLOTS = [

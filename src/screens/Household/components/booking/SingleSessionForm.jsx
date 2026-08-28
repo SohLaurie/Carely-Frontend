@@ -1,8 +1,9 @@
 import React, { useState } from 'react';
-import { EXTRA_TASKS, TIME_SLOTS } from './bookingData';
+import { getExtraTasksForService, TIME_SLOTS } from './bookingData';
 import { TASK_ICON_MAP } from './ExtraTaskIcons';
 
 export default function SingleSessionForm({ data, onChange, onSubmit, onBack }) {
+  const extraTasks = getExtraTasksForService(data.service?.id);
   const [date, setDate]           = useState(data.date || '');
   const [startTime, setStartTime] = useState(data.startTime || '');
   const [endTime, setEndTime]     = useState(data.endTime || '');
@@ -62,7 +63,7 @@ export default function SingleSessionForm({ data, onChange, onSubmit, onBack }) 
       <div className="ssf-field">
         <label className="ssf-label">Extra Tasks <span className="ssf-optional">(Optional)</span></label>
         <div className="ssf-extras-grid">
-          {EXTRA_TASKS.map(task => {
+          {extraTasks.map(task => {
             const on = extras.includes(task.id);
             const Icon = TASK_ICON_MAP[task.id];
             return (

@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { Check, ChevronDown, ChevronUp } from 'lucide-react';
-import { DAYS_OF_WEEK, TIME_SLOTS, EXTRA_TASKS } from './bookingData';
+import { DAYS_OF_WEEK, TIME_SLOTS, getExtraTasksForService } from './bookingData';
 import CalendarPreview from './CalendarPreview';
 import { TASK_ICON_MAP } from './ExtraTaskIcons';
 
@@ -8,6 +8,7 @@ import { TASK_ICON_MAP } from './ExtraTaskIcons';
 const defaultDayConfig = () => ({ startTime: '08:00', endTime: '12:00', extras: [] });
 
 export default function DayScheduleSelector({ data, onChange, onSubmit, onBack }) {
+  const extraTasks = getExtraTasksForService(data.service?.id);
   // selectedDays: { mon: { startTime, endTime, extras }, ... }
   const [selectedDays, setSelectedDays] = useState(data.selectedDays || {});
   const [expandedDay, setExpandedDay]   = useState(null);
@@ -135,7 +136,7 @@ export default function DayScheduleSelector({ data, onChange, onSubmit, onBack }
                   {/* Extra tasks */}
                   <p className="dss-extras-title">Extra Tasks</p>
                   <div className="dss-extras-grid">
-                    {EXTRA_TASKS.map(task => {
+                    {extraTasks.map(task => {
                       const on = config.extras.includes(task.id);
                       return (
                         <button
