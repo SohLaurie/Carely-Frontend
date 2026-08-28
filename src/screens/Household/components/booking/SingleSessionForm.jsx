@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { EXTRA_TASKS, TIME_SLOTS } from './bookingData';
+import { TASK_ICON_MAP } from './ExtraTaskIcons';
 
 export default function SingleSessionForm({ data, onChange, onSubmit, onBack }) {
   const [date, setDate]           = useState(data.date || '');
@@ -63,6 +64,7 @@ export default function SingleSessionForm({ data, onChange, onSubmit, onBack }) 
         <div className="ssf-extras-grid">
           {EXTRA_TASKS.map(task => {
             const on = extras.includes(task.id);
+            const Icon = TASK_ICON_MAP[task.id];
             return (
               <button
                 key={task.id}
@@ -70,7 +72,9 @@ export default function SingleSessionForm({ data, onChange, onSubmit, onBack }) 
                 onClick={() => toggleExtra(task.id)}
                 type="button"
               >
-                <span className="ssf-extra-emoji">{task.emoji}</span>
+                <div className="ssf-extra-icon">
+                  {Icon && <Icon size={20} color={on ? '#2D6A4F' : '#5A5248'} />}
+                </div>
                 <span className="ssf-extra-label">{task.label}</span>
               </button>
             );
@@ -137,7 +141,10 @@ export default function SingleSessionForm({ data, onChange, onSubmit, onBack }) 
           border-color: #2D6A4F;
           background: rgba(45,106,79,0.08);
         }
-        .ssf-extra-emoji { font-size: 1.2rem; line-height: 1; }
+        .ssf-extra-icon {
+          display: flex; align-items: center; justify-content: center;
+          height: 24px;
+        }
         .ssf-extra-label {
           font-size: 0.62rem; font-weight: 600;
           color: #5A5248; text-align: center; line-height: 1.25;

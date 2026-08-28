@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { Check, ChevronDown, ChevronUp } from 'lucide-react';
 import { DAYS_OF_WEEK, TIME_SLOTS, EXTRA_TASKS } from './bookingData';
 import CalendarPreview from './CalendarPreview';
+import { TASK_ICON_MAP } from './ExtraTaskIcons';
 
 // Per-day config shape: { startTime, endTime, extras: [] }
 const defaultDayConfig = () => ({ startTime: '08:00', endTime: '12:00', extras: [] });
@@ -143,7 +144,12 @@ export default function DayScheduleSelector({ data, onChange, onSubmit, onBack }
                           className={`dss-extra ${on ? 'dss-extra--on' : ''}`}
                           onClick={() => toggleExtra(day.id, task.id)}
                         >
-                          <span className="dss-extra-emoji">{task.emoji}</span>
+                          <div className="dss-extra-icon">
+                            {React.createElement(TASK_ICON_MAP[task.id] || (() => null), {
+                              size: 18,
+                              color: on ? '#2D6A4F' : '#5A5248'
+                            })}
+                          </div>
                           <span className="dss-extra-label">{task.label}</span>
                         </button>
                       );
@@ -262,7 +268,10 @@ export default function DayScheduleSelector({ data, onChange, onSubmit, onBack }
         }
         .dss-extra:hover { border-color: #2D6A4F; }
         .dss-extra--on { border-color: #2D6A4F; background: rgba(45,106,79,0.08); }
-        .dss-extra-emoji { font-size: 1.1rem; line-height: 1; }
+        .dss-extra-icon {
+          display: flex; align-items: center; justify-content: center;
+          height: 20px;
+        }
         .dss-extra-label {
           font-size: 0.6rem; font-weight: 600; color: #5A5248;
           text-align: center; line-height: 1.25;

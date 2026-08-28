@@ -1,4 +1,4 @@
-﻿import React, { useState } from 'react';
+import React, { useState } from 'react';
 import {
   ArrowLeft, ShieldCheck, Lock, Smartphone, CheckCircle2,
   AlertCircle, ChevronRight, Check, RefreshCw, X, RotateCcw
@@ -32,14 +32,10 @@ export default function Payment({ onNavigate, screenParams }) {
 
   const handleStartPayment = (e) => {
     e.preventDefault();
-    setShowPinModal(true);
-  };
-
-  const handleConfirmPin = (e) => {
-    e.preventDefault();
-    if (pin.length < 4) return;
     setLoading(true);
+    setShowPinModal(true);
 
+    // Simulate Campay USSD popup verification on customer's phone
     setTimeout(() => {
       setLoading(false);
       setShowPinModal(false);
@@ -55,7 +51,7 @@ export default function Payment({ onNavigate, screenParams }) {
           }
         });
       }, 1500);
-    }, 1800);
+    }, 4500);
   };
 
   const handlePreSessionCancel = () => {
@@ -244,64 +240,46 @@ export default function Payment({ onNavigate, screenParams }) {
         </div>
       </div>
 
-      {/* MoMo PIN Prompt Modal (USSD Phone Simulation) */}
+      {/* Campay USSD Processing Modal */}
       {showPinModal && (
         <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-fadeIn">
-          <div className="bg-white rounded-3xl shadow-2xl border-2 border-[#1E4030] p-6 sm:p-8 w-full max-w-sm text-center space-y-5">
-            <div className="w-14 h-14 bg-[#EDF7F2] text-[#1E4030] rounded-2xl flex items-center justify-center mx-auto border border-green-200">
-              <Smartphone size={28} />
+          <div className="bg-white rounded-3xl shadow-2xl border-2 border-[#1E4030] p-6 sm:p-8 w-full max-w-sm text-center space-y-6">
+            
+            {/* Spinning Loader */}
+            <div className="relative w-20 h-20 mx-auto flex items-center justify-center">
+              <div className="absolute inset-0 border-4 border-[#1E4030]/10 rounded-full"></div>
+              <div className="absolute inset-0 border-4 border-[#1E4030] border-t-transparent rounded-full animate-spin"></div>
+              <Smartphone size={32} className="text-[#1E4030] animate-pulse" />
             </div>
 
-            <div className="space-y-1">
-              <h3 className="font-bold text-base text-[#1C1A17]">
-                {provider === 'mtn' ? 'MTN MoMo Approval' : 'Orange Money Approval'}
-              </h3>
-              <p className="text-xs text-[#8A7E74]">
-                Authorize payment of <strong className="text-[#1E4030]">{amountToCharge.toLocaleString()} XAF</strong> to Carely Escrow.
+            <div className="space-y-2">
+              <h3 className="font-bold text-lg text-[#1C1A17]">Processing Payment...</h3>
+              <p className="text-xs text-[#8A7E74] leading-relaxed">
+                Campay USSD request sent to your phone.
               </p>
+              <div className="bg-[#FAF8F5] border border-[#E2D9CF] rounded-2xl p-4 text-xs text-[#5A5248] leading-relaxed text-left space-y-2 mt-2">
+                <p>
+                  1. Check your phone for the <strong>{provider === 'mtn' ? 'MTN MoMo' : 'Orange Money'}</strong> authorization prompt.
+                </p>
+                <p>
+                  2. Enter your MoMo PIN on your phone to authorize <strong>{amountToCharge.toLocaleString()} XAF</strong>.
+                </p>
+                <p className="text-[10px] text-[#8A7E74] italic">
+                  Do not close this page. The system will automatically detect approval once authorized.
+                </p>
+              </div>
             </div>
 
-            <form onSubmit={handleConfirmPin} className="space-y-4">
-              <div className="space-y-1 text-left">
-                <label className="block text-[10px] font-bold text-[#8A7E74] uppercase tracking-wider text-center">
-                  Enter your 4-digit MoMo PIN
-                </label>
-                <input
-                  type="password"
-                  maxLength={4}
-                  required
-                  autoFocus
-                  value={pin}
-                  onChange={e => setPin(e.target.value)}
-                  placeholder="••••"
-                  className="w-full text-center tracking-[1em] font-mono text-2xl py-3 border-2 border-[#E2D9CF] rounded-xl focus:outline-none focus:border-[#1E4030] bg-[#FAF8F5]"
-                />
-              </div>
-
-              <div className="flex gap-3">
-                <button
-                  type="button"
-                  onClick={() => setShowPinModal(false)}
-                  className="flex-1 px-4 py-3 border border-[#E2D9CF] rounded-xl text-xs font-semibold text-[#8A7E74] hover:bg-[#FAF8F5] cursor-pointer"
-                >
-                  Cancel
-                </button>
-                <button
-                  type="submit"
-                  disabled={loading || pin.length < 4}
-                  className="flex-1 bg-[#1E4030] hover:bg-[#152e22] text-white py-3 rounded-xl text-xs font-bold transition-all shadow-md disabled:opacity-40 flex items-center justify-center gap-2 cursor-pointer"
-                >
-                  {loading ? (
-                    <>
-                      <div className="w-3.5 h-3.5 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
-                      <span>Verifying...</span>
-                    </>
-                  ) : (
-                    <span>Authorize</span>
-                  )}
-                </button>
-              </div>
-            </form>
+            <button
+              type="button"
+              onClick={() => {
+                setShowPinModal(false);
+                setLoading(false);
+              }}
+              className="w-full py-3 border border-[#E2D9CF] rounded-xl text-xs font-semibold text-[#8A7E74] hover:bg-[#FAF8F5] transition-all cursor-pointer"
+            >
+              Cancel Payment
+            </button>
           </div>
         </div>
       )}

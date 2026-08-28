@@ -1,4 +1,4 @@
-﻿import React, { useState } from 'react';
+import React, { useState } from 'react';
 import {
   ClipboardList, Clock, MapPin, MoreHorizontal, ChevronRight,
   X, CheckCircle, AlertCircle, ShieldCheck, MessageSquare, Calendar, DollarSign
@@ -206,7 +206,36 @@ export default function RequestsTab({
                       <MoreHorizontal size={17} />
                     </button>
                     {showDropdown && (
-                      <div className="absolute right-0 top-10 w-40 bg-white border border-[#E2D9CF] rounded-xl shadow-xl py-1.5 z-50 animate-fadeIn">
+                      <div className="absolute right-0 top-10 w-44 bg-white border border-[#E2D9CF] rounded-xl shadow-xl py-1.5 z-50 animate-fadeIn">
+                        {r.status === 'Accepted' && (
+                          <button
+                            onClick={() => {
+                              setActiveDropdownId(null);
+                              const bookingVal = {
+                                caregiver: {
+                                  name: r.name,
+                                  photo: r.photo,
+                                  specialty: r.specialty,
+                                  location: r.location,
+                                  rating: 4.8,
+                                  pricePerHour: r.pricePerHour || 3500
+                                },
+                                sessionType: r.bookingType || 'once',
+                                date: r.date,
+                                time: r.time,
+                                totalPrice: typeof r.totalPrice === 'string'
+                                  ? parseInt(r.totalPrice.replace(/[^0-9]/g, ''))
+                                  : (r.totalPrice || 10500),
+                                durationWeeks: 1,
+                                status: 'Accepted'
+                              };
+                              onNavigate('payment', { booking: bookingVal });
+                            }}
+                            className="w-full px-4 py-2 text-xs text-[#1E4030] hover:bg-[#EDF7F2] text-left font-semibold transition-colors cursor-pointer flex items-center gap-2 border-b border-[#F0EBE5]"
+                          >
+                            <DollarSign size={13} className="text-[#1E4030]" />Make Payment
+                          </button>
+                        )}
                         <button
                           onClick={() => {
                             setActiveDropdownId(null);

@@ -1,5 +1,5 @@
 import React from 'react';
-import { Home, Compass, ClipboardList, Calendar, Bell, Heart, User, LogOut, X, MessageSquare } from 'lucide-react';
+import { Home, Compass, ClipboardList, Calendar, Bell, Heart, User, LogOut, X, MessageSquare, Gift } from 'lucide-react';
 
 export default function Sidebar({
   activeTab,
@@ -20,6 +20,7 @@ export default function Sidebar({
     { id: 'bookings', label: 'Bookings', Icon: Calendar, badge: pendingBookingsCount },
     { id: 'notifications', label: 'Notifications', Icon: Bell, badge: unreadNotificationsCount },
     { id: 'saved', label: 'Saved', Icon: Heart },
+    { id: 'refer', label: 'Refer & Earn', Icon: Gift },
   ];
 
   return (

@@ -9,6 +9,7 @@ import BookingsTab from './components/BookingsTab';
 import NotificationsTab from './components/NotificationsTab';
 import SavedTab from './components/SavedTab';
 import ProfileTab from './components/ProfileTab';
+import ReferEarnTab from './components/ReferEarnTab';
 
 // Workflow Screens (Rendered inside the Household layout!)
 import BookingForm from './screens/BookingForm';
@@ -239,6 +240,11 @@ export default function HouseholdDashboard({ onNavigate: topNavigate, screenPara
           setSelectedId={setSelectedId}
           setActiveTab={setActiveTab}
         />
+      )}
+
+      {/* Refer & Earn Tab */}
+      {activeTab === 'refer' && (
+        <ReferEarnTab />
       )}
 
       {/* 7. Current User Profile Tab */}

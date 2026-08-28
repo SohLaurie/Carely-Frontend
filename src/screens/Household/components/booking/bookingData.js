@@ -61,17 +61,16 @@ export const ADDRESSES = [
   { id: 'd28', full: 'Rond-Point Deido, Deido, Douala',              city: 'Douala' },
 ];
 
-// ── Extra tasks available for each booking ────────────────────────────────────
 export const EXTRA_TASKS = [
-  { id: 'fridge',   label: 'Inside Fridge',      emoji: '🧊' },
-  { id: 'oven',     label: 'Inside Oven',         emoji: '🥘' },
-  { id: 'cabinets', label: 'Inside Cabinets',     emoji: '🗄️' },
-  { id: 'windows',  label: 'Interior Windows',    emoji: '🪟' },
-  { id: 'walls',    label: 'Interior Walls',      emoji: '🏠' },
-  { id: 'plants',   label: 'Water Plants',        emoji: '🌱' },
-  { id: 'ironing',  label: 'Ironing',             emoji: '👔' },
-  { id: 'laundry',  label: 'Laundry',             emoji: '👕' },
-  { id: 'flatlet',  label: 'Small Flatlet',       emoji: '🏘️' },
+  { id: 'fridge',   label: 'Inside Fridge' },
+  { id: 'oven',     label: 'Inside Oven' },
+  { id: 'cabinets', label: 'Inside Cabinets' },
+  { id: 'windows',  label: 'Interior Windows' },
+  { id: 'walls',    label: 'Interior Walls' },
+  { id: 'plants',   label: 'Water Plants' },
+  { id: 'ironing',  label: 'Ironing' },
+  { id: 'laundry',  label: 'Laundry' },
+  { id: 'flatlet',  label: 'Small Flatlet' },
 ];
 
 // ── 30-minute time slots 06:00 → 20:00 ───────────────────────────────────────
