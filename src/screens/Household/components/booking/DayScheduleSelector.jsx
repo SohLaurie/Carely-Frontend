@@ -60,9 +60,34 @@ export default function DayScheduleSelector({ data, onChange, onSubmit, onBack }
 
   const canSubmit = Object.keys(selectedDays).length > 0;
 
+  // Calculate End Date and Total Sessions summary
+  const startObj = new Date(startDate || todayStr);
+  const numWeeks = durationWeeks === 'ongoing' ? 52 : (parseInt(durationWeeks, 10) || 4);
+  const endObj = new Date(startObj);
+  endObj.setDate(startObj.getDate() + (numWeeks * 7) - 1);
+
+  const formattedStartStr = startObj.toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', month: 'short', year: 'numeric' });
+  const formattedEndStr = durationWeeks === 'ongoing'
+    ? 'Ongoing (Weekly Billing)'
+    : endObj.toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', month: 'short', year: 'numeric' });
+
+  const activeDaysCount = Object.keys(selectedDays).length;
+  const activeWeeksCount = frequency === 'biweekly' ? Math.ceil(numWeeks / 2) : numWeeks;
+  const totalSessionsCount = durationWeeks === 'ongoing'
+    ? `${activeDaysCount} sessions/week (Ongoing)`
+    : Math.max(0, (activeDaysCount * activeWeeksCount) - skippedDates.length);
+
   const handleSubmit = () => {
     if (!canSubmit) return;
-    onChange({ selectedDays, skippedDates, frequency, durationWeeks, startDate });
+    onChange({
+      selectedDays,
+      skippedDates,
+      frequency,
+      durationWeeks,
+      startDate,
+      endDate: durationWeeks === 'ongoing' ? 'Ongoing' : endObj.toISOString().split('T')[0],
+      totalSessions: totalSessionsCount
+    });
     onSubmit();
   };
 
@@ -244,9 +269,29 @@ export default function DayScheduleSelector({ data, onChange, onSubmit, onBack }
         })}
       </div>
 
-      {/* Live calendar preview */}
+      {/* Live calendar preview with dynamic schedule calculations */}
       {canSubmit && (
         <div className="dss-cal-wrap">
+          {/* Dynamic Schedule Calculation Box */}
+          <div className="bg-[#FAF8F5] border border-[#E2D9CF] rounded-2xl p-4 mb-3 text-xs space-y-2">
+            <div className="flex items-center justify-between font-bold text-[#1C1A17] border-b border-[#E2D9CF]/60 pb-2">
+              <span className="text-[#1E4030] uppercase text-[10px] tracking-wider">Calculated Schedule</span>
+              <span className="bg-[#EDF7F2] text-[#1E4030] px-2.5 py-0.5 rounded-full font-bold">
+                {totalSessionsCount} {typeof totalSessionsCount === 'number' ? `Session${totalSessionsCount !== 1 ? 's' : ''}` : ''}
+              </span>
+            </div>
+            <div className="grid grid-cols-2 gap-3 text-[#5A5248]">
+              <div>
+                <span className="text-[10px] text-[#8A7E74] block uppercase font-bold">Starts On</span>
+                <span className="font-semibold text-[#1C1A17]">{formattedStartStr}</span>
+              </div>
+              <div>
+                <span className="text-[10px] text-[#8A7E74] block uppercase font-bold">Calculated End Date</span>
+                <span className="font-semibold text-[#1E4030]">{formattedEndStr}</span>
+              </div>
+            </div>
+          </div>
+
           <CalendarPreview 
             selectedDays={Object.keys(selectedDays)} 
             skippedDates={skippedDates}

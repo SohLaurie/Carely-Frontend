@@ -10,11 +10,32 @@ export default function LocationStep({ data, onChange, onNext, onBack }) {
   const [open, setOpen]         = useState(false);
   const inputRef = useRef(null);
 
-  // Filter address list as user types
+  // Filter address list as user types across all Cameroon quarters
   useEffect(() => {
-    if (query.length < 2) { setResults([]); setOpen(false); return; }
-    const q = query.toLowerCase();
-    const hits = ADDRESSES.filter(a => a.full.toLowerCase().includes(q)).slice(0, 6);
+    if (query.trim().length < 1) {
+      setResults([]);
+      setOpen(false);
+      return;
+    }
+    const q = query.toLowerCase().trim();
+    const hits = ADDRESSES.filter(a =>
+      a.full.toLowerCase().includes(q) ||
+      (a.quarter && a.quarter.toLowerCase().includes(q)) ||
+      (a.city && a.city.toLowerCase().includes(q))
+    ).slice(0, 8);
+
+    // If query does not exactly match an existing hit, add custom quarter fallback
+    const hasExact = hits.some(h => h.full.toLowerCase() === q || (h.quarter && h.quarter.toLowerCase() === q));
+    if (!hasExact && q.length >= 2) {
+      hits.unshift({
+        id: `custom_${q}`,
+        full: `${query.trim()}, Cameroon`,
+        city: 'Cameroon',
+        quarter: query.trim(),
+        isCustom: true
+      });
+    }
+
     setResults(hits);
     setOpen(hits.length > 0);
   }, [query]);
@@ -33,11 +54,19 @@ export default function LocationStep({ data, onChange, onNext, onBack }) {
     inputRef.current?.focus();
   };
 
-  const canContinue = !!selected;
+  // If query is present and user typed custom text, canContinue is true
+  const canContinue = !!selected || query.trim().length >= 2;
 
   const handleSetLocation = () => {
     if (!canContinue) return;
-    onChange({ address: selected, addressText: query, unit });
+    const finalAddress = selected || {
+      id: `custom_${Date.now()}`,
+      full: `${query.trim()}, Cameroon`,
+      city: 'Cameroon',
+      quarter: query.trim(),
+      isCustom: true
+    };
+    onChange({ address: finalAddress, addressText: finalAddress.full, unit });
     onNext();
   };
 

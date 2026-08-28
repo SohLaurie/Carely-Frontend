@@ -1,4 +1,4 @@
-﻿import {
+import {
   Globe,
   ChevronRight,
   ShieldCheck,
@@ -45,12 +45,44 @@ const SERVICES = [
   {
     key: "cleaning",
     title: "Domestic Cleaning",
-    desc: "Expert cleaners for full housekeeping, ironing, and organization â€” one-off or recurring.",
+    desc: "Expert housekeepers for full home cleaning, dusting, tidying, and general daily maintenance.",
     cta: "Find a Cleaner",
     Icon: Sparkles,
-  Droplets,
-  Shirt,
-  Utensils,
+  },
+  {
+    key: "indoor_cleaning",
+    title: "Indoor Cleaning",
+    desc: "Deep interior housekeeping, surface disinfection, floor tile scrubbing, and room sanitization.",
+    cta: "Book Indoor Clean",
+    Icon: Sparkles,
+  },
+  {
+    key: "pet_care",
+    title: "Pet Walking",
+    desc: "Reliable pet sitters and walkers for daily dog walking, routine feeding, and caring companionship.",
+    cta: "Find a Pet Walker",
+    Icon: Heart,
+  },
+  {
+    key: "gardening",
+    title: "Gardening",
+    desc: "Compound landscaping, professional lawn mowing, hedge trimming, flower care, and weed removal.",
+    cta: "Hire a Gardener",
+    Icon: Leaf,
+  },
+  {
+    key: "laundry_ironing",
+    title: "Laundry & Ironing",
+    desc: "Full garment washing, delicate fabric care, crisp steam pressing, and closet folding service.",
+    cta: "Book Laundry Care",
+    Icon: Shirt,
+  },
+  {
+    key: "fridge_cleaning",
+    title: "Fridge Cleaning",
+    desc: "Deep freezer defrosting, shelf sterilization, mold removal, and complete odor neutralization.",
+    cta: "Clean My Fridge",
+    Icon: Droplets,
   },
 ];
 
@@ -378,7 +410,7 @@ export default function Landing({ onNavigate }) {
         </div>
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
           {SERVICES.map(({ key, title, desc, cta, Icon }) => {
-            const meta = SPECIALTY_META[key];
+            const meta = SPECIALTY_META[key] || { bg: '#EDF7F2', color: '#1E4030' };
             return (
               <div
                 key={key}

@@ -1,8 +1,8 @@
-import React from 'react';
+import React, { useState } from 'react';
 import {
   Compass, SlidersHorizontal, LayoutGrid, Stethoscope, Baby, Sparkles, MapPin, ArrowLeft, Heart,
   Search as SearchIcon, Calendar, Check, Send, ChevronDown, MessageSquare, User, Droplets, Leaf,
-  UserCheck, Shirt, Star, ShieldCheck, Clock, CheckCircle2, ChevronRight, Phone
+  UserCheck, Shirt, Star, ShieldCheck, Clock, CheckCircle2, ChevronRight, Phone, X
 } from 'lucide-react';
 import { CAREGIVERS, SPECIALTY_META } from '../../../data';
 
@@ -34,24 +34,19 @@ export default function ExploreTab({
   openDiscussionWithCaregiver,
   openBookingWizard,
 }) {
-  
+  const [modalCaregiver, setModalCaregiver] = useState(null);
+
   const SPECIALTY_ICON_MAP = {
     nursing: Stethoscope,
     babysitting: Baby,
     cleaning: Sparkles,
+    indoor_cleaning: Sparkles,
     outdoor_cleaning: Droplets,
     gardening: Leaf,
     pet_care: Heart,
     elderly_care: UserCheck,
     laundry_ironing: Shirt,
-  };
-
-  const getInitials = (name) => {
-    const parts = name.split(' ');
-    if (parts.length >= 2) {
-      return parts[0][0] + parts[parts.length - 1][0];
-    }
-    return name[0] || '';
+    fridge_cleaning: Droplets,
   };
 
   // Filter list logic
@@ -64,7 +59,18 @@ export default function ExploreTab({
     return true;
   });
 
-  const selectedCaregiver = CAREGIVERS.find(c => c.id === selectedId) || CAREGIVERS[0];
+  const categories = [
+    { id: 'all', label: 'All Categories', Icon: LayoutGrid },
+    { id: 'nursing', label: 'Home Nursing', Icon: Stethoscope },
+    { id: 'babysitting', label: 'Babysitting', Icon: Baby },
+    { id: 'cleaning', label: 'Domestic Housekeeping', Icon: Sparkles },
+    { id: 'indoor_cleaning', label: 'Indoor Cleaning', Icon: Sparkles },
+    { id: 'gardening', label: 'Gardening & Lawn', Icon: Leaf },
+    { id: 'pet_care', label: 'Pet Care & Walking', Icon: Heart },
+    { id: 'laundry_ironing', label: 'Laundry & Ironing', Icon: Shirt },
+    { id: 'outdoor_cleaning', label: 'Outdoor Cleaning', Icon: Droplets },
+    { id: 'elderly_care', label: 'Elderly Care', Icon: UserCheck },
+  ];
 
   const quickPrompts = [
     "Nurse in Bastos for post-surgical care",
@@ -74,17 +80,27 @@ export default function ExploreTab({
     "Pet walker & sitter in Douala"
   ];
 
+  const isFilterActive = filterSpecialty !== 'all' || filterLocation || minBudget || maxBudget || availableOnly;
+
+  const resetAllFilters = () => {
+    setFilterSpecialty('all');
+    setFilterLocation('');
+    setMinBudget('');
+    setMaxBudget('');
+    setAvailableOnly(false);
+  };
+
   return (
     <div className="space-y-6">
       
-      {/* Search Configuration Section */}
+      {/* ─── 1. TOP SEARCH & LOCATION BAR ─── */}
       <div className="bg-white border border-[#E2D9CF] rounded-2xl p-4 shadow-sm">
         <div className="flex flex-col lg:flex-row gap-3">
           <div className="flex-1 relative">
             <SearchIcon size={16} className="absolute left-4 top-1/2 -translate-y-1/2 text-[#8A7E74]" />
             <input
               type="text"
-              placeholder="Search neighborhood or city... (e.g. Bastos, Akwa, Bonamoussadi)"
+              placeholder="Search neighborhood or city... (e.g. Bastos, Akwa, Bonamoussadi, Molyko, Bota)"
               value={filterLocation}
               onChange={e => setFilterLocation(e.target.value)}
               className="w-full pl-10 pr-4 py-3 border border-[#E2D9CF] rounded-xl text-sm focus:outline-none focus:ring-1 focus:ring-[#1E4030] bg-[#FAF8F5] text-[#1C1A17]"
@@ -112,7 +128,7 @@ export default function ExploreTab({
         </div>
       </div>
 
-      {/* ─── FULL-WIDTH AI CARE ASSISTANT SECTION ─── */}
+      {/* ─── 2. AI CARE ASSISTANT ─── */}
       <div className="w-full bg-gradient-to-br from-white via-[#FAF8F5] to-[#FAF8F5] border border-[#E2D9CF] rounded-3xl p-6 sm:p-8 shadow-sm space-y-6">
         <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
           <div className="space-y-1.5">
@@ -192,9 +208,10 @@ export default function ExploreTab({
               <div className="pt-1 flex items-center gap-3">
                 <button
                   onClick={() => {
-                    setSelectedId(aiResult.matchedId);
-                    const caregiverList = document.getElementById('caregivers-found-header');
-                    caregiverList?.scrollIntoView({ behavior: 'smooth' });
+                    const matched = CAREGIVERS.find(c => c.id === aiResult.matchedId);
+                    if (matched) {
+                      setModalCaregiver(matched);
+                    }
                   }}
                   className="bg-[#1E4030] hover:bg-[#152e22] text-white text-xs font-bold px-4 py-2 rounded-xl transition-colors inline-flex items-center gap-1.5 cursor-pointer shadow-xs"
                 >
@@ -206,65 +223,60 @@ export default function ExploreTab({
         )}
       </div>
 
-      {/* ─── THREE-COLUMN DASHBOARD GRID ─── */}
-      <div className="grid grid-cols-1 lg:grid-cols-[240px_1fr_380px] xl:grid-cols-[260px_1fr_420px] gap-6 items-start">
-        
-        {/* 1. FILTER SIDE PANEL */}
-        <aside className="bg-white border border-[#E2D9CF] rounded-2xl p-5 shadow-sm space-y-6">
-          <div className="flex items-center justify-between pb-3 border-b border-[#E2D9CF]">
-            <div className="flex items-center gap-2">
-              <SlidersHorizontal size={14} className="text-[#8A7E74]" />
-              <h3 className="text-xs font-bold text-[#8A7E74] uppercase tracking-wider">Filters</h3>
-            </div>
-            {filterSpecialty !== 'all' && (
-              <button onClick={() => setFilterSpecialty('all')} className="text-[10px] text-[#1E4030] font-bold hover:underline">
-                Reset
+      {/* ─── 3. HORIZONTAL FILTERS BAR & SERVICE CATEGORIES ─── */}
+      <div className="bg-white border border-[#E2D9CF] rounded-3xl p-5 shadow-sm space-y-4">
+        {/* Service Category Chips in Horizontal Scroll */}
+        <div className="space-y-2">
+          <div className="flex items-center justify-between">
+            <h4 className="text-xs font-bold text-[#8A7E74] uppercase tracking-wider flex items-center gap-2">
+              <LayoutGrid size={14} className="text-[#1E4030]" />
+              <span>Service Categories</span>
+            </h4>
+            {isFilterActive && (
+              <button
+                type="button"
+                onClick={resetAllFilters}
+                className="text-xs text-[#1E4030] font-bold hover:underline cursor-pointer"
+              >
+                Reset All Filters
               </button>
             )}
           </div>
 
-          {/* Specialty Type */}
-          <div>
-            <h4 className="text-xs font-semibold text-[#8A7E74] uppercase tracking-wider mb-2.5">Service Categories</h4>
-            <div className="space-y-1">
-              {[
-                { id: 'all', label: 'All Services', Icon: LayoutGrid },
-                { id: 'nursing', label: 'Home Nursing', Icon: Stethoscope },
-                { id: 'babysitting', label: 'Babysitting', Icon: Baby },
-                { id: 'cleaning', label: 'Indoor Cleaning', Icon: Sparkles },
-                { id: 'outdoor_cleaning', label: 'Outdoor Cleaning', Icon: Droplets },
-                { id: 'gardening', label: 'Gardening & Lawn', Icon: Leaf },
-                { id: 'pet_care', label: 'Pet Care', Icon: Heart },
-                { id: 'elderly_care', label: 'Elderly Care', Icon: UserCheck },
-                { id: 'laundry_ironing', label: 'Laundry & Ironing', Icon: Shirt },
-              ].map(({ id, label, Icon }) => {
-                const active = filterSpecialty === id;
-                return (
-                  <button
-                    key={id}
-                    onClick={() => setFilterSpecialty(id)}
-                    className={`w-full flex items-center gap-2.5 px-3 py-2 rounded-xl text-xs font-medium transition-colors cursor-pointer ${
-                      active ? 'bg-[#1E4030] text-white shadow-sm font-semibold' : 'text-[#8A7E74] hover:bg-[#FAF8F5] hover:text-[#1C1A17]'
-                    }`}
-                  >
-                    <Icon size={14} />
-                    <span className="truncate">{label}</span>
-                  </button>
-                );
-              })}
-            </div>
+          <div className="flex items-center gap-2 overflow-x-auto pb-2 scrollbar-thin">
+            {categories.map(({ id, label, Icon }) => {
+              const active = filterSpecialty === id;
+              return (
+                <button
+                  key={id}
+                  type="button"
+                  onClick={() => setFilterSpecialty(id)}
+                  className={`inline-flex items-center gap-2 px-4 py-2.5 rounded-2xl text-xs font-semibold whitespace-nowrap transition-all cursor-pointer border ${
+                    active
+                      ? 'bg-[#1E4030] text-white border-[#1E4030] shadow-sm ring-2 ring-[#1E4030]/20'
+                      : 'bg-[#FAF8F5] text-[#5A5248] border-[#E2D9CF] hover:border-[#B0A89E] hover:text-[#1C1A17]'
+                  }`}
+                >
+                  <Icon size={14} className={active ? 'text-white' : 'text-[#1E4030]'} />
+                  <span>{label}</span>
+                </button>
+              );
+            })}
           </div>
+        </div>
 
-          {/* Budget Ranges */}
-          <div>
-            <h4 className="text-xs font-semibold text-[#8A7E74] uppercase tracking-wider mb-2.5">Budget (XAF/hr)</h4>
+        {/* Secondary Filter Controls: Budget & Availability */}
+        <div className="pt-3 border-t border-[#F0EBE5] flex flex-wrap items-center justify-between gap-4">
+          {/* Budget Range Inputs */}
+          <div className="flex items-center gap-2.5">
+            <span className="text-xs font-bold text-[#8A7E74] uppercase tracking-wider">Rate (XAF/hr):</span>
             <div className="flex items-center gap-2">
               <input
                 type="number"
                 placeholder="Min"
                 value={minBudget}
                 onChange={e => setMinBudget(e.target.value)}
-                className="w-full px-3 py-2 border border-[#E2D9CF] rounded-xl text-xs bg-[#FAF8F5] focus:outline-none"
+                className="w-24 px-3 py-1.5 border border-[#E2D9CF] rounded-xl text-xs bg-[#FAF8F5] focus:outline-none focus:border-[#1E4030]"
               />
               <span className="text-[#8A7E74] text-xs">&mdash;</span>
               <input
@@ -272,15 +284,16 @@ export default function ExploreTab({
                 placeholder="Max"
                 value={maxBudget}
                 onChange={e => setMaxBudget(e.target.value)}
-                className="w-full px-3 py-2 border border-[#E2D9CF] rounded-xl text-xs bg-[#FAF8F5] focus:outline-none"
+                className="w-24 px-3 py-1.5 border border-[#E2D9CF] rounded-xl text-xs bg-[#FAF8F5] focus:outline-none focus:border-[#1E4030]"
               />
             </div>
           </div>
 
-          {/* Available only switch */}
-          <div className="flex items-center justify-between pt-3 border-t border-[#E2D9CF]">
-            <span className="text-xs font-semibold text-[#8A7E74]">Available only</span>
+          {/* Available Only Toggle */}
+          <div className="flex items-center gap-3 ml-auto">
+            <span className="text-xs font-semibold text-[#5A5248]">Available for instant booking</span>
             <button
+              type="button"
               onClick={() => setAvailableOnly(!availableOnly)}
               className={`w-11 h-6 rounded-full transition-colors relative cursor-pointer ${
                 availableOnly ? 'bg-[#1E4030]' : 'bg-[#E2D9CF]'
@@ -293,125 +306,199 @@ export default function ExploreTab({
               />
             </button>
           </div>
-        </aside>
+        </div>
+      </div>
 
-        {/* 2. CAREGIVERS LIST COLUMN */}
-        <div className="space-y-4">
-          <div id="caregivers-found-header" className="flex items-center justify-between">
-            <h3 className="font-bold text-sm text-[#1C1A17]">
-              {filteredCaregivers.length} Caregiver{filteredCaregivers.length !== 1 ? 's' : ''} Available
-            </h3>
-            <span className="text-xs text-[#8A7E74]">Verified in Cameroon</span>
-          </div>
+      {/* ─── 4. CAREGIVERS FOUND (TWO CARDS PER ROW GRID) ─── */}
+      <div className="space-y-4">
+        <div id="caregivers-found-header" className="flex items-center justify-between flex-wrap gap-2">
+          <h3 className="font-bold text-base text-[#1C1A17]">
+            {filteredCaregivers.length} Verified Caregiver{filteredCaregivers.length !== 1 ? 's' : ''} Found
+          </h3>
+          <span className="text-xs text-[#8A7E74] font-medium bg-[#FAF8F5] px-3.5 py-1 rounded-full border border-[#E2D9CF]">
+            Direct Escrow & Verified ID &bull; Cameroon
+          </span>
+        </div>
 
-          <div className="space-y-3">
-            {filteredCaregivers.map(c => {
-              const meta = SPECIALTY_META[c.specialty] || { label: 'Caregiver' };
-              const isSelected = c.id === selectedCaregiver.id;
+        {/* 2 Cards Per Row Grid */}
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-5 sm:gap-6">
+          {filteredCaregivers.map(c => {
+            const meta = SPECIALTY_META[c.specialty] || { label: 'Caregiver', color: '#1E4030', bg: '#EDF7F2' };
 
-              return (
-                <div
-                  key={c.id}
-                  onClick={() => {
-                    setSelectedId(c.id);
-                    setShowMobileDetail(true);
-                  }}
-                  className={`bg-white border rounded-2xl p-5 shadow-sm hover:shadow-md transition-all cursor-pointer group relative ${
-                    isSelected ? 'border-[#1E4030] ring-1 ring-[#1E4030] bg-[#FAF8F5]/30' : 'border-[#E2D9CF] hover:border-[#D4C9BE]'
-                  }`}
-                >
+            return (
+              <div
+                key={c.id}
+                onClick={() => {
+                  setSelectedId(c.id);
+                  setModalCaregiver(c);
+                }}
+                className="bg-white border border-[#E2D9CF] hover:border-[#1E4030] rounded-3xl p-6 shadow-sm hover:shadow-md transition-all cursor-pointer group flex flex-col justify-between"
+              >
+                <div className="space-y-4">
+                  {/* Top Row: Avatar + Info */}
                   <div className="flex items-start gap-4">
-                    {/* Avatar */}
-                    <div className="w-16 h-16 rounded-2xl overflow-hidden bg-[#FAF8F5] border border-[#E2D9CF] shrink-0 shadow-sm relative">
+                    <div className="w-18 h-18 sm:w-20 sm:h-20 rounded-2xl overflow-hidden bg-[#FAF8F5] border border-[#E2D9CF] shrink-0 shadow-sm relative">
                       <img src={c.photo} alt={c.name} className="w-full h-full object-cover" />
                       {c.available && (
-                        <span className="absolute bottom-1 right-1 w-3 h-3 bg-green-500 border-2 border-white rounded-full" title="Available"></span>
+                        <span className="absolute bottom-1.5 right-1.5 w-3.5 h-3.5 bg-green-500 border-2 border-white rounded-full shadow-xs" title="Available for booking"></span>
                       )}
                     </div>
 
-                    {/* Information */}
                     <div className="flex-1 min-w-0 space-y-1.5">
                       <div className="flex items-center justify-between gap-2">
-                        <div className="flex items-center gap-2 flex-wrap">
-                          <h4 className="font-bold text-base text-[#1C1A17] group-hover:text-[#1E4030] transition-colors">
-                            {c.name}
-                          </h4>
-                          <span className="text-[10px] bg-[#FAF8F5] text-[#8A7E74] border border-[#E2D9CF] px-2.5 py-0.5 rounded-full font-semibold">
-                            {meta.label}
-                          </span>
-                        </div>
-                        <div className="text-right shrink-0">
-                          <span className="font-bold text-sm text-[#1E4030]">{c.pricePerHour.toLocaleString()}</span>
-                          <span className="text-[10px] text-[#8A7E74] block">XAF/hr</span>
+                        <h4 className="font-bold text-base text-[#1C1A17] group-hover:text-[#1E4030] transition-colors truncate">
+                          {c.name}
+                        </h4>
+                        <div className="bg-[#EDF7F2] border border-green-200/80 px-2.5 py-1 rounded-xl text-right shrink-0">
+                          <span className="font-extrabold text-xs text-[#1E4030]">{c.pricePerHour.toLocaleString()} XAF/hr</span>
                         </div>
                       </div>
 
-                      <div className="flex items-center gap-3 text-xs text-[#8A7E74]">
-                        <span className="flex items-center gap-1 font-semibold text-[#1C1A17]">
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <span
+                          className="text-[11px] font-bold px-2.5 py-0.5 rounded-full border"
+                          style={{ backgroundColor: meta.bg || '#EDF7F2', color: meta.color || '#1E4030', borderColor: `${meta.color || '#1E4030'}30` }}
+                        >
+                          {meta.label}
+                        </span>
+                        <span className="inline-flex items-center gap-1 text-[10px] font-semibold text-green-700 bg-green-50 border border-green-200 px-2 py-0.5 rounded-full">
+                          <ShieldCheck size={11} /> Verified
+                        </span>
+                      </div>
+
+                      <div className="flex items-center gap-2.5 text-xs text-[#8A7E74] pt-0.5 flex-wrap">
+                        <span className="flex items-center gap-1 font-bold text-[#1C1A17]">
                           <Star size={12} className="text-amber-400 fill-amber-400" />
                           {c.rating} ({c.reviewCount})
                         </span>
                         <span>&middot;</span>
                         <span className="flex items-center gap-1">
-                          <MapPin size={12} className="text-[#B0A89E]" />
+                          <MapPin size={12} className="text-[#1E4030]" />
                           {c.location}
                         </span>
                         <span>&middot;</span>
                         <span>{c.experience} yrs exp</span>
                       </div>
-
-                      <p className="text-xs text-[#8A7E74] line-clamp-2 leading-relaxed pt-0.5">
-                        {c.bio}
-                      </p>
-
-                      {/* Quick action shortcuts */}
-                      <div className="flex items-center gap-2 pt-2">
-                        {openDiscussionWithCaregiver && (
-                          <button
-                            type="button"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              openDiscussionWithCaregiver(c);
-                            }}
-                            className="inline-flex items-center gap-1 text-[11px] font-bold text-blue-600 bg-blue-50 hover:bg-blue-100 border border-blue-200 px-3 py-1 rounded-xl transition-colors cursor-pointer"
-                          >
-                            <MessageSquare size={11} />
-                            Chat in Discussions
-                          </button>
-                        )}
-                      </div>
                     </div>
                   </div>
-                </div>
-              );
-            })}
 
-            {filteredCaregivers.length === 0 && (
-              <div className="bg-white border border-[#E2D9CF] rounded-2xl p-12 text-center space-y-3">
-                <Compass size={32} className="mx-auto text-[#8A7E74]/30 animate-pulse" />
-                <h4 className="font-bold text-[#1C1A17]">No Caregivers Found</h4>
-                <p className="text-xs text-[#8A7E74]">Try clearing some filters or searching a different neighborhood.</p>
+                  {/* Bio snippet */}
+                  <p className="text-xs text-[#5A5248] line-clamp-2 leading-relaxed">
+                    {c.bio}
+                  </p>
+
+                  {/* Certifications preview */}
+                  <div className="flex flex-wrap gap-1.5">
+                    {c.certifications?.slice(0, 3).map(cert => (
+                      <span
+                        key={cert}
+                        className="text-[10px] font-semibold bg-[#FAF8F5] text-[#1E4030] border border-[#E2D9CF] px-2 py-0.5 rounded-md flex items-center gap-1"
+                      >
+                        <CheckCircle2 size={10} className="text-green-600" />
+                        {cert}
+                      </span>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Card Bottom Actions */}
+                <div className="pt-4 mt-4 border-t border-[#F0EBE5] flex items-center justify-between gap-3">
+                  <button
+                    type="button"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setSelectedId(c.id);
+                      setModalCaregiver(c);
+                    }}
+                    className="text-xs font-bold text-[#8A7E74] hover:text-[#1E4030] transition-colors"
+                  >
+                    View Details &rarr;
+                  </button>
+
+                  <div className="flex items-center gap-2">
+                    {openDiscussionWithCaregiver && (
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          openDiscussionWithCaregiver(c);
+                        }}
+                        className="inline-flex items-center gap-1 text-xs font-bold text-blue-600 bg-blue-50 hover:bg-blue-100 border border-blue-200 px-3 py-1.5 rounded-xl transition-colors cursor-pointer"
+                      >
+                        <MessageSquare size={12} />
+                        <span>Chat</span>
+                      </button>
+                    )}
+                    <button
+                      type="button"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setSelectedId(c.id);
+                        if (openBookingWizard) {
+                          openBookingWizard({ initialProvider: c });
+                        } else {
+                          onNavigate('booking', { caregiver: c });
+                        }
+                      }}
+                      className="inline-flex items-center gap-1 text-xs font-bold text-white bg-[#1E4030] hover:bg-[#152e22] px-4 py-1.5 rounded-xl transition-all shadow-xs cursor-pointer active:scale-95"
+                    >
+                      <Calendar size={12} />
+                      <span>Request Book</span>
+                    </button>
+                  </div>
+                </div>
               </div>
-            )}
-          </div>
+            );
+          })}
         </div>
 
-        {/* 3. SELECTED CAREGIVER DETAIL CARD (Right Column) */}
-        {selectedCaregiver && (
-          <div className="bg-white border border-[#E2D9CF] rounded-3xl p-6 shadow-sm space-y-5 lg:sticky lg:top-20">
+        {filteredCaregivers.length === 0 && (
+          <div className="bg-white border border-[#E2D9CF] rounded-3xl p-12 text-center space-y-3">
+            <Compass size={36} className="mx-auto text-[#8A7E74]/40 animate-pulse" />
+            <h4 className="font-bold text-[#1C1A17]">No Caregivers Found</h4>
+            <p className="text-xs text-[#8A7E74]">Try clearing some filters or searching a different neighborhood.</p>
+          </div>
+        )}
+      </div>
+
+      {/* ─── 5. CAREGIVER PROFILE DETAIL MODAL (With X Close Icon) ─── */}
+      {modalCaregiver && (
+        <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-xs flex items-center justify-center p-4 overflow-y-auto animate-fadeIn">
+          <div
+            className="bg-white border border-[#E2D9CF] rounded-3xl p-6 sm:p-8 shadow-2xl max-w-lg w-full relative space-y-6 max-h-[90vh] overflow-y-auto"
+            onClick={e => e.stopPropagation()}
+          >
+            {/* Modal Close Button */}
+            <button
+              type="button"
+              onClick={() => setModalCaregiver(null)}
+              className="absolute top-5 right-5 w-9 h-9 rounded-full bg-[#FAF8F5] border border-[#E2D9CF] text-[#8A7E74] hover:text-[#1C1A17] hover:bg-[#E2D9CF]/50 flex items-center justify-center transition-colors cursor-pointer"
+              aria-label="Close modal"
+            >
+              <X size={18} />
+            </button>
+
             {/* Caregiver Header */}
-            <div className="flex items-center gap-4">
-              <div className="w-20 h-20 rounded-2xl overflow-hidden bg-[#FAF8F5] border border-[#E2D9CF] shrink-0 shadow-sm">
-                <img src={selectedCaregiver.photo} alt={selectedCaregiver.name} className="w-full h-full object-cover" />
+            <div className="flex items-start gap-4 pt-1">
+              <div className="w-20 h-20 sm:w-24 sm:h-24 rounded-2xl overflow-hidden bg-[#FAF8F5] border border-[#E2D9CF] shrink-0 shadow-sm relative">
+                <img src={modalCaregiver.photo} alt={modalCaregiver.name} className="w-full h-full object-cover" />
+                {modalCaregiver.available && (
+                  <span className="absolute bottom-1.5 right-1.5 w-4 h-4 bg-green-500 border-2 border-white rounded-full" title="Available"></span>
+                )}
               </div>
-              <div className="space-y-1">
-                <h3 className="font-display text-xl font-bold text-[#1C1A17]">{selectedCaregiver.name}</h3>
-                <span className="text-xs bg-[#EDF7F2] text-[#1E4030] font-bold px-2.5 py-0.5 rounded-full border border-green-200 inline-block">
-                  {SPECIALTY_META[selectedCaregiver.specialty]?.label || 'Verified Caregiver'}
-                </span>
-                <p className="text-xs text-[#8A7E74] flex items-center gap-1 pt-1">
-                  <MapPin size={12} />
-                  {selectedCaregiver.location}
+              <div className="space-y-1.5 flex-1 pr-6">
+                <h3 className="font-display text-xl font-bold text-[#1C1A17]">{modalCaregiver.name}</h3>
+                <div className="flex items-center gap-2 flex-wrap">
+                  <span className="text-xs bg-[#EDF7F2] text-[#1E4030] font-bold px-2.5 py-0.5 rounded-full border border-green-200 inline-block">
+                    {SPECIALTY_META[modalCaregiver.specialty]?.label || 'Verified Caregiver'}
+                  </span>
+                  <span className="inline-flex items-center gap-1 text-[11px] font-semibold text-green-700 bg-green-50 border border-green-200 px-2 py-0.5 rounded-full">
+                    <ShieldCheck size={12} /> ID Verified
+                  </span>
+                </div>
+                <p className="text-xs text-[#8A7E74] flex items-center gap-1 pt-0.5">
+                  <MapPin size={13} className="text-[#1E4030]" />
+                  <span>{modalCaregiver.location} &bull; {modalCaregiver.experience} years experience</span>
                 </p>
               </div>
             </div>
@@ -420,13 +507,13 @@ export default function ExploreTab({
             <div className="bg-[#FAF8F5] border border-[#E2D9CF] rounded-2xl p-4 flex items-center justify-between">
               <div>
                 <span className="text-[10px] font-bold text-[#8A7E74] uppercase tracking-wider block">Hourly Rate</span>
-                <span className="text-lg font-bold text-[#1E4030]">{selectedCaregiver.pricePerHour.toLocaleString()} XAF</span>
+                <span className="text-xl font-bold text-[#1E4030]">{modalCaregiver.pricePerHour.toLocaleString()} XAF</span>
               </div>
               <div className="text-right">
-                <span className="text-[10px] font-bold text-[#8A7E74] uppercase tracking-wider block">Rating</span>
+                <span className="text-[10px] font-bold text-[#8A7E74] uppercase tracking-wider block">Rating & Trust</span>
                 <span className="text-sm font-bold text-[#1C1A17] flex items-center gap-1 justify-end">
-                  <Star size={13} className="text-amber-400 fill-amber-400" />
-                  {selectedCaregiver.rating} ({selectedCaregiver.reviewCount})
+                  <Star size={14} className="text-amber-400 fill-amber-400" />
+                  {modalCaregiver.rating} ({modalCaregiver.reviewCount} client reviews)
                 </span>
               </div>
             </div>
@@ -435,20 +522,20 @@ export default function ExploreTab({
             <div className="space-y-1.5">
               <h4 className="text-xs font-bold text-[#8A7E74] uppercase tracking-wider">About Caregiver</h4>
               <p className="text-xs text-[#1C1A17] leading-relaxed">
-                {selectedCaregiver.bio}
+                {modalCaregiver.bio}
               </p>
             </div>
 
             {/* Certifications Badges */}
             <div className="space-y-2">
-              <h4 className="text-xs font-bold text-[#8A7E74] uppercase tracking-wider">Verified Credentials</h4>
-              <div className="flex flex-wrap gap-1.5">
-                {selectedCaregiver.certifications.map(cert => (
+              <h4 className="text-xs font-bold text-[#8A7E74] uppercase tracking-wider">Verified Credentials & Background</h4>
+              <div className="flex flex-wrap gap-2">
+                {modalCaregiver.certifications?.map(cert => (
                   <span
                     key={cert}
-                    className="inline-flex items-center gap-1 text-[11px] bg-[#FAF8F5] text-[#1E4030] border border-[#E2D9CF] px-2.5 py-1 rounded-lg font-semibold"
+                    className="inline-flex items-center gap-1 text-[11px] bg-[#FAF8F5] text-[#1E4030] border border-[#E2D9CF] px-3 py-1 rounded-xl font-semibold"
                   >
-                    <CheckCircle2 size={11} className="text-green-600" />
+                    <CheckCircle2 size={12} className="text-green-600" />
                     {cert}
                   </span>
                 ))}
@@ -456,26 +543,31 @@ export default function ExploreTab({
             </div>
 
             {/* Action Buttons */}
-            <div className="pt-3 border-t border-[#E2D9CF] space-y-2">
+            <div className="pt-4 border-t border-[#E2D9CF] space-y-2.5">
               <button
+                type="button"
                 onClick={() => {
+                  setModalCaregiver(null);
                   if (openBookingWizard) {
-                    // Pre-fill provider + default service → wizard skips steps 1 & 4
-                    openBookingWizard({ initialProvider: selectedCaregiver });
+                    openBookingWizard({ initialProvider: modalCaregiver });
                   } else {
-                    onNavigate('booking', { caregiver: selectedCaregiver });
+                    onNavigate('booking', { caregiver: modalCaregiver });
                   }
                 }}
-                className="w-full bg-[#1E4030] hover:bg-[#152e22] text-white py-3 px-4 rounded-xl text-xs font-bold transition-all shadow-sm hover:shadow-md flex items-center justify-center gap-2 cursor-pointer"
+                className="w-full bg-[#1E4030] hover:bg-[#152e22] text-white py-3.5 px-4 rounded-xl text-sm font-bold transition-all shadow-sm hover:shadow-md flex items-center justify-center gap-2 cursor-pointer active:scale-95"
               >
-                <Calendar size={14} />
-                <span>Request Booking</span>
+                <Calendar size={15} />
+                <span>Request Booking with {modalCaregiver.name.split(' ')[0]}</span>
               </button>
 
               {openDiscussionWithCaregiver && (
                 <button
-                  onClick={() => openDiscussionWithCaregiver(selectedCaregiver)}
-                  className="w-full bg-white hover:bg-[#FAF8F5] text-[#1E4030] border-2 border-[#1E4030] py-2.5 px-4 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-2 cursor-pointer"
+                  type="button"
+                  onClick={() => {
+                    setModalCaregiver(null);
+                    openDiscussionWithCaregiver(modalCaregiver);
+                  }}
+                  className="w-full bg-white hover:bg-[#FAF8F5] text-[#1E4030] border-2 border-[#1E4030] py-3 px-4 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-2 cursor-pointer"
                 >
                   <MessageSquare size={14} />
                   <span>Chat in Discussions</span>
@@ -483,8 +575,9 @@ export default function ExploreTab({
               )}
             </div>
           </div>
-        )}
-      </div>
+        </div>
+      )}
+
     </div>
   );
 }

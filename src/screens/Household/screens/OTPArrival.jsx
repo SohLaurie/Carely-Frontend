@@ -1,4 +1,4 @@
-﻿import React, { useState } from 'react';
+import React, { useState } from 'react';
 import {
   Key, ShieldCheck, Clock, CheckCircle2, AlertTriangle,
   ArrowLeft, ChevronRight, User, RefreshCw, X, RotateCcw, AlertCircle
@@ -52,29 +52,27 @@ export default function OTPArrival({ onNavigate, screenParams }) {
   };
 
   return (
-    <div className="bg-[#FAF8F5] min-h-screen text-[#1C1A17] pb-16">
-      <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-12 pt-6 space-y-6">
-        
-        {/* Back Link */}
-        <button
-          onClick={() => onNavigate('search')}
-          className="inline-flex items-center gap-2 text-xs sm:text-sm font-semibold text-[#8A7E74] hover:text-[#1C1A17] transition-colors cursor-pointer"
-        >
-          <ArrowLeft size={16} />
-          Back to Dashboard
-        </button>
+    <div className="w-full text-[#1C1A17] space-y-6">
+      {/* Back Link */}
+      <button
+        onClick={() => onNavigate('search')}
+        className="inline-flex items-center gap-2 text-xs sm:text-sm font-semibold text-[#8A7E74] hover:text-[#1C1A17] transition-colors cursor-pointer"
+      >
+        <ArrowLeft size={16} />
+        Back to Dashboard
+      </button>
 
-        {/* Title Block */}
-        <div className="space-y-1">
-          <div className="inline-flex items-center gap-2 bg-[#EDF7F2] text-[#1E4030] text-[11px] font-bold px-3 py-1 rounded-full border border-green-200">
-            <Key size={13} />
-            Step 4: Day of Service & Arrival OTP
-          </div>
-          <h1 className="font-display text-3xl sm:text-4xl font-bold text-[#1E4030]">On-Site Arrival Verification</h1>
-          <p className="text-xs sm:text-sm text-[#8A7E74]">
-            Provide your 4-digit arrival OTP to {caregiver.name.split(' ')[0]} upon their arrival to confirm on-site presence.
-          </p>
+      {/* Title Block */}
+      <div className="space-y-1">
+        <div className="inline-flex items-center gap-2 bg-[#EDF7F2] text-[#1E4030] text-[11px] font-bold px-3 py-1 rounded-full border border-green-200">
+          <Key size={13} />
+          Step 4: Day of Service & Arrival OTP
         </div>
+        <h1 className="font-display text-3xl sm:text-4xl font-bold text-[#1E4030]">On-Site Arrival Verification</h1>
+        <p className="text-xs sm:text-sm text-[#8A7E74]">
+          Provide your 4-digit arrival OTP to {caregiver.name?.split(' ')[0] || 'your caregiver'} upon their arrival to confirm on-site presence.
+        </p>
+      </div>
 
         {/* OTP Code Display Box */}
         <div className="bg-white rounded-3xl border border-[#E2D9CF] p-8 shadow-sm text-center space-y-6">
@@ -219,7 +217,6 @@ export default function OTPArrival({ onNavigate, screenParams }) {
             </div>
           </div>
         )}
-      </div>
     </div>
   );
 }

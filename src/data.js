@@ -1,4 +1,4 @@
-﻿// Shared data — specialty icons are handled in components via lucide-react
+// Shared data — specialty icons are handled in components via lucide-react
 
 export const SPECIALTY_META = {
   nursing: {
@@ -14,10 +14,22 @@ export const SPECIALTY_META = {
     iconName: 'baby',
   },
   cleaning: {
-    label: 'Indoor Cleaning',
+    label: 'Domestic Housekeeping',
     color: '#059669',
     bg: '#ECFDF5',
     iconName: 'sparkles',
+  },
+  indoor_cleaning: {
+    label: 'Indoor Cleaning',
+    color: '#0D9488',
+    bg: '#F0FDFA',
+    iconName: 'sparkles',
+  },
+  fridge_cleaning: {
+    label: 'Fridge Cleaning',
+    color: '#0284C7',
+    bg: '#F0F9FF',
+    iconName: 'droplets',
   },
   outdoor_cleaning: {
     label: 'Outdoor Cleaning',

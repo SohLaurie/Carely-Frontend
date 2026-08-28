@@ -1,4 +1,4 @@
-﻿import { useState, useEffect } from 'react'
+import { useState, useEffect } from 'react'
 import { useNavigate, useLocation } from 'react-router-dom'
 import { Bot, X, Send, Maximize2, Minimize2 } from 'lucide-react'
 import Landing from './screens/Landing'
@@ -144,94 +144,105 @@ export default function App() {
         {screen === 'admin'      && <AdminDashboard {...nav} />}
       </div>
 
-      {/* Floating AI Chatbot Button & Drawer */}
-      <div className="fixed bottom-6 right-6 z-[999] flex flex-col items-end">
-        {/* Chat window */}
+      {/* Floating AI Chatbot Button & Fullscreen Drawer */}
+      <div className={chatExpanded ? "" : "fixed bottom-6 right-6 z-[999] flex flex-col items-end"}>
         {/* Chat window */}
         {chatOpen && (
           <div className={
             chatExpanded
-              ? "fixed top-16 left-0 right-0 bottom-0 z-[998] w-auto h-auto max-w-none mb-0 bg-white border-t border-[#E2D9CF] shadow-2xl flex flex-col overflow-hidden"
+              ? "fixed inset-0 z-[99999] w-screen h-screen max-w-none m-0 rounded-none bg-white shadow-2xl flex flex-col overflow-hidden animate-fadeIn"
               : "w-80 sm:w-96 h-[480px] bg-white border border-[#E2D9CF] rounded-2xl shadow-xl flex flex-col overflow-hidden mb-4 animate-fadeIn"
           }>
             {/* Chat header */}
-            <div className="bg-[#1E4030] text-white p-4 flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                <div className="w-8 h-8 rounded-lg bg-white/10 flex items-center justify-center">
-                  <Bot size={16} className="text-white animate-pulse" />
+            <div className={`bg-[#1E4030] text-white flex items-center justify-between shadow-xs ${chatExpanded ? 'px-6 py-4' : 'p-4'}`}>
+              <div className="flex items-center gap-3">
+                <div className={`${chatExpanded ? 'w-10 h-10' : 'w-8 h-8'} rounded-xl bg-white/10 flex items-center justify-center`}>
+                  <Bot size={chatExpanded ? 20 : 16} className="text-white animate-pulse" />
                 </div>
                 <div>
-                  <h3 className="text-sm font-semibold">Carely Assistant</h3>
-                  <span className="text-[10px] text-white/60">Powered by Carely AI</span>
+                  <h3 className={`${chatExpanded ? 'text-base' : 'text-sm'} font-semibold flex items-center gap-2`}>
+                    <span>Carely Assistant</span>
+                    {chatExpanded && (
+                      <span className="text-[10px] bg-white/20 text-white font-medium px-2 py-0.5 rounded-full">Fullscreen Mode</span>
+                    )}
+                  </h3>
+                  <span className="text-[10px] text-white/70">Powered by Carely AI &bull; Instant Care Support</span>
                 </div>
               </div>
-              <div className="flex items-center gap-1.5">
+              <div className="flex items-center gap-2">
                 <button
                   onClick={() => setChatExpanded(!chatExpanded)}
-                  title={chatExpanded ? "Minimize Chat" : "Maximize Chat"}
-                  className="w-7 h-7 rounded-full bg-white/10 hover:bg-white/20 flex items-center justify-center transition-colors text-white"
+                  title={chatExpanded ? "Exit Fullscreen" : "Fullscreen View"}
+                  className="w-8 h-8 rounded-full bg-white/10 hover:bg-white/20 flex items-center justify-center transition-colors text-white cursor-pointer"
                 >
-                  {chatExpanded ? <Minimize2 size={13} /> : <Maximize2 size={13} />}
+                  {chatExpanded ? <Minimize2 size={16} /> : <Maximize2 size={14} />}
                 </button>
                 <button
                   onClick={() => {
                     setChatOpen(false)
                     setChatExpanded(false)
                   }}
-                  className="w-7 h-7 rounded-full bg-white/10 hover:bg-white/20 flex items-center justify-center transition-colors text-white"
+                  title="Close Chatbot"
+                  className="w-8 h-8 rounded-full bg-white/10 hover:bg-white/20 flex items-center justify-center transition-colors text-white cursor-pointer"
                 >
-                  <X size={14} />
+                  <X size={16} />
                 </button>
               </div>
             </div>
 
             {/* Chat Messages */}
-            <div className="flex-1 p-4 overflow-y-auto space-y-3 bg-[#FAF8F5]">
-              {chatMessages.map((msg, idx) => (
-                <div
-                  key={idx}
-                  className={`flex ${msg.sender === 'user' ? 'justify-end' : 'justify-start'}`}
-                >
+            <div className="flex-1 p-4 sm:p-6 overflow-y-auto space-y-3.5 bg-[#FAF8F5]">
+              <div className={chatExpanded ? "max-w-4xl mx-auto space-y-4" : "space-y-3"}>
+                {chatMessages.map((msg, idx) => (
                   <div
-                    className={`max-w-[85%] rounded-2xl px-3 py-2 text-xs leading-relaxed ${
-                      msg.sender === 'user'
-                        ? 'bg-[#1E4030] text-white rounded-tr-none'
-                        : 'bg-white text-[#1C1A17] border border-[#E2D9CF] rounded-tl-none shadow-sm'
-                    }`}
+                    key={idx}
+                    className={`flex ${msg.sender === 'user' ? 'justify-end' : 'justify-start'}`}
                   >
-                    {msg.text}
-                  </div>
-                </div>
-              ))}
-              {botTyping && (
-                <div className="flex justify-start">
-                  <div className="bg-white border border-[#E2D9CF] rounded-2xl rounded-tl-none px-3 py-2 shadow-sm">
-                    <div className="flex gap-1">
-                      <span className="w-1.5 h-1.5 bg-[#8A7E74] rounded-full animate-bounce" style={{ animationDelay: '0ms' }}></span>
-                      <span className="w-1.5 h-1.5 bg-[#8A7E74] rounded-full animate-bounce" style={{ animationDelay: '150ms' }}></span>
-                      <span className="w-1.5 h-1.5 bg-[#8A7E74] rounded-full animate-bounce" style={{ animationDelay: '300ms' }}></span>
+                    <div
+                      className={`max-w-[85%] sm:max-w-[75%] rounded-2xl px-4 py-2.5 text-xs sm:text-sm leading-relaxed ${
+                        msg.sender === 'user'
+                          ? 'bg-[#1E4030] text-white rounded-tr-none shadow-sm'
+                          : 'bg-white text-[#1C1A17] border border-[#E2D9CF] rounded-tl-none shadow-sm'
+                      }`}
+                    >
+                      {msg.text}
                     </div>
                   </div>
-                </div>
-              )}
+                ))}
+                {botTyping && (
+                  <div className="flex justify-start">
+                    <div className="bg-white border border-[#E2D9CF] rounded-2xl rounded-tl-none px-4 py-2.5 shadow-sm">
+                      <div className="flex gap-1.5 items-center">
+                        <span className="w-2 h-2 bg-[#8A7E74] rounded-full animate-bounce" style={{ animationDelay: '0ms' }}></span>
+                        <span className="w-2 h-2 bg-[#8A7E74] rounded-full animate-bounce" style={{ animationDelay: '150ms' }}></span>
+                        <span className="w-2 h-2 bg-[#8A7E74] rounded-full animate-bounce" style={{ animationDelay: '300ms' }}></span>
+                      </div>
+                    </div>
+                  </div>
+                )}
+              </div>
             </div>
 
             {/* Chat Suggestions */}
             {chatMessages.length === 1 && (
-              <div className="px-4 pb-3 pt-1 bg-[#FAF8F5] flex flex-wrap gap-1.5">
-                {[
-                  "Find a Nurse",
-                  "How does Escrow work?",
-                  "Background Check policy"
-                ].map(sug => (
-                  <button
-                    key={sug}
-                    onClick={() => handleSendChat(sug)}
-                    className="bg-white border border-[#E2D9CF] hover:bg-secondary text-[10px] text-[#1E4030] font-semibold px-2.5 py-1 rounded-full transition-colors"
-                  >
-                    {sug}
-                  </button>
-                ))}
+              <div className="px-4 sm:px-6 pb-3 pt-1 bg-[#FAF8F5]">
+                <div className={chatExpanded ? "max-w-4xl mx-auto flex flex-wrap gap-2" : "flex flex-wrap gap-1.5"}>
+                  {[
+                    "Find a Nurse",
+                    "How does Escrow work?",
+                    "Background Check policy",
+                    "Certified Babysitters in Douala",
+                    "Domestic Cleaning in Yaoundé"
+                  ].map(sug => (
+                    <button
+                      key={sug}
+                      onClick={() => handleSendChat(sug)}
+                      className="bg-white border border-[#E2D9CF] hover:bg-green-50 hover:border-green-300 text-xs text-[#1E4030] font-semibold px-3 py-1.5 rounded-full transition-colors cursor-pointer shadow-xs"
+                    >
+                      {sug}
+                    </button>
+                  ))}
+                </div>
               </div>
             )}
 
@@ -241,33 +252,39 @@ export default function App() {
                 e.preventDefault()
                 handleSendChat()
               }}
-              className="p-3 border-t border-[#E2D9CF] bg-white flex gap-2 items-center"
+              className={`border-t border-[#E2D9CF] bg-white flex gap-3 items-center ${chatExpanded ? 'p-4 sm:p-5' : 'p-3'}`}
             >
-              <input
-                type="text"
-                placeholder="Type your message..."
-                value={chatInput}
-                onChange={e => setChatInput(e.target.value)}
-                className="flex-1 text-xs px-3 py-2 border border-[#E2D9CF] rounded-xl outline-none focus:ring-1 focus:ring-[#1E4030] bg-[#FAF8F5]"
-              />
-              <button
-                type="submit"
-                disabled={!chatInput.trim()}
-                className="bg-[#1E4030] hover:bg-[#152e22] text-white p-2 rounded-xl transition-colors disabled:opacity-40 flex items-center justify-center"
-              >
-                <Send size={12} />
-              </button>
+              <div className={chatExpanded ? "max-w-4xl mx-auto w-full flex gap-3 items-center" : "w-full flex gap-2 items-center"}>
+                <input
+                  type="text"
+                  placeholder="Ask Carely AI anything about services, verification, pricing, or booking..."
+                  value={chatInput}
+                  onChange={e => setChatInput(e.target.value)}
+                  className="flex-1 text-xs sm:text-sm px-4 py-3 border border-[#E2D9CF] rounded-2xl outline-none focus:ring-2 focus:ring-[#1E4030]/20 focus:border-[#1E4030] bg-[#FAF8F5] text-[#1C1A17]"
+                />
+                <button
+                  type="submit"
+                  disabled={!chatInput.trim()}
+                  className="bg-[#1E4030] hover:bg-[#152e22] text-white px-4 py-3 rounded-2xl transition-colors disabled:opacity-40 flex items-center justify-center gap-2 cursor-pointer shadow-xs font-semibold text-xs sm:text-sm"
+                >
+                  <span>Send</span>
+                  <Send size={14} />
+                </button>
+              </div>
             </form>
           </div>
         )}
 
-        {/* Floating Toggle Button */}
-        <button
-          onClick={() => setChatOpen(!chatOpen)}
-          className="w-14 h-14 bg-[#1E4030] hover:bg-[#152e22] text-white rounded-full flex items-center justify-center shadow-lg transition-transform hover:scale-105 active:scale-95 duration-200"
-        >
-          {chatOpen ? <X size={22} /> : <Bot size={22} />}
-        </button>
+        {/* Floating Toggle Button (Hidden when expanded) */}
+        {!chatExpanded && (
+          <button
+            onClick={() => setChatOpen(!chatOpen)}
+            className="w-14 h-14 bg-[#1E4030] hover:bg-[#152e22] text-white rounded-full flex items-center justify-center shadow-lg transition-transform hover:scale-105 active:scale-95 duration-200 cursor-pointer"
+            aria-label="Toggle Carely AI Chat"
+          >
+            {chatOpen ? <X size={22} /> : <Bot size={22} />}
+          </button>
+        )}
       </div>
     </div>
   )

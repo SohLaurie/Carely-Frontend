@@ -63,62 +63,60 @@ export default function Payment({ onNavigate, screenParams }) {
   };
 
   return (
-    <div className="bg-[#FAF8F5] min-h-screen text-[#1C1A17] pb-16">
-      <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-12 pt-6 space-y-6">
-        
-        {/* Back Link */}
-        <button
-          onClick={() => onNavigate('search')}
-          className="inline-flex items-center gap-2 text-xs sm:text-sm font-semibold text-[#8A7E74] hover:text-[#1C1A17] transition-colors cursor-pointer"
-        >
-          <ArrowLeft size={16} />
-          Back to Dashboard
-        </button>
+    <div className="w-full text-[#1C1A17] space-y-6">
+      {/* Back Link */}
+      <button
+        onClick={() => onNavigate('search')}
+        className="inline-flex items-center gap-2 text-xs sm:text-sm font-semibold text-[#8A7E74] hover:text-[#1C1A17] transition-colors cursor-pointer"
+      >
+        <ArrowLeft size={16} />
+        Back to Dashboard
+      </button>
 
-        {/* Title Block */}
-        <div className="space-y-1">
-          <div className="inline-flex items-center gap-2 bg-[#EDF7F2] text-[#1E4030] text-[11px] font-bold px-3 py-1 rounded-full border border-green-200">
-            <Lock size={12} />
-            Step 3: Escrow Payment Authorization
+      {/* Title Block */}
+      <div className="space-y-1">
+        <div className="inline-flex items-center gap-2 bg-[#EDF7F2] text-[#1E4030] text-[11px] font-bold px-3 py-1 rounded-full border border-green-200">
+          <Lock size={12} />
+          Step 3: Escrow Payment Authorization
+        </div>
+        <h1 className="font-display text-3xl sm:text-4xl font-bold text-[#1E4030]">Authorize Mobile Money Escrow</h1>
+        <p className="text-xs sm:text-sm text-[#8A7E74]">
+          Funds are held securely in Carely Escrow. The slot permanently locks on {caregiver.name?.split(' ')[0] || 'your caregiver'}'s calendar.
+        </p>
+      </div>
+
+      {/* Success Alert */}
+      {paymentSuccess && (
+        <div className="bg-[#EDF7F2] border-2 border-green-300 rounded-3xl p-6 shadow-md text-center space-y-2 animate-fadeIn">
+          <div className="w-14 h-14 bg-green-500 text-white rounded-full flex items-center justify-center mx-auto shadow-sm">
+            <Check size={28} strokeWidth={3} />
           </div>
-          <h1 className="font-display text-3xl sm:text-4xl font-bold text-[#1E4030]">Authorize Mobile Money Escrow</h1>
-          <p className="text-xs sm:text-sm text-[#8A7E74]">
-            Funds are held securely in Carely Escrow. The slot permanently locks on {caregiver.name.split(' ')[0]}'s calendar.
+          <h2 className="font-display text-2xl font-bold text-[#1E4030]">Escrow Payment Secured!</h2>
+          <p className="text-xs text-[#1E4030]/80">
+            {amountToCharge.toLocaleString()} XAF has moved into Carely Escrow. Permanent calendar slot locked.
           </p>
         </div>
+      )}
 
-        {/* Success Alert */}
-        {paymentSuccess && (
-          <div className="bg-[#EDF7F2] border-2 border-green-300 rounded-3xl p-6 shadow-md text-center space-y-2 animate-fadeIn">
-            <div className="w-14 h-14 bg-green-500 text-white rounded-full flex items-center justify-center mx-auto shadow-sm">
-              <Check size={28} strokeWidth={3} />
-            </div>
-            <h2 className="font-display text-2xl font-bold text-[#1E4030]">Escrow Payment Secured!</h2>
-            <p className="text-xs text-[#1E4030]/80">
-              {amountToCharge.toLocaleString()} XAF has moved into Carely Escrow. Permanent calendar slot locked.
-            </p>
+      {/* Refund Status Notification */}
+      {refundStatus === 'refunded' && (
+        <div className="bg-amber-50 border-2 border-amber-300 rounded-3xl p-6 text-center space-y-2 animate-fadeIn">
+          <div className="w-14 h-14 bg-amber-500 text-white rounded-full flex items-center justify-center mx-auto">
+            <RotateCcw size={24} />
           </div>
-        )}
+          <h2 className="font-display text-xl font-bold text-amber-900">Pre-Session Cancellation Refunded</h2>
+          <p className="text-xs text-amber-800">
+            Full amount of {amountToCharge.toLocaleString()} XAF returned from escrow to your mobile wallet. Calendar slot released.
+          </p>
+        </div>
+      )}
 
-        {/* Refund Status Notification */}
-        {refundStatus === 'refunded' && (
-          <div className="bg-amber-50 border-2 border-amber-300 rounded-3xl p-6 text-center space-y-2 animate-fadeIn">
-            <div className="w-14 h-14 bg-amber-500 text-white rounded-full flex items-center justify-center mx-auto">
-              <RotateCcw size={24} />
-            </div>
-            <h2 className="font-display text-xl font-bold text-amber-900">Pre-Session Cancellation Refunded</h2>
-            <p className="text-xs text-amber-800">
-              Full amount of {amountToCharge.toLocaleString()} XAF returned from escrow to your mobile wallet. Calendar slot released.
-            </p>
-          </div>
-        )}
-
-        {/* Main Grid: Payment Options & Booking Summary */}
-        <div className="grid grid-cols-1 lg:grid-cols-[1fr_360px] gap-6 items-start">
-          
-          {/* Payment Method Form */}
-          <form onSubmit={handleStartPayment} className="bg-white rounded-3xl border border-[#E2D9CF] p-6 sm:p-8 shadow-sm space-y-6">
-            <h3 className="font-bold text-base text-[#1C1A17]">Select Mobile Wallet</h3>
+      {/* Main Grid: Payment Options & Booking Summary */}
+      <div className="grid grid-cols-1 lg:grid-cols-[1fr_380px] xl:grid-cols-[1fr_420px] gap-6 items-start w-full">
+        
+        {/* Payment Method Form */}
+        <form onSubmit={handleStartPayment} className="bg-white rounded-3xl border border-[#E2D9CF] p-6 sm:p-8 shadow-sm space-y-6">
+          <h3 className="font-bold text-base text-[#1C1A17]">Select Mobile Wallet</h3>
 
             {/* Provider Selector */}
             <div className="grid grid-cols-2 gap-4">
@@ -238,7 +236,6 @@ export default function Payment({ onNavigate, screenParams }) {
             </div>
           </div>
         </div>
-      </div>
 
       {/* Campay USSD Processing Modal */}
       {showPinModal && (

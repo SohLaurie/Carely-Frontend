@@ -41,7 +41,7 @@ export default function ReferEarnTab() {
   };
 
   return (
-    <div className="space-y-6 max-w-4xl">
+    <div className="space-y-6 w-full">
       {/* Header Banner */}
       <div className="flex items-center gap-4">
         <div className="w-12 h-12 bg-[#EDF7F2] rounded-2xl flex items-center justify-center border border-green-200/60 text-[#1E4030] shadow-sm">
@@ -54,19 +54,19 @@ export default function ReferEarnTab() {
       </div>
 
       {/* Share Unique Code Card */}
-      <div className="bg-white border border-[#E2D9CF] rounded-2xl p-6 shadow-sm space-y-4">
+      <div className="bg-white border border-[#E2D9CF] rounded-3xl p-6 sm:p-8 shadow-sm space-y-5 w-full">
         <h3 className="text-sm font-bold text-[#1C1A17] uppercase tracking-wider">Share your Unique Code</h3>
         
         <div className="space-y-3">
           <p className="text-xs font-semibold text-[#8A7E74]">Your Code:</p>
-          <div className="flex flex-col sm:flex-row gap-3 max-w-md">
-            <div className="flex-1 bg-[#FAF8F5] border border-[#E2D9CF] rounded-xl px-4 py-3 font-mono font-bold text-lg text-[#1C1A17] tracking-wider flex items-center justify-between">
+          <div className="flex flex-col sm:flex-row gap-3 w-full">
+            <div className="flex-1 bg-[#FAF8F5] border border-[#E2D9CF] rounded-xl px-5 py-3.5 font-mono font-bold text-lg text-[#1C1A17] tracking-wider flex items-center justify-between">
               <span>{referralCode}</span>
-              <span className="text-[11px] font-sans font-medium text-[#8A7E74] select-none bg-[#E2D9CF]/30 px-2 py-0.5 rounded">Link Mode</span>
+              <span className="text-[11px] font-sans font-medium text-[#8A7E74] select-none bg-[#E2D9CF]/30 px-2.5 py-1 rounded-md">Link Mode</span>
             </div>
             <button
               onClick={handleCopy}
-              className="bg-[#1E4030] hover:bg-[#152e22] text-white px-6 py-3 rounded-xl font-bold text-sm transition-all flex items-center justify-center gap-2 cursor-pointer shadow-sm hover:shadow active:scale-95"
+              className="bg-[#1E4030] hover:bg-[#152e22] text-white px-8 py-3.5 rounded-xl font-bold text-sm transition-all flex items-center justify-center gap-2 cursor-pointer shadow-sm hover:shadow active:scale-95 shrink-0"
             >
               {copied ? (
                 <>
@@ -84,19 +84,19 @@ export default function ReferEarnTab() {
         </div>
 
         {/* Social Share Buttons */}
-        <div className="pt-2 flex flex-wrap gap-2">
+        <div className="pt-2 flex flex-wrap gap-2.5">
           <a
             href={`https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(referralLink)}`}
             target="_blank"
             rel="noopener noreferrer"
-            className="flex items-center gap-2 bg-[#1877F2] hover:bg-[#166FE5] text-white px-4 py-2 rounded-xl text-xs font-bold transition-all shadow-sm"
+            className="flex items-center gap-2 bg-[#1877F2] hover:bg-[#166FE5] text-white px-5 py-2.5 rounded-xl text-xs font-bold transition-all shadow-sm"
           >
             <FacebookIcon size={14} className="fill-current" />
             <span>Facebook</span>
           </a>
           <a
             href={`fb-messenger://share/?link=${encodeURIComponent(referralLink)}`}
-            className="flex items-center gap-2 bg-[#00B2FF] hover:bg-[#009EE0] text-white px-4 py-2 rounded-xl text-xs font-bold transition-all shadow-sm"
+            className="flex items-center gap-2 bg-[#00B2FF] hover:bg-[#009EE0] text-white px-5 py-2.5 rounded-xl text-xs font-bold transition-all shadow-sm"
           >
             <MessengerIcon size={14} className="fill-current" />
             <span>Messenger</span>
@@ -105,7 +105,7 @@ export default function ReferEarnTab() {
             href={`https://twitter.com/intent/tweet?url=${encodeURIComponent(referralLink)}&text=${encodeURIComponent('Join Carely and get 5,000 FCFA off your first professional home service booking!')}`}
             target="_blank"
             rel="noopener noreferrer"
-            className="flex items-center gap-2 bg-black hover:bg-neutral-800 text-white px-4 py-2 rounded-xl text-xs font-bold transition-all shadow-sm"
+            className="flex items-center gap-2 bg-black hover:bg-neutral-800 text-white px-5 py-2.5 rounded-xl text-xs font-bold transition-all shadow-sm"
           >
             <span className="font-extrabold text-xs">X</span>
             <span>Share</span>
@@ -114,7 +114,7 @@ export default function ReferEarnTab() {
             href={`https://api.whatsapp.com/send?text=${encodeURIComponent(`Join Carely and get 5,000 FCFA off your first professional home service booking! Signup here: ${referralLink}`)}`}
             target="_blank"
             rel="noopener noreferrer"
-            className="flex items-center gap-2 bg-[#25D366] hover:bg-[#20BA5A] text-white px-4 py-2 rounded-xl text-xs font-bold transition-all shadow-sm"
+            className="flex items-center gap-2 bg-[#25D366] hover:bg-[#20BA5A] text-white px-5 py-2.5 rounded-xl text-xs font-bold transition-all shadow-sm"
           >
             <WhatsappIcon size={14} className="fill-current" />
             <span>WhatsApp</span>
@@ -123,22 +123,22 @@ export default function ReferEarnTab() {
       </div>
 
       {/* Invite Friends via Email Card */}
-      <div className="bg-white border border-[#E2D9CF] rounded-2xl p-6 shadow-sm space-y-4">
+      <div className="bg-white border border-[#E2D9CF] rounded-3xl p-6 sm:p-8 shadow-sm space-y-4 w-full">
         <h3 className="text-sm font-bold text-[#1C1A17] uppercase tracking-wider">Invite your friends</h3>
         
-        <form onSubmit={handleSendInvites} className="space-y-3">
+        <form onSubmit={handleSendInvites} className="space-y-3 w-full">
           <label className="block text-xs font-semibold text-[#8A7E74]">Add email addresses:</label>
-          <div className="flex flex-col sm:flex-row gap-3">
+          <div className="flex flex-col sm:flex-row gap-3 w-full">
             <input
               type="text"
               placeholder="comma separated: friend1@mail.com, friend2@mail.com"
               value={emailInput}
               onChange={(e) => setEmailInput(e.target.value)}
-              className="flex-1 bg-[#FAF8F5] border border-[#E2D9CF] rounded-xl px-4 py-3 text-sm text-[#1C1A17] outline-none focus:border-[#1E4030]/60 transition-all placeholder-[#B0A89E]"
+              className="flex-1 bg-[#FAF8F5] border border-[#E2D9CF] rounded-xl px-5 py-3.5 text-sm text-[#1C1A17] outline-none focus:border-[#1E4030]/60 transition-all placeholder-[#B0A89E]"
             />
             <button
               type="submit"
-              className="bg-[#1E4030] hover:bg-[#152e22] text-white px-6 py-3 rounded-xl font-bold text-sm transition-all flex items-center justify-center gap-2 cursor-pointer shadow-sm active:scale-95"
+              className="bg-[#1E4030] hover:bg-[#152e22] text-white px-8 py-3.5 rounded-xl font-bold text-sm transition-all flex items-center justify-center gap-2 cursor-pointer shadow-sm active:scale-95 shrink-0"
             >
               <Mail size={16} />
               <span>Send Invites</span>
@@ -154,12 +154,12 @@ export default function ReferEarnTab() {
       </div>
 
       {/* How it Works Card */}
-      <div className="bg-white border border-[#E2D9CF] rounded-2xl p-6 shadow-sm space-y-6">
+      <div className="bg-white border border-[#E2D9CF] rounded-3xl p-6 sm:p-8 shadow-sm space-y-6 w-full">
         <h3 className="text-sm font-bold text-[#1C1A17] uppercase tracking-wider">How it works</h3>
         
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
           {/* Step 1 */}
-          <div className="flex flex-col items-center text-center space-y-3 p-4">
+          <div className="flex flex-col items-center text-center space-y-3 p-5 bg-[#FAF8F5] border border-[#E2D9CF] rounded-2xl">
             <div className="w-12 h-12 bg-[#EDF7F2] rounded-full flex items-center justify-center text-[#2D6A4F]">
               <Share2 size={20} />
             </div>
@@ -169,7 +169,7 @@ export default function ReferEarnTab() {
           </div>
 
           {/* Step 2 */}
-          <div className="flex flex-col items-center text-center space-y-3 p-4">
+          <div className="flex flex-col items-center text-center space-y-3 p-5 bg-[#FAF8F5] border border-[#E2D9CF] rounded-2xl">
             <div className="w-12 h-12 bg-[#EDF7F2] rounded-full flex items-center justify-center text-[#2D6A4F]">
               <Gift size={20} />
             </div>
@@ -179,7 +179,7 @@ export default function ReferEarnTab() {
           </div>
 
           {/* Step 3 */}
-          <div className="flex flex-col items-center text-center space-y-3 p-4">
+          <div className="flex flex-col items-center text-center space-y-3 p-5 bg-[#FAF8F5] border border-[#E2D9CF] rounded-2xl">
             <div className="w-12 h-12 bg-[#EDF7F2] rounded-full flex items-center justify-center text-[#2D6A4F]">
               <CreditCard size={20} />
             </div>
