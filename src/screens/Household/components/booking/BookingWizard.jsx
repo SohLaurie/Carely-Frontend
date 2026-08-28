@@ -4,13 +4,8 @@ import ServiceSelectPanel from './ServiceSelectPanel';
 import LocationStep from './LocationStep';
 import BookingTypeStep from './BookingTypeStep';
 import ProviderMatchStep from './ProviderMatchStep';
+import ElderProfileStep from './ElderProfileStep';
 import ConfirmationStep from './ConfirmationStep';
-
-// Steps that can be skipped:
-//  - step 1 (service select) if initialService is provided
-//  - step 4 (provider match) if initialProvider is provided
-
-const STEP_LABELS = ['Service', 'Location', 'Schedule', 'Provider', 'Confirm'];
 
 export default function BookingWizard({
   initialService  = null,
@@ -18,11 +13,6 @@ export default function BookingWizard({
   onClose,
   onComplete,
 }) {
-  // Compute which steps are active (not skipped)
-  const skippedSteps = new Set();
-  if (initialService)  skippedSteps.add(1); // step index 0
-  if (initialProvider) skippedSteps.add(4); // step index 3
-
   // Shared booking data object, mutated by each step
   const [bookingData, setBookingData] = useState({
     service:      initialService  || null,
@@ -35,26 +25,49 @@ export default function BookingWizard({
     selectedDays: {},
     extras:       [],
     notes:        '',
+    elderProfile: null,
   });
 
-  // Active step: 0=service, 1=location, 2=bookingType, 3=provider, 4=confirm
-  const firstStep = initialService ? 1 : 0;
-  const [step, setStep] = useState(firstStep);
+  const getWizardSteps = () => {
+    const steps = [];
+    if (!initialService) steps.push('service');
+    steps.push('location');
+    steps.push('schedule');
+    if (!initialProvider) steps.push('provider');
+    if (bookingData.service?.id === 'elder-care') steps.push('profile');
+    steps.push('confirm');
+    return steps;
+  };
+
+  const getStepLabels = () => {
+    const labels = [];
+    if (!initialService) labels.push('Service');
+    labels.push('Location');
+    labels.push('Schedule');
+    if (!initialProvider) labels.push('Provider');
+    if (bookingData.service?.id === 'elder-care') labels.push('Profile');
+    labels.push('Confirm');
+    return labels;
+  };
+
+  const wizardSteps = getWizardSteps();
+  const visibleStepLabels = getStepLabels();
+
+  const [step, setStep] = useState(0);
+  const currentStepName = wizardSteps[step];
 
   const updateData = (patch) => setBookingData(prev => ({ ...prev, ...patch }));
 
   const goNext = () => {
-    let next = step + 1;
-    // Skip provider step if initialProvider provided
-    if (next === 3 && initialProvider) next = 4;
-    setStep(next);
+    setStep(prev => Math.min(wizardSteps.length - 1, prev + 1));
   };
 
   const goBack = () => {
-    let prev = step - 1;
-    if (prev === 3 && initialProvider) prev = 2;
-    if (prev < firstStep) { onClose(); return; }
-    setStep(prev);
+    if (step === 0) {
+      onClose();
+      return;
+    }
+    setStep(prev => prev - 1);
   };
 
   const handleServiceSelect = (svc) => {
@@ -64,7 +77,12 @@ export default function BookingWizard({
 
   const handleProviderSelect = (provider) => {
     updateData({ provider });
-    setStep(4);
+    const providerIndex = wizardSteps.indexOf('provider');
+    if (providerIndex !== -1) {
+      setStep(providerIndex + 1);
+    } else {
+      setStep(prev => prev + 1);
+    }
   };
 
   const handleConfirm = (patch = {}) => {
@@ -72,11 +90,7 @@ export default function BookingWizard({
     onComplete && onComplete(finalData);
   };
 
-  // Progress bar (only show step 0 if it's not skipped)
-  const visibleStepLabels = initialService
-    ? STEP_LABELS.slice(1)
-    : STEP_LABELS;
-  const progressIndex = initialService ? step - 1 : step;
+  const progressIndex = step;
 
   return (
     <div className="bw-overlay">
@@ -113,7 +127,7 @@ export default function BookingWizard({
 
         {/* Step content */}
         <div className="bw-content">
-          {step === 0 && (
+          {currentStepName === 'service' && (
             // ServiceSelectPanel renders as its own backdrop modal
             <ServiceSelectPanel
               onSelect={handleServiceSelect}
@@ -121,7 +135,7 @@ export default function BookingWizard({
             />
           )}
 
-          {step === 1 && (
+          {currentStepName === 'location' && (
             <LocationStep
               data={bookingData}
               onChange={updateData}
@@ -130,7 +144,7 @@ export default function BookingWizard({
             />
           )}
 
-          {step === 2 && (
+          {currentStepName === 'schedule' && (
             <BookingTypeStep
               data={bookingData}
               onChange={updateData}
@@ -139,7 +153,7 @@ export default function BookingWizard({
             />
           )}
 
-          {step === 3 && (
+          {currentStepName === 'provider' && (
             <ProviderMatchStep
               data={bookingData}
               onSelectProvider={handleProviderSelect}
@@ -147,7 +161,16 @@ export default function BookingWizard({
             />
           )}
 
-          {step === 4 && (
+          {currentStepName === 'profile' && (
+            <ElderProfileStep
+              data={bookingData}
+              onChange={updateData}
+              onNext={goNext}
+              onBack={goBack}
+            />
+          )}
+
+          {currentStepName === 'confirm' && (
             <ConfirmationStep
               data={bookingData}
               onConfirm={handleConfirm}

@@ -148,6 +148,43 @@ export default function ConfirmationStep({ data, onConfirm, onBack }) {
         })}
       </div>
 
+      {/* Elder Care Profile details */}
+      {service?.id === 'elder-care' && data.elderProfile && (
+        <div className="cs-profile-summary">
+          <h4 className="cs-profile-title">Recipient Profile</h4>
+          <div className="cs-profile-grid">
+            <div className="cs-profile-item">
+              <span className="cs-profile-label">Recipient</span>
+              <span className="cs-profile-val">{data.elderProfile.recipient}</span>
+            </div>
+            {data.elderProfile.allergies && data.elderProfile.allergies.toLowerCase() !== 'none' && (
+              <div className="cs-profile-item">
+                <span className="cs-profile-label">Allergies</span>
+                <span className="cs-profile-val">{data.elderProfile.allergies}</span>
+              </div>
+            )}
+            {data.elderProfile.medications && data.elderProfile.medications.toLowerCase() !== 'none' && (
+              <div className="cs-profile-item">
+                <span className="cs-profile-label">Medications</span>
+                <span className="cs-profile-val">{data.elderProfile.medications}</span>
+              </div>
+            )}
+            {data.elderProfile.emergency && (
+              <div className="cs-profile-item">
+                <span className="cs-profile-label">Emergency Contact</span>
+                <span className="cs-profile-val">{data.elderProfile.emergency}</span>
+              </div>
+            )}
+            {data.elderProfile.pets && data.elderProfile.pets.toLowerCase() !== 'none' && (
+              <div className="cs-profile-item">
+                <span className="cs-profile-label">Pets at Property</span>
+                <span className="cs-profile-val">{data.elderProfile.pets}</span>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
       {/* Provider card */}
       {provider && (
         <div className="cs-provider">
@@ -335,6 +372,33 @@ export default function ConfirmationStep({ data, onConfirm, onBack }) {
         }
         .cs-price-label--discount, .cs-price-val--discount {
           color: #2D6A4F; font-weight: 600;
+        }
+
+        /* Elder Care Profile Summary Card */
+        .cs-profile-summary {
+          background: #fff; border-radius: 16px;
+          border: 1.5px solid #E0DBD5; padding: 1.1rem 1.25rem;
+          margin-bottom: 0.9rem; display: flex; flex-direction: column;
+          gap: 0.65rem;
+        }
+        .cs-profile-title {
+          font-size: 0.78rem; font-weight: 700; color: #1C1A17;
+          text-transform: uppercase; letter-spacing: 0.04em;
+          margin: 0 0 0.15rem;
+        }
+        .cs-profile-grid {
+          display: flex; flex-direction: column; gap: 0.5rem;
+        }
+        .cs-profile-item {
+          display: flex; justify-content: space-between; align-items: flex-start;
+          gap: 0.5rem;
+        }
+        .cs-profile-label {
+          font-size: 0.78rem; color: #8A7E74; font-weight: 500;
+        }
+        .cs-profile-val {
+          font-size: 0.8rem; font-weight: 600; color: #1C1A17;
+          text-align: right; line-height: 1.3;
         }
       `}</style>
     </div>
