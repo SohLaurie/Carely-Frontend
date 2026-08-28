@@ -34,9 +34,48 @@ export default function HouseholdDashboard({ onNavigate: topNavigate, screenPara
 
   const handleWizardComplete = (bookingData) => {
     setWizardOpen(false);
-    // Navigate to Requests tab so the user can see their pending request
+
+    let formattedDate = bookingData.date || 'Today';
+    let formattedTime = '09:00 – 12:00';
+    
+    if (bookingData.bookingType === 'recurring' && bookingData.selectedDays) {
+      const days = Object.keys(bookingData.selectedDays);
+      const shortMap = { mon: 'Mon', tue: 'Tue', wed: 'Wed', thu: 'Thu', fri: 'Fri', sat: 'Sat', sun: 'Sun' };
+      const dayLabels = days.map(d => shortMap[d] || d);
+      formattedDate = `Every ${dayLabels.join(', ')}`;
+      const firstDay = bookingData.selectedDays[days[0]];
+      if (firstDay?.startTime && firstDay?.endTime) {
+        formattedTime = `${firstDay.startTime} – ${firstDay.endTime}`;
+      }
+    } else {
+      if (bookingData.startTime && bookingData.endTime) {
+        formattedTime = `${bookingData.startTime} – ${bookingData.endTime}`;
+      }
+    }
+
+    const formattedPrice = bookingData.totalPrice
+      ? (bookingData.totalPrice.toLocaleString() + ' XAF')
+      : '11,000 XAF';
+
+    const newRequest = {
+      id: 'R_' + Date.now(),
+      name: bookingData.provider?.name || 'Marie-Claire Nkomo',
+      specialty: bookingData.service?.specialty || 'cleaning',
+      date: formattedDate,
+      time: formattedTime,
+      status: 'Pending',
+      timeSent: 'Sent Just Now',
+      location: bookingData.addressText || bookingData.address?.full || 'Douala, Cameroon',
+      pricePerHour: bookingData.provider?.pricePerHour || 3500,
+      totalPrice: formattedPrice,
+      patientNotes: bookingData.notes || 'No specific instructions provided.',
+      photo: bookingData.provider?.photo || 'https://images.unsplash.com/photo-1627328543975-3f0ba8a823b0?w=400&h=400&fit=crop&auto=format'
+    };
+
+    setRequests(prev => [newRequest, ...prev]);
     setActiveTab('requests');
   };
+
   const {
     activeTab,
     setActiveTab,
@@ -66,6 +105,7 @@ export default function HouseholdDashboard({ onNavigate: topNavigate, screenPara
     aiResult,
     handleAiRecommend,
     requests,
+    setRequests,
     activeDropdownId,
     setActiveDropdownId,
     bookings,

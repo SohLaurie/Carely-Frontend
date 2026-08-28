@@ -67,8 +67,9 @@ export default function BookingWizard({
     setStep(4);
   };
 
-  const handleConfirm = () => {
-    onComplete && onComplete(bookingData);
+  const handleConfirm = (patch = {}) => {
+    const finalData = { ...bookingData, ...patch };
+    onComplete && onComplete(finalData);
   };
 
   // Progress bar (only show step 0 if it's not skipped)

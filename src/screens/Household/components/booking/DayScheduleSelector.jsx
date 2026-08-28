@@ -12,6 +12,23 @@ export default function DayScheduleSelector({ data, onChange, onSubmit, onBack }
   // selectedDays: { mon: { startTime, endTime, extras }, ... }
   const [selectedDays, setSelectedDays] = useState(data.selectedDays || {});
   const [expandedDay, setExpandedDay]   = useState(null);
+  const [skippedDates, setSkippedDates] = useState(data.skippedDates || []);
+  const [frequency, setFrequency]         = useState(data.frequency || 'weekly');
+  const [durationWeeks, setDurationWeeks] = useState(data.durationWeeks || '4');
+
+  const todayObj = new Date();
+  const y = todayObj.getFullYear();
+  const m = String(todayObj.getMonth() + 1).padStart(2, '0');
+  const d = String(todayObj.getDate()).padStart(2, '0');
+  const todayStr = `${y}-${m}-${d}`;
+
+  const [startDate, setStartDate] = useState(data.startDate || todayStr);
+
+  const handleToggleSkipDate = (dateKey) => {
+    setSkippedDates(prev =>
+      prev.includes(dateKey) ? prev.filter(d => d !== dateKey) : [...prev, dateKey]
+    );
+  };
 
   const toggleDay = (dayId) => {
     setSelectedDays(prev => {
@@ -45,13 +62,77 @@ export default function DayScheduleSelector({ data, onChange, onSubmit, onBack }
 
   const handleSubmit = () => {
     if (!canSubmit) return;
-    onChange({ selectedDays });
+    onChange({ selectedDays, skippedDates, frequency, durationWeeks, startDate });
     onSubmit();
   };
 
   return (
     <div className="dss-root">
-      <h3 className="dss-title">Which days?</h3>
+      {/* Frequency Selector */}
+      <div className="dss-section">
+        <h4 className="dss-sub-title">Choose your frequency</h4>
+        <div className="dss-freq-cards">
+          <button
+            type="button"
+            className={`dss-freq-card ${frequency === 'weekly' ? 'dss-freq-card--active' : ''}`}
+            onClick={() => setFrequency('weekly')}
+          >
+            <p className="dss-freq-card-title">Every Week / Daily</p>
+            <p className="dss-freq-card-desc">Get help every week or more</p>
+          </button>
+          <button
+            type="button"
+            className={`dss-freq-card ${frequency === 'biweekly' ? 'dss-freq-card--active' : ''}`}
+            onClick={() => setFrequency('biweekly')}
+          >
+            <p className="dss-freq-card-title">Every 2 Weeks</p>
+            <p className="dss-freq-card-desc">Get help every two weeks</p>
+          </button>
+        </div>
+      </div>
+
+      {/* Duration Selector */}
+      <div className="dss-section dss-section--mt">
+        <label className="dss-field-label">Duration (Weeks)</label>
+        <div className="dss-duration-wrap">
+          <select
+            className="dss-select-duration"
+            value={durationWeeks}
+            onChange={e => setDurationWeeks(e.target.value)}
+          >
+            <option value="1">1 Week</option>
+            <option value="2">2 Weeks</option>
+            <option value="3">3 Weeks</option>
+            <option value="4">4 Weeks (1 Month)</option>
+            <option value="6">6 Weeks</option>
+            <option value="8">8 Weeks (2 Months)</option>
+            <option value="12">12 Weeks (3 Months)</option>
+            <option value="ongoing">Ongoing</option>
+          </select>
+          <p className="dss-duration-helper">
+            Service runs {frequency === 'weekly' ? 'every week' : 'every 2 weeks'} for {durationWeeks === 'ongoing' ? 'an ongoing period' : `${durationWeeks} weeks`}.
+          </p>
+        </div>
+      </div>
+
+      {/* Start Date Selector */}
+      <div className="dss-section dss-section--mt">
+        <label className="dss-field-label">Start Date</label>
+        <div className="dss-date-wrap">
+          <input
+            type="date"
+            className="dss-select-duration"
+            value={startDate}
+            min={todayStr}
+            onChange={e => setStartDate(e.target.value)}
+          />
+          <p className="dss-duration-helper">
+            Select when you would like the first session to begin.
+          </p>
+        </div>
+      </div>
+
+      <h3 className="dss-title dss-title--days">Which days?</h3>
 
       {/* Day rows */}
       <div className="dss-day-list">
@@ -166,7 +247,14 @@ export default function DayScheduleSelector({ data, onChange, onSubmit, onBack }
       {/* Live calendar preview */}
       {canSubmit && (
         <div className="dss-cal-wrap">
-          <CalendarPreview selectedDays={Object.keys(selectedDays)} />
+          <CalendarPreview 
+            selectedDays={Object.keys(selectedDays)} 
+            skippedDates={skippedDates}
+            onToggleSkipDate={handleToggleSkipDate}
+            frequency={frequency}
+            durationWeeks={durationWeeks}
+            baseDate={startDate}
+          />
         </div>
       )}
 
@@ -298,6 +386,58 @@ export default function DayScheduleSelector({ data, onChange, onSubmit, onBack }
         .dss-btn--submit:hover { transform: translateY(-2px); }
         .dss-btn--disabled {
           background: #E8E4DF; border: none; color: #B0A89E; cursor: not-allowed;
+        }
+
+        /* Frequency & Duration Section Styles */
+        .dss-section {
+          max-width: 520px; margin: 0 auto 1.25rem;
+        }
+        .dss-section--mt { margin-top: 1.25rem; }
+        .dss-sub-title {
+          font-size: 0.8rem; font-weight: 700; color: #1C1A17;
+          text-transform: uppercase; letter-spacing: 0.04em;
+          margin: 0 0 0.55rem;
+        }
+        .dss-freq-cards {
+          display: grid; grid-template-columns: 1fr 1fr; gap: 0.75rem;
+        }
+        .dss-freq-card {
+          background: #fff; border: 1.8px solid #E0DBD5;
+          border-radius: 12px; padding: 0.85rem; text-align: left;
+          cursor: pointer; transition: all 0.15s;
+          display: flex; flex-direction: column; gap: 2px;
+        }
+        .dss-freq-card:hover { border-color: #2D6A4F; }
+        .dss-freq-card--active {
+          border-color: #1E3A28; background: rgba(45,106,79,0.05);
+          box-shadow: 0 2px 8px rgba(45,106,79,0.06);
+        }
+        .dss-freq-card-title {
+          font-size: 0.82rem; font-weight: 700; color: #1C1A17; margin: 0;
+        }
+        .dss-freq-card-desc {
+          font-size: 0.7rem; color: #8A7E74; margin: 0;
+        }
+        .dss-field-label {
+          display: block; font-size: 0.8rem; font-weight: 700;
+          color: #1C1A17; margin-bottom: 0.4rem;
+          text-transform: uppercase; letter-spacing: 0.04em;
+        }
+        .dss-select-duration {
+          width: 100%; border: 1.8px solid #E0DBD5; border-radius: 10px;
+          padding: 0.7rem 0.85rem; font-size: 0.86rem;
+          color: #1C1A17; font-family: 'Inter', sans-serif;
+          outline: none; background: #fff;
+          transition: border-color 0.15s;
+        }
+        .dss-select-duration:focus { border-color: #2D6A4F; }
+        .dss-duration-helper {
+          font-size: 0.73rem; color: #8A7E74; margin: 0.35rem 0 0;
+          font-style: italic; font-weight: 500;
+        }
+        .dss-title--days {
+          margin-top: 1.4rem; text-align: left; font-size: 0.8rem;
+          text-transform: uppercase; letter-spacing: 0.04em;
         }
       `}</style>
     </div>

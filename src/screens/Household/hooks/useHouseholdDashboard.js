@@ -307,6 +307,7 @@ export function useHouseholdDashboard(screenParams) {
     aiResult,
     handleAiRecommend,
     requests,
+    setRequests,
     activeDropdownId,
     setActiveDropdownId,
     bookings,

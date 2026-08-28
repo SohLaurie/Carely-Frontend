@@ -1,5 +1,5 @@
 import React from 'react';
-import { MapPin, Calendar, Clock, RefreshCw, Check, ShieldCheck } from 'lucide-react';
+import { MapPin, Calendar, Clock, RefreshCw, Check, ShieldCheck, HeartHandshake } from 'lucide-react';
 import { DAYS_OF_WEEK } from './bookingData';
 
 function getInitials(name) {
@@ -15,7 +15,13 @@ function formatSchedule(data) {
     const days = Object.keys(data.selectedDays);
     const dayLabels = DAYS_OF_WEEK.filter(d => days.includes(d.id)).map(d => d.short);
     const firstDay = data.selectedDays[days[0]];
-    return `Every ${dayLabels.join(', ')}, ${firstDay?.startTime || '–'} – ${firstDay?.endTime || '–'}`;
+    const skipCount = data.skippedDates ? data.skippedDates.length : 0;
+    const skipText = skipCount > 0 ? ` (${skipCount} session${skipCount > 1 ? 's' : ''} skipped)` : '';
+    
+    const freqLabel = data.frequency === 'biweekly' ? 'Every 2 Weeks' : 'Every Week';
+    const durLabel = data.durationWeeks === 'ongoing' ? 'ongoing' : `for ${data.durationWeeks} weeks`;
+
+    return `${freqLabel} on ${dayLabels.join(', ')} ${durLabel}, ${firstDay?.startTime || '–'} – ${firstDay?.endTime || '–'}${skipText}`;
   }
   return '–';
 }
@@ -23,20 +29,91 @@ function formatSchedule(data) {
 export default function ConfirmationStep({ data, onConfirm, onBack }) {
   const { service, address, provider, bookingType } = data;
 
+  const ratePerHour = provider?.pricePerHour || 3500;
+  const isRecurring = bookingType === 'recurring';
+  
+  let hours = 3;
+  let sessionFeeLabel = 'Single Session Fee';
+  let hoursLabel = 'Hours per session';
+
+  if (isRecurring) {
+    let totalHours = 0;
+    if (data.selectedDays) {
+      Object.values(data.selectedDays).forEach(day => {
+        const [sh, sm] = (day.startTime || '08:00').split(':').map(Number);
+        const [eh, em] = (day.endTime || '12:00').split(':').map(Number);
+        totalHours += Math.max(1, +((eh * 60 + em) - (sh * 60 + sm)) / 60);
+      });
+    }
+    hours = totalHours || 3;
+    sessionFeeLabel = 'Weekly Session Fee';
+    hoursLabel = 'Hours per week';
+  } else {
+    const [sh, sm] = (data.startTime || '09:00').split(':').map(Number);
+    const [eh, em] = (data.endTime || '12:00').split(':').map(Number);
+    hours = Math.max(1, +((eh * 60 + em) - (sh * 60 + sm)) / 60);
+  }
+
+  const sessionFee = ratePerHour * hours;
+  const escrowFee = 500;
+  
+  let skippedDiscount = 0;
+  if (isRecurring && data.skippedDates && data.skippedDates.length > 0) {
+    const today = new Date();
+    today.setHours(0,0,0,0);
+    const startDay = new Date(today);
+    const dow = today.getDay();
+    const diffToMon = (dow === 0 ? -6 : 1 - dow);
+    startDay.setDate(startDay.getDate() + diffToMon);
+    
+    const firstWeekDateKeys = [];
+    for (let d = 0; d < 7; d++) {
+      const date = new Date(startDay);
+      date.setDate(startDay.getDate() + d);
+      const y = date.getFullYear();
+      const m = String(date.getMonth() + 1).padStart(2, '0');
+      const dayVal = String(date.getDate()).padStart(2, '0');
+      firstWeekDateKeys.push(`${y}-${m}-${dayVal}`);
+    }
+
+    let skippedHours = 0;
+    data.skippedDates.forEach(dateKey => {
+      if (firstWeekDateKeys.includes(dateKey)) {
+        const parts = dateKey.split('-').map(Number);
+        const dateObj = new Date(parts[0], parts[1] - 1, parts[2]);
+        const dayIds = ['sun', 'mon', 'tue', 'wed', 'thu', 'fri', 'sat'];
+        const dayId = dayIds[dateObj.getDay()];
+        const dayConfig = data.selectedDays[dayId];
+        if (dayConfig) {
+          const [sh, sm] = (dayConfig.startTime || '08:00').split(':').map(Number);
+          const [eh, em] = (dayConfig.endTime || '12:00').split(':').map(Number);
+          skippedHours += Math.max(1, +((eh * 60 + em) - (sh * 60 + sm)) / 60);
+        }
+      }
+    });
+    skippedDiscount = skippedHours * ratePerHour;
+  }
+
+  const totalPrice = Math.max(500, sessionFee - skippedDiscount + escrowFee);
+
+  const handleConfirmClick = () => {
+    onConfirm && onConfirm({ totalPrice });
+  };
+
   const summaryRows = [
     {
-      icon: service?.emoji || '🏠',
+      icon: HeartHandshake,
       label: 'Service',
       value: service?.label || '–',
     },
     {
-      icon: '📍',
+      icon: MapPin,
       label: 'Location',
-      value: address?.addressText || '–',
+      value: data.addressText || address?.full || '–',
       sub: address?.unit || null,
     },
     {
-      icon: bookingType === 'recurring' ? '🔄' : '📅',
+      icon: Calendar,
       label: 'Schedule',
       value: formatSchedule(data),
     },
@@ -54,16 +131,21 @@ export default function ConfirmationStep({ data, onConfirm, onBack }) {
 
       {/* Summary cards */}
       <div className="cs-summary">
-        {summaryRows.map((row, i) => (
-          <div key={i} className="cs-row">
-            <span className="cs-row-emoji">{row.icon}</span>
-            <div className="cs-row-content">
-              <p className="cs-row-label">{row.label}</p>
-              <p className="cs-row-value">{row.value}</p>
-              {row.sub && <p className="cs-row-sub">{row.sub}</p>}
+        {summaryRows.map((row, i) => {
+          const Icon = row.icon;
+          return (
+            <div key={i} className="cs-row">
+              <div className="cs-row-icon-wrap">
+                <Icon size={16} />
+              </div>
+              <div className="cs-row-content">
+                <p className="cs-row-label">{row.label}</p>
+                <p className="cs-row-value">{row.value}</p>
+                {row.sub && <p className="cs-row-sub">{row.sub}</p>}
+              </div>
             </div>
-          </div>
-        ))}
+          );
+        })}
       </div>
 
       {/* Provider card */}
@@ -90,6 +172,37 @@ export default function ConfirmationStep({ data, onConfirm, onBack }) {
         </div>
       )}
 
+      {/* Pricing Summary Card */}
+      <div className="cs-price-card">
+        <div className="cs-price-row">
+          <span className="cs-price-label">Rate per hour</span>
+          <span className="cs-price-val">{ratePerHour.toLocaleString()} XAF</span>
+        </div>
+        <div className="cs-price-row">
+          <span className="cs-price-label">{hoursLabel}</span>
+          <span className="cs-price-val">{hours} hrs</span>
+        </div>
+        <div className="cs-price-row">
+          <span className="cs-price-label">{sessionFeeLabel}</span>
+          <span className="cs-price-val">{sessionFee.toLocaleString()} XAF</span>
+        </div>
+        {skippedDiscount > 0 && (
+          <div className="cs-price-row cs-price-row--discount">
+            <span className="cs-price-label cs-price-label--discount">Skipped Session Discount</span>
+            <span className="cs-price-val cs-price-val--discount">-{skippedDiscount.toLocaleString()} XAF</span>
+          </div>
+        )}
+        <div className="cs-price-row">
+          <span className="cs-price-label">Carely Escrow Protection</span>
+          <span className="cs-price-val">{escrowFee.toLocaleString()} XAF</span>
+        </div>
+        <div className="cs-price-divider" />
+        <div className="cs-price-row cs-price-row--total">
+          <span className="cs-price-label cs-price-label--total">Total (Held in Escrow)</span>
+          <span className="cs-price-val cs-price-val--total">{totalPrice.toLocaleString()} XAF</span>
+        </div>
+      </div>
+
       {/* Disclaimer */}
       <p className="cs-disclaimer">
         Your request will be sent to the provider. Booking is confirmed once they accept.
@@ -99,7 +212,7 @@ export default function ConfirmationStep({ data, onConfirm, onBack }) {
       {/* Actions */}
       <div className="cs-actions">
         <button className="cs-btn cs-btn--back" onClick={onBack}>Back</button>
-        <button className="cs-btn cs-btn--confirm" onClick={onConfirm}>
+        <button className="cs-btn cs-btn--confirm" onClick={handleConfirmClick}>
           Confirm Booking
         </button>
       </div>
@@ -125,12 +238,17 @@ export default function ConfirmationStep({ data, onConfirm, onBack }) {
           margin-bottom: 0.85rem;
         }
         .cs-row {
-          display: flex; align-items: flex-start; gap: 0.85rem;
+          display: flex; align-items: center; gap: 0.85rem;
           padding: 0.9rem 1rem;
           border-bottom: 1px solid #F0EBE5;
         }
         .cs-row:last-child { border-bottom: none; }
-        .cs-row-emoji { font-size: 1.2rem; flex-shrink: 0; margin-top: 1px; }
+        .cs-row-icon-wrap {
+          display: flex; align-items: center; justify-content: center;
+          width: 32px; height: 32px; border-radius: 8px;
+          background: rgba(45,106,79,0.08); color: #2D6A4F;
+          flex-shrink: 0;
+        }
         .cs-row-content { flex: 1; }
         .cs-row-label { font-size: 0.7rem; color: #8A7E74; margin: 0 0 2px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.04em; }
         .cs-row-value { font-size: 0.88rem; font-weight: 700; color: #1C1A17; margin: 0; }
@@ -183,6 +301,40 @@ export default function ConfirmationStep({ data, onConfirm, onBack }) {
         .cs-btn--confirm:hover {
           transform: translateY(-2px);
           box-shadow: 0 10px 28px rgba(45,106,79,0.45);
+        }
+        /* Pricing Summary Card */
+        .cs-price-card {
+          background: #fff; border-radius: 16px;
+          border: 1.5px solid #E0DBD5; padding: 1.1rem 1.25rem;
+          margin-bottom: 0.9rem; display: flex; flex-direction: column;
+          gap: 0.55rem;
+        }
+        .cs-price-row {
+          display: flex; justify-content: space-between; align-items: center;
+        }
+        .cs-price-label {
+          font-size: 0.82rem; color: #8A7E74; font-weight: 500;
+        }
+        .cs-price-val {
+          font-size: 0.85rem; font-weight: 600; color: #1C1A17;
+        }
+        .cs-price-divider {
+          height: 1px; background: #F0EBE5; margin: 0.25rem 0;
+        }
+        .cs-price-row--total {
+          margin-top: 0.15rem;
+        }
+        .cs-price-label--total {
+          font-weight: 700; color: #1E4030;
+        }
+        .cs-price-val--total {
+          font-size: 1.05rem; font-weight: 800; color: #1E4030;
+        }
+        .cs-price-row--discount {
+          margin-top: 0.1rem;
+        }
+        .cs-price-label--discount, .cs-price-val--discount {
+          color: #2D6A4F; font-weight: 600;
         }
       `}</style>
     </div>
