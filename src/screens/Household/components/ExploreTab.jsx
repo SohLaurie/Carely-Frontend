@@ -123,7 +123,7 @@ export default function ExploreTab({
             className="bg-[#1E4030] hover:bg-[#152e22] text-white font-semibold px-6 py-3 rounded-xl text-sm transition-colors flex items-center justify-center gap-2 cursor-pointer shadow-sm"
           >
             <SearchIcon size={14} />
-            Search Caregivers
+            Search Providers
           </button>
         </div>
       </div>
@@ -140,7 +140,7 @@ export default function ExploreTab({
               Describe your care needs to AI
             </h2>
             <p className="text-xs text-[#8A7E74] max-w-2xl leading-relaxed">
-              Describe your patient profile, family schedule, or specific requirements, and our algorithm will instantly recommend the most qualified verified caregiver.
+              Describe your patient profile, family schedule, or specific requirements, and our algorithm will instantly recommend the most qualified verified provider.
             </p>
           </div>
         </div>
@@ -180,7 +180,7 @@ export default function ExploreTab({
               {aiLoading ? (
                 <>
                   <div className="w-3.5 h-3.5 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
-                  <span>Matching Caregiver...</span>
+                  <span>Matching Provider...</span>
                 </>
               ) : (
                 <>
@@ -309,11 +309,11 @@ export default function ExploreTab({
         </div>
       </div>
 
-      {/* ─── 4. CAREGIVERS FOUND (TWO CARDS PER ROW GRID) ─── */}
+      {/* ─── 4. PROVIDERS FOUND (TWO CARDS PER ROW GRID) ─── */}
       <div className="space-y-4">
         <div id="caregivers-found-header" className="flex items-center justify-between flex-wrap gap-2">
           <h3 className="font-bold text-base text-[#1C1A17]">
-            {filteredCaregivers.length} Verified Caregiver{filteredCaregivers.length !== 1 ? 's' : ''} Found
+            {filteredCaregivers.length} Verified Provider{filteredCaregivers.length !== 1 ? 's' : ''} Found
           </h3>
           <span className="text-xs text-[#8A7E74] font-medium bg-[#FAF8F5] px-3.5 py-1 rounded-full border border-[#E2D9CF]">
             Direct Escrow & Verified ID &bull; Cameroon
@@ -323,7 +323,7 @@ export default function ExploreTab({
         {/* 2 Cards Per Row Grid */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-5 sm:gap-6">
           {filteredCaregivers.map(c => {
-            const meta = SPECIALTY_META[c.specialty] || { label: 'Caregiver', color: '#1E4030', bg: '#EDF7F2' };
+            const meta = SPECIALTY_META[c.specialty] || { label: 'Provider', color: '#1E4030', bg: '#EDF7F2' };
 
             return (
               <div
@@ -455,13 +455,13 @@ export default function ExploreTab({
         {filteredCaregivers.length === 0 && (
           <div className="bg-white border border-[#E2D9CF] rounded-3xl p-12 text-center space-y-3">
             <Compass size={36} className="mx-auto text-[#8A7E74]/40 animate-pulse" />
-            <h4 className="font-bold text-[#1C1A17]">No Caregivers Found</h4>
+            <h4 className="font-bold text-[#1C1A17]">No Providers Found</h4>
             <p className="text-xs text-[#8A7E74]">Try clearing some filters or searching a different neighborhood.</p>
           </div>
         )}
       </div>
 
-      {/* ─── 5. CAREGIVER PROFILE DETAIL MODAL (With X Close Icon) ─── */}
+      {/* ─── 5. PROVIDER PROFILE DETAIL MODAL (With X Close Icon) ─── */}
       {modalCaregiver && (
         <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-xs flex items-center justify-center p-4 overflow-y-auto animate-fadeIn">
           <div
@@ -478,7 +478,7 @@ export default function ExploreTab({
               <X size={18} />
             </button>
 
-            {/* Caregiver Header */}
+            {/* Provider Header */}
             <div className="flex items-start gap-4 pt-1">
               <div className="w-20 h-20 sm:w-24 sm:h-24 rounded-2xl overflow-hidden bg-[#FAF8F5] border border-[#E2D9CF] shrink-0 shadow-sm relative">
                 <img src={modalCaregiver.photo} alt={modalCaregiver.name} className="w-full h-full object-cover" />
@@ -490,7 +490,7 @@ export default function ExploreTab({
                 <h3 className="font-display text-xl font-bold text-[#1C1A17]">{modalCaregiver.name}</h3>
                 <div className="flex items-center gap-2 flex-wrap">
                   <span className="text-xs bg-[#EDF7F2] text-[#1E4030] font-bold px-2.5 py-0.5 rounded-full border border-green-200 inline-block">
-                    {SPECIALTY_META[modalCaregiver.specialty]?.label || 'Verified Caregiver'}
+                    {SPECIALTY_META[modalCaregiver.specialty]?.label || 'Verified Provider'}
                   </span>
                   <span className="inline-flex items-center gap-1 text-[11px] font-semibold text-green-700 bg-green-50 border border-green-200 px-2 py-0.5 rounded-full">
                     <ShieldCheck size={12} /> ID Verified
@@ -520,7 +520,7 @@ export default function ExploreTab({
 
             {/* Bio */}
             <div className="space-y-1.5">
-              <h4 className="text-xs font-bold text-[#8A7E74] uppercase tracking-wider">About Caregiver</h4>
+              <h4 className="text-xs font-bold text-[#8A7E74] uppercase tracking-wider">About Provider</h4>
               <p className="text-xs text-[#1C1A17] leading-relaxed">
                 {modalCaregiver.bio}
               </p>

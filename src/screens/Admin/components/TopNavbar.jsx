@@ -19,7 +19,7 @@ export default function TopNavbar({
         };
       case 'applications':
         return {
-          title: 'Caregiver Verification',
+          title: 'Provider Verification',
           subtitle: 'Review pending applications and approve, reject or request more information.'
         };
       case 'disputes':
@@ -30,7 +30,7 @@ export default function TopNavbar({
       case 'users':
         return {
           title: 'Users',
-          subtitle: 'Households and caregivers on Carely.'
+          subtitle: 'Households and providers on Carely.'
         };
       case 'bookings':
         return {

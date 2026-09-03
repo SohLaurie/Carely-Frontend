@@ -80,7 +80,7 @@ export default function DisputeModal({ dispute, onClose, onResolve }) {
                 }`}
               >
                 <CheckCircle size={15} />
-                <span>100% Caregiver</span>
+                <span>100% Provider</span>
                 <span className="text-[9px] font-normal">Release Escrow</span>
               </button>
 

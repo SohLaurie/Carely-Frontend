@@ -1,11 +1,12 @@
 import React from 'react'
-import { MapPin, Clock, Eye, Check, X } from 'lucide-react'
+import { MapPin, Clock, Eye, Check, X, MessageSquare } from 'lucide-react'
 
 export default function RequestCard({
   request,
   onViewDetails,
   onDecline,
   onAccept,
+  onMessage,
   isDetailedView = false
 }) {
   const r = request
@@ -47,24 +48,35 @@ export default function RequestCard({
         </div>
       </div>
 
-      <div className={`flex items-center gap-2 shrink-0 ${isDetailedView ? 'self-end md:self-center' : 'self-end md:self-center'}`}>
+      <div className={`flex items-center gap-2 shrink-0 ${isDetailedView ? 'self-end md:self-center' : 'self-end md:self-center'} flex-wrap`}>
         <button
           onClick={() => onViewDetails(r)}
-          className="border border-[#E2D9CF] bg-white text-[#1C1A17] hover:bg-[#FAF8F5] font-semibold text-xs px-3.5 py-2 rounded-xl transition-all flex items-center gap-1 cursor-pointer shadow-xs"
+          className="border border-[#E2D9CF] bg-white text-[#1C1A17] hover:bg-[#FAF8F5] font-semibold text-xs px-3.5 py-2 rounded-xl transition-all flex items-center gap-1.5 cursor-pointer shadow-xs"
         >
-          <Eye size={12} />
+          <Eye size={13} className="text-[#8A7E74]" />
           View
         </button>
+        {onMessage && (
+          <button
+            onClick={() => onMessage(r)}
+            className="border border-[#E2D9CF] bg-white text-[#1E4030] hover:bg-[#EDF7F2] font-semibold text-xs px-3.5 py-2 rounded-xl transition-all flex items-center gap-1.5 cursor-pointer shadow-xs"
+          >
+            <MessageSquare size={13} className="text-[#1E4030]" />
+            Message
+          </button>
+        )}
         <button
           onClick={() => onDecline(r.id)}
-          className="border border-red-200 bg-white text-red-600 hover:bg-red-50 font-semibold text-xs px-3.5 py-2 rounded-xl transition-all cursor-pointer shadow-xs"
+          className="border border-red-200 bg-white text-red-600 hover:bg-red-50 font-semibold text-xs px-3.5 py-2 rounded-xl transition-all flex items-center gap-1.5 cursor-pointer shadow-xs"
         >
+          <X size={13} className="text-red-600" />
           Decline
         </button>
         <button
           onClick={() => onAccept(r.id)}
-          className="bg-[#1E4030] hover:bg-[#152e22] text-white font-bold text-xs px-4 py-2 rounded-xl transition-all cursor-pointer shadow-xs active:scale-95"
+          className="bg-[#1E4030] hover:bg-[#152e22] text-white font-bold text-xs px-4 py-2 rounded-xl transition-all flex items-center gap-1.5 cursor-pointer shadow-xs active:scale-95"
         >
+          <Check size={14} className="text-white" />
           Accept
         </button>
       </div>

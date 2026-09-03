@@ -90,17 +90,17 @@ const TRUST_POINTS = [
   {
     Icon: ShieldCheck,
     title: "Identity Verified",
-    desc: "Every caregiver is verified with an official government-issued ID.",
+    desc: "Every provider is verified with an official government-issued ID.",
+  },
+  {
+    Icon: ClipboardCheck,
+    title: "Credentials Checked",
+    desc: "Professional certifications and background checks are reviewed.",
   },
   {
     Icon: Lock,
-    title: "Escrow Payment",
-    desc: "Funds are only released after you confirm the service was completed.",
-  },
-  {
-    Icon: StarIcon,
-    title: "Certified Reviews",
-    desc: "Only reviews from clients who completed a real booking are shown.",
+    title: "Escrow Protection",
+    desc: "Payments are held securely in escrow until service is confirmed.",
   },
   {
     Icon: Shield,
@@ -110,7 +110,7 @@ const TRUST_POINTS = [
 ];
 
 const STATS = [
-  { Icon: Users, num: "250+", label: "Active caregivers" },
+  { Icon: Users, num: "250+", label: "Active providers" },
   { Icon: StarIcon, num: "4.8", label: "Average rating" },
   { Icon: TrendingUp, num: "1,200+", label: "Families served" },
 ];
@@ -637,7 +637,7 @@ export default function Landing({ onNavigate }) {
       <section className="max-w-7xl mx-auto px-6 lg:px-12 py-12">
         <div className="bg-gradient-to-br from-[#EFECE6] to-[#E0D8CE] rounded-[32px] px-8 py-20 text-center">
           <h2 className="font-display text-3xl lg:text-4xl font-semibold text-[#1E4030] mb-4">
-            Ready to find your caregiver?
+            Ready to find your provider?
           </h2>
           <p className="text-sm text-[#8A7E74] mb-8 max-w-xl mx-auto leading-relaxed">
             Join over 2,400 families who trust Carely for the care that truly
@@ -648,7 +648,7 @@ export default function Landing({ onNavigate }) {
               onClick={() => onNavigate("search")}
               className="w-full sm:w-auto bg-[#1E4030] text-white font-semibold px-8 py-3.5 rounded-full hover:bg-[#152e22] transition-colors shadow-sm text-sm"
             >
-              Find a caregiver
+              Find a provider
             </button>
             <button
               onClick={() => onNavigate('pack')}
@@ -676,7 +676,7 @@ export default function Landing({ onNavigate }) {
               </div>
 
               <p className="text-xs text-[#8A7E74] leading-relaxed max-w-sm">
-                Connecting families with trusted caregivers across Cameroon.
+                Connecting families with trusted providers across Cameroon.
                 Safe, verified and always available.
               </p>
 

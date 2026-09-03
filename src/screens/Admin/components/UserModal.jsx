@@ -87,7 +87,7 @@ export default function UserModal({
                   className="w-full bg-[#FAF8F5] border border-[#E2D9CF] px-3 py-2 rounded-xl text-xs font-semibold focus:outline-none focus:ring-1 focus:ring-[#1E4030]"
                 >
                   <option value="Household">Household</option>
-                  <option value="Caregiver">Caregiver</option>
+                  <option value="Caregiver">Provider</option>
                 </select>
               </div>
 

@@ -50,8 +50,8 @@ export default function RateReview({ onNavigate }) {
             <Heart size={36} className="text-green-600 fill-green-200" />
           </div>
           <h1 className="font-display text-2xl font-semibold text-primary mb-3">Thank you for your review!</h1>
-          <p className="text-muted-foreground text-sm mb-6 leading-relaxed">
-            Your review helps other families find the best caregivers and helps {c.name.split(' ')[0]} improve their service.
+          <p className="text-xs text-[#8A7E74]">
+            Your review helps other families find the best providers and helps {c.name.split(' ')[0]} improve their service.
           </p>
           <div className="bg-card rounded-2xl border border-border p-5 mb-5 text-left">
             <div className="flex items-center gap-3 mb-3">

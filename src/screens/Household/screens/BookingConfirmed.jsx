@@ -1,4 +1,4 @@
-﻿import React from 'react';
+import React from 'react';
 import {
   CheckCircle2, Calendar, Clock, MapPin, Key, ShieldCheck,
   ArrowRight, MessageSquare, Download, Share2, ArrowLeft
@@ -17,7 +17,7 @@ export default function BookingConfirmed({ onNavigate, screenParams }) {
   };
 
   const caregiver = booking.caregiver || CAREGIVERS[0];
-  const meta = SPECIALTY_META[caregiver.specialty] || { label: 'Caregiver' };
+  const meta = SPECIALTY_META[caregiver.specialty] || { label: 'Provider' };
 
   return (
     <div className="bg-[#FAF8F5] min-h-screen text-[#1C1A17] pb-16">

@@ -41,7 +41,7 @@ export default function ApplicationsTab({
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
           <h2 className="text-[#1C1A17] font-display text-xl font-bold flex items-center gap-2">
-            Caregiver Verification
+            Provider Verification
             <span className="bg-[#FEF3C7] text-amber-800 text-[10px] font-bold px-2.5 py-0.5 rounded-full border border-amber-200">
               {applications.length} pending
             </span>

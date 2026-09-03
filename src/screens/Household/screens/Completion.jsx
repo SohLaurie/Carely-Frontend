@@ -1,4 +1,4 @@
-﻿import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   Clock, ShieldCheck, CheckCircle2, AlertCircle, ArrowLeft,
   ChevronRight, Star, RefreshCw, X, RotateCcw, Calendar, Check,
@@ -25,12 +25,14 @@ export default function Completion({ onNavigate, screenParams }) {
   };
 
   const caregiver = booking.caregiver || CAREGIVERS[0];
-  const meta = SPECIALTY_META[caregiver.specialty] || { label: 'Caregiver' };
+  const meta = SPECIALTY_META[caregiver.specialty] || { label: 'Provider' };
 
   // 24-Hour Confirmation Window Timer
   const [timeLeft, setTimeLeft] = useState({ hours: 23, minutes: 54, seconds: 12 });
   const [escrowState, setEscrowState] = useState('window_open'); // 'window_open' | 'released' | 'refunded'
   const [recurringSessions, setRecurringSessions] = useState(booking.scheduleList || []);
+  const [disputeModalOpen, setDisputeModalOpen] = useState(false);
+  const [disputeSubmitted, setDisputeSubmitted] = useState(false);
   const [notificationMessage, setNotificationMessage] = useState(null);
 
   useEffect(() => {
@@ -57,7 +59,7 @@ export default function Completion({ onNavigate, screenParams }) {
   const handleSimulate24hTimeout = () => {
     if (booking.otpVerified) {
       setEscrowState('released');
-      setNotificationMessage('24-Hour window expired with verified OTP. Escrow payout auto-released to caregiver.');
+      setNotificationMessage('24-Hour window expired with verified OTP. Escrow payout auto-released to provider.');
     } else {
       setEscrowState('refunded');
       setNotificationMessage('24-Hour window expired without verified OTP. Funds automatically refunded to household.');

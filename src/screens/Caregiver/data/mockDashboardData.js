@@ -149,3 +149,62 @@ export const caregiverReviews = [
     comment: 'Very professional and available. Communication is clear and she explains every procedure. Slightly late on the first appointment but nothing serious.'
   }
 ];
+
+export const initialDiscussions = [
+  {
+    id: 'D1',
+    clientId: 'AK',
+    name: 'Aïcha K. (Diallo)',
+    photo: 'https://images.unsplash.com/photo-1544005313-94ddf0286df2?w=400&h=400&fit=crop&auto=format',
+    status: 'online',
+    lastSeen: 'Online',
+    unreadCount: 1,
+    messages: [
+      { id: 'm1', sender: 'caregiver', text: 'Hello Madam Aïcha! I received your booking request for Monday.', time: '09:15', date: 'Today', status: 'read' },
+      { id: 'm2', sender: 'user', text: 'Good morning Marie-Claire! Yes, my mother will need post-op wound care and vitals check.', time: '09:20', date: 'Today', status: 'read' },
+      { id: 'm3', sender: 'caregiver', text: 'Understood. I have all the sterile dressing kits ready. I will arrive at Bastos at 08:50.', time: '09:25', date: 'Today', status: 'read' },
+      { id: 'm4', sender: 'user', text: 'Perfect, I will leave the gate unlocked for you.', time: '09:26', date: 'Today', status: 'unread' }
+    ]
+  },
+  {
+    id: 'D2',
+    clientId: 'PM',
+    name: 'Paul M. (Kamga)',
+    photo: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=400&h=400&fit=crop&auto=format',
+    status: 'offline',
+    lastSeen: 'Last seen today at 14:10',
+    unreadCount: 0,
+    messages: [
+      { id: 'f1', sender: 'user', text: 'Hello Marie-Claire, can you please arrive 15 minutes earlier if possible?', time: '13:40', date: 'Today', status: 'read' },
+      { id: 'f2', sender: 'caregiver', text: 'Hi Paul! Sure, I will adjust my schedule to arrive early.', time: '14:05', date: 'Today', status: 'read' }
+    ]
+  },
+  {
+    id: 'D3',
+    clientId: 'NF',
+    name: 'Njoya Family',
+    photo: 'https://images.unsplash.com/photo-1551836022-d5d88e9218df?w=400&h=400&fit=crop&auto=format',
+    status: 'offline',
+    lastSeen: 'Last seen yesterday',
+    unreadCount: 0,
+    messages: [
+      { id: 'e1', sender: 'user', text: 'Hi Marie-Claire, thank you again for the home care last week. My father is doing much better.', time: '11:00', date: 'Yesterday', status: 'read' },
+      { id: 'e2', sender: 'caregiver', text: 'I am so glad to hear that! Please let me know if he needs any more support.', time: '11:30', date: 'Yesterday', status: 'read' }
+    ]
+  },
+  {
+    id: 'D4',
+    clientId: 'support',
+    name: 'Carely Support & Concierge',
+    photo: 'https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?w=400&h=400&fit=crop&auto=format',
+    status: 'online',
+    lastSeen: 'Always available',
+    unreadCount: 0,
+    messages: [
+      { id: 's1', sender: 'caregiver', text: 'Welcome to Carely! How can our support team assist you today?', time: '08:00', date: 'Aug 20', status: 'read' },
+      { id: 's2', sender: 'user', text: 'Is escrow release automatic after the session is validated with OTP?', time: '08:30', date: 'Aug 20', status: 'read' },
+      { id: 's3', sender: 'caregiver', text: 'Yes, once the client inputs your arrival OTP and completes the session, your earnings are credited instantly.', time: '08:32', date: 'Aug 20', status: 'read' }
+    ]
+  }
+];
+

@@ -241,7 +241,7 @@ export default function ReviewApplicationModal({
 
             {/* Verification action alert message */}
             <div className="bg-blue-50 border border-blue-200 rounded-2xl p-4 space-y-2">
-              <h4 className="font-bold text-blue-900">Upon approval, the caregiver will receive:</h4>
+              <h4 className="font-bold text-blue-900">Upon approval, the provider will receive:</h4>
               <p className="text-blue-800 leading-relaxed italic text-[11px]">
                 &ldquo;Your profile has been verified and approved. Please proceed to subscription payment to activate your account and become visible to clients.&rdquo;
               </p>

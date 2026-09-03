@@ -5,7 +5,7 @@ export default function AnalyticsTab() {
   const stats = [
     { label: 'GMV (Nov)', value: '25.7M XAF', trend: '+12.4%', isPositive: true },
     { label: 'New Households', value: '412', trend: '+9%', isPositive: true },
-    { label: 'New Caregivers', value: '68', trend: '+18%', isPositive: true },
+    { label: 'New Providers', value: '68', trend: '+18%', isPositive: true },
     { label: 'Cancellation Rate', value: '4.2%', trend: '-0.6pp', isPositive: true }, // positive improvement
     { label: 'Avg. Rating', value: '4.82', trend: '+0.03', isPositive: true },
     { label: 'Disputes / 1K Bookings', value: '1.4', trend: '-0.3', isPositive: true }  // positive improvement

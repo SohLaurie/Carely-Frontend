@@ -1,6 +1,6 @@
 export const CAREGIVER_CONSTANTS = {
-  APP_TITLE: 'CareConnect',
-  SUB_TITLE: 'Caregiver hub',
+  APP_TITLE: 'Carely',
+  SUB_TITLE: 'Provider hub',
   BACKGROUND_CHECK_APPROVED: 'Background Check: Approved',
   MTN_WALLET_NUM: 'xxxx 8821',
   ORANGE_WALLET_NUM: 'xxxx 4432',
@@ -11,11 +11,15 @@ export const CAREGIVER_CONSTANTS = {
 
 export const NAVIGATION_ITEMS = [
   { id: 'overview', label: 'Overview', badge: null },
+  { id: 'home', label: 'Home', badge: null },
+  { id: 'explore', label: 'Explore', badge: null },
+  { id: 'discussions', label: 'Discussions', badge: 1 },
   { id: 'requests', label: 'Requests', badge: 3 },
   { id: 'bookings', label: 'My Bookings', badge: 2 },
   { id: 'calendar', label: 'Calendar', badge: null },
   { id: 'earnings', label: 'Earnings', badge: null },
   { id: 'reviews', label: 'Reviews', badge: null },
   { id: 'notifications', label: 'Notifications', badge: 5 },
+  { id: 'refer', label: 'Refer & Earn', badge: null },
   { id: 'profile', label: 'My Profile', badge: null }
 ];

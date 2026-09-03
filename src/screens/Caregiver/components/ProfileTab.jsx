@@ -38,7 +38,7 @@ export default function ProfileTab({ onNavigate }) {
           </div>
           <div>
             <h2 className="font-display text-2xl font-bold text-[#1E4030]">Personal Profile & Information</h2>
-            <p className="text-sm text-[#8A7E74]">Manage your personal contact information, verified credentials and caregiver details.</p>
+            <p className="text-sm text-[#8A7E74]">Manage your personal contact information, verified credentials and provider details.</p>
           </div>
         </div>
 

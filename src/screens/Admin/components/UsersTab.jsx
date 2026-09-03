@@ -38,7 +38,7 @@ export default function UsersTab({
               {users.length} total
             </span>
           </h2>
-          <p className="text-xs text-[#8A7E74]">Manage household clients, verified caregivers, and account security enforcement.</p>
+          <p className="text-xs text-[#8A7E74]">Manage household clients, verified providers, and account security enforcement.</p>
         </div>
       </div>
 
@@ -64,7 +64,7 @@ export default function UsersTab({
           >
             <option value="All roles">All roles</option>
             <option value="Household">Household</option>
-            <option value="Caregiver">Caregiver</option>
+            <option value="Caregiver">Provider</option>
           </select>
 
           {/* Status Filter */}

@@ -1,4 +1,4 @@
-﻿import React from 'react';
+import React from 'react';
 import { Heart, Star } from 'lucide-react';
 import { CAREGIVERS, SPECIALTY_META } from '../../../data';
 
@@ -16,7 +16,7 @@ export default function SavedTab({ setSelectedId, setActiveTab }) {
           <Heart size={20} className="fill-[#1E4030]" />
         </div>
         <div>
-          <h2 className="font-display text-2xl font-bold text-[#1E4030]">Saved Caregivers</h2>
+          <h2 className="font-display text-2xl font-bold text-[#1E4030]">Saved Providers</h2>
           <p className="text-sm text-[#8A7E74]">Your quick shortlist of preferred care professionals.</p>
         </div>
         <div className="ml-auto bg-[#EDF7F2] border border-green-200/60 text-[#1E4030] text-xs font-bold px-3 py-1.5 rounded-full">
@@ -55,8 +55,8 @@ export default function SavedTab({ setSelectedId, setActiveTab }) {
         {saved.length === 0 && (
           <div className="text-center py-16 bg-white border border-[#E2D9CF] rounded-2xl">
             <Heart size={32} className="mx-auto text-[#8A7E74]/30 mb-3" />
-            <p className="text-sm font-semibold text-[#8A7E74]">No saved caregivers</p>
-            <p className="text-xs text-[#8A7E74]/70 mt-1">Save caregivers you like to access them quickly.</p>
+            <p className="text-sm font-semibold text-[#8A7E74]">No saved providers</p>
+            <p className="text-xs text-[#8A7E74]/70 mt-1">Save providers you like to access them quickly.</p>
           </div>
         )}
       </div>

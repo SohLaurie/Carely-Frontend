@@ -87,7 +87,7 @@ export default function App() {
   const [chatOpen, setChatOpen] = useState(false)
   const [chatExpanded, setChatExpanded] = useState(false)
   const [chatMessages, setChatMessages] = useState([
-    { sender: 'bot', text: "Hello! I'm your Carely AI Assistant. How can I help you find the right caregiver today?" }
+    { sender: 'bot', text: "Hello! I'm your Carely AI Assistant. How can I help you find the right provider today?" }
   ])
   const [chatInput, setChatInput] = useState('')
   const [botTyping, setBotTyping] = useState(false)
@@ -104,18 +104,18 @@ export default function App() {
     // Simulate bot response
     setTimeout(() => {
       const query = textToSend.toLowerCase()
-      let reply = "I'm not sure about that. I can recommend top-rated nursing, babysitting, or cleaning caregivers in Yaounde and Douala. Try asking about 'escrow' or 'nurse'!"
+      let reply = "I'm not sure about that. I can recommend top-rated nursing, babysitting, or cleaning providers in Yaounde and Douala. Try asking about 'escrow' or 'nurse'!"
 
       if (query.includes('nurse') || query.includes('nursing') || query.includes('medical') || query.includes('elder')) {
         reply = "We have certified home nurses available (like Marie-Claire Nkomo in Yaounde). They specialize in post-surgical care, palliative care, and geriatric support."
       } else if (query.includes('baby') || query.includes('sit') || query.includes('child') || query.includes('kid')) {
-        reply = "For childcare, our top caregiver is Fatima Bello in Akwa, Douala. She has 5 years of early childhood education experience and pediatric first aid certification."
+        reply = "For childcare, our top provider is Fatima Bello in Akwa, Douala. She has 5 years of early childhood education experience and pediatric first aid certification."
       } else if (query.includes('clean') || query.includes('house') || query.includes('cook') || query.includes('domestic')) {
         reply = "Elise Fouda is our expert housekeeper in Omnisports, Yaounde. She has over 6 years of experience in deep cleaning, organizing, and laundry."
       } else if (query.includes('escrow') || query.includes('payment') || query.includes('pay') || query.includes('fee')) {
-        reply = "Carely uses a secure escrow system. When you request a booking, you pay into our escrow account. The funds are held safely and only released to the caregiver after the sessions are completed."
+        reply = "Carely uses a secure escrow system. When you request a booking, you pay into our escrow account. The funds are held safely and only released to the provider after the sessions are completed."
       } else if (query.includes('background') || query.includes('check') || query.includes('verify') || query.includes('trust')) {
-        reply = "Every caregiver on our network undergoes strict verification: ID check, reference checks with at least 3 families, and certification validation. Only 5% of applicants are approved."
+        reply = "Every provider on our network undergoes strict verification: ID check, reference checks with at least 3 families, and certification validation. Only 5% of applicants are approved."
       }
 
       setChatMessages(prev => [...prev, { sender: 'bot', text: reply }])

@@ -84,12 +84,12 @@ export default function AdminBookingModal({ booking, onClose, onSelectUser }) {
               )}
             </div>
 
-            {/* Caregiver Provider Card */}
+            {/* Provider Card */}
             <div className="bg-[#FAF8F5] border border-[#E2D9CF] rounded-2xl p-4 space-y-2">
-              <span className="text-[10px] text-[#8A7E74] font-bold uppercase tracking-wider block">Assigned Caregiver</span>
+              <span className="text-[10px] text-[#8A7E74] font-bold uppercase tracking-wider block">Assigned Provider</span>
               <div className="flex items-center gap-3">
                 <div className="w-10 h-10 rounded-full bg-[#EDF7F2] border border-green-200 text-[#1E4030] flex items-center justify-center font-bold text-sm shadow-xs">
-                  {booking.caregiver ? booking.caregiver.charAt(0) : 'C'}
+                  {booking.caregiver ? booking.caregiver.charAt(0) : 'P'}
                 </div>
                 <div>
                   <div className="flex items-center gap-1.5">
@@ -107,11 +107,11 @@ export default function AdminBookingModal({ booking, onClose, onSelectUser }) {
                   type="button"
                   onClick={() => {
                     onClose();
-                    onSelectUser({ name: booking.caregiver, role: 'Caregiver', city: 'Douala', initials: booking.caregiver.charAt(0) });
+                    onSelectUser({ name: booking.caregiver, role: 'Provider', city: 'Douala', initials: booking.caregiver.charAt(0) });
                   }}
                   className="text-[11px] font-bold text-[#1E4030] hover:underline pt-1 inline-flex items-center gap-1 cursor-pointer"
                 >
-                  <span>View Caregiver Profile</span>
+                  <span>View Provider Profile</span>
                   <ArrowUpRight size={11} />
                 </button>
               )}
@@ -164,7 +164,7 @@ export default function AdminBookingModal({ booking, onClose, onSelectUser }) {
                 <span className="font-semibold text-[#1E4030]">{booking.commission || '2,520 XAF'}</span>
               </div>
               <div className="border-t border-[#E2D9CF] pt-2 flex justify-between font-bold text-sm">
-                <span className="text-[#1C1A17]">Caregiver Payout</span>
+                <span className="text-[#1C1A17]">Provider Payout</span>
                 <span className="text-[#1E4030]">{booking.netPayout || `${booking.amount} XAF`}</span>
               </div>
             </div>

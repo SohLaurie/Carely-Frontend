@@ -1,5 +1,5 @@
 export const ADMIN_CONSTANTS = {
-  TITLE: 'CareConnect',
+  TITLE: 'Carely',
   SUBTITLE: 'Admin Console',
   NAV_ITEMS: [
     { key: 'overview', label: 'Overview', badgeKey: null },

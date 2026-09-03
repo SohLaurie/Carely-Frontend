@@ -16,10 +16,20 @@ import IncomingRequests from './components/IncomingRequests'
 import CalendarWidget from './components/CalendarWidget'
 import EarningsSummary from './components/EarningsSummary'
 import RatingCard from './components/RatingCard'
-import RequestCard from './components/RequestCard'
 import BookingDetailsModal from './components/BookingDetailsModal'
 import ProfileTab from './components/ProfileTab'
-import { payoutHistory, caregiverReviews } from './data/mockDashboardData'
+import RequestsTab from './components/RequestsTab'
+import BookingsTab from './components/BookingsTab'
+import HomeTab from '../Household/components/HomeTab'
+import ExploreTab from '../Household/components/ExploreTab'
+import DiscussionsTab from '../Household/components/DiscussionsTab'
+import ReferEarnTab from '../Household/components/ReferEarnTab'
+import BookingWizard from '../Household/components/booking/BookingWizard'
+import Payment from '../Household/screens/Payment'
+import BookingConfirmed from '../Household/screens/BookingConfirmed'
+import { CAREGIVERS, SPECIALTY_META } from '../../data'
+import { initialDiscussions as defaultClientDiscussions } from '../Household/data/mockHouseholdData'
+import { payoutHistory, caregiverReviews, initialDiscussions } from './data/mockDashboardData'
 import { CAREGIVER_CONSTANTS } from './constants/dashboardConstants'
 
 // ── Confirmation Modal ──
@@ -184,6 +194,180 @@ export default function CaregiverDashboard({ onNavigate }) {
     setTimeout(() => setProfileSaved(false), 3000)
   }
 
+  // ── Client Feature States (Home, Explore, Discussions, Refer & Earn, Booking Wizard) ──
+  const [selectedId, setSelectedId] = useState('1')
+  const [filterSpecialty, setFilterSpecialty] = useState('all')
+  const [filterLocation, setFilterLocation] = useState('')
+  const [date, setDate] = useState('')
+  const [showMobileDetail, setShowMobileDetail] = useState(false)
+  const [showMobileFilters, setShowMobileFilters] = useState(false)
+  const [minBudget, setMinBudget] = useState('')
+  const [maxBudget, setMaxBudget] = useState('')
+  const [availableOnly, setAvailableOnly] = useState(false)
+
+  const [aiPrompt, setAiPrompt] = useState('')
+  const [aiLoading, setAiLoading] = useState(false)
+  const [aiResult, setAiResult] = useState(null)
+
+  const [discussions, setDiscussions] = useState(defaultClientDiscussions)
+  const [activeDiscussionId, setActiveDiscussionId] = useState(null)
+
+  // Booking Wizard State
+  const [wizardOpen, setWizardOpen] = useState(false)
+  const [wizardParams, setWizardParams] = useState({})
+
+  const openBookingWizard = (params = {}) => {
+    setWizardParams(params)
+    setWizardOpen(true)
+  }
+
+  const handleWizardComplete = (bookingData) => {
+    setWizardOpen(false)
+    setActiveTab('bookings')
+  }
+
+  const handleAiRecommend = () => {
+    if (!aiPrompt.trim()) return
+    setAiLoading(true)
+    setAiResult(null)
+
+    setTimeout(() => {
+      const query = aiPrompt.toLowerCase()
+      let matched = CAREGIVERS[0]
+      let reason = ''
+
+      if (query.includes('nurse') || query.includes('nursing') || query.includes('medical') || query.includes('elder') || query.includes('senior')) {
+        matched = CAREGIVERS.find(c => c.specialty === 'nursing') || CAREGIVERS[0]
+        reason = `Based on your request for clinical support, we recommend ${matched.name}. She is a certified nurse with ${matched.experience} years of clinical experience in home care, post-surgical support, and geriatric assistance in Bastos, Yaounde.`
+      } else if (query.includes('baby') || query.includes('child') || query.includes('sit') || query.includes('kid') || query.includes('young') || query.includes('school')) {
+        matched = CAREGIVERS.find(c => c.specialty === 'babysitting') || CAREGIVERS[1]
+        reason = `Based on your childcare needs, we recommend ${matched.name}. She is a certified early childhood educator with ${matched.experience} years of experience supporting kids of all ages with active learning programs in Douala.`
+      } else if (query.includes('clean') || query.includes('house') || query.includes('cook') || query.includes('domestic') || query.includes('maid') || query.includes('iron') || query.includes('laundry')) {
+        matched = CAREGIVERS.find(c => c.specialty === 'cleaning') || CAREGIVERS[2]
+        reason = `Based on your home care/cleaning needs, we recommend ${matched.name}. She is a meticulous housekeeper with ${matched.experience} years of experience in organizing, laundry/ironing, and eco-friendly cleaning.`
+      } else if (query.includes('garden') || query.includes('lawn') || query.includes('yard') || query.includes('tree') || query.includes('landscape')) {
+        matched = CAREGIVERS.find(c => c.specialty === 'gardening') || CAREGIVERS[4] || CAREGIVERS[0]
+        reason = `Based on your gardening request, we recommend ${matched.name}. He has ${matched.experience} years of professional landscaping experience in Yaounde.`
+      } else if (query.includes('pet') || query.includes('dog') || query.includes('cat') || query.includes('animal')) {
+        matched = CAREGIVERS.find(c => c.specialty === 'pet_care') || CAREGIVERS[5] || CAREGIVERS[0]
+        reason = `For pet care, we recommend ${matched.name}. She is a certified vet assistant with ${matched.experience} years of animal sitting experience.`
+      } else if (query.includes('cook') || query.includes('food') || query.includes('meal') || query.includes('kitchen') || query.includes('chef')) {
+        matched = CAREGIVERS.find(c => c.specialty === 'cooking') || CAREGIVERS[6] || CAREGIVERS[0]
+        reason = `For family nutrition and home cooking, we recommend ${matched.name}. She has ${matched.experience} years of professional culinary experience in Douala.`
+      } else {
+        const locMatch = CAREGIVERS.find(c => query.includes(c.location.split(',')[0].toLowerCase()) || query.includes(c.location.split(',')[1].trim().toLowerCase()))
+        if (locMatch) {
+          matched = locMatch
+          reason = `We found a top-rated caregiver near your specified location: ${matched.name}. She is located in ${matched.location} and specializes in ${SPECIALTY_META[matched.specialty]?.label || 'Care'}.`
+        } else {
+          matched = CAREGIVERS[0]
+          reason = `We matched you with our highest-rated caregiver, ${matched.name}. She is located in ${matched.location} and has verified background references checked.`
+        }
+      }
+
+      setAiLoading(false)
+      setAiResult({ matchedId: matched.id, message: reason })
+      setSelectedId(matched.id)
+      setFilterSpecialty(matched.specialty)
+      setFilterLocation(matched.location.split(',')[0].trim())
+    }, 1500)
+  }
+
+  const sendMessage = (discussionId, text) => {
+    const timeStr = new Date().toLocaleTimeString('default', { hour: '2-digit', minute: '2-digit', hour12: false })
+    setDiscussions(prev => prev.map(d => {
+      if (d.id === discussionId) {
+        return {
+          ...d,
+          messages: [
+            ...d.messages,
+            { id: 'm' + Date.now(), sender: 'user', text, time: timeStr, date: 'Today', status: 'delivered' }
+          ]
+        }
+      }
+      return d
+    }))
+
+    setTimeout(() => {
+      let replyText = "Thank you for reaching out! I am available to support your family."
+      if (discussionId === 'D4') {
+        replyText = "Carely concierge here. How may we assist your booking today?"
+      }
+      setDiscussions(prev => prev.map(d => {
+        if (d.id === discussionId) {
+          return {
+            ...d,
+            messages: [
+              ...d.messages,
+              { id: 'm_reply_' + Date.now(), sender: 'caregiver', text: replyText, time: timeStr, date: 'Today', status: 'read' }
+            ]
+          }
+        }
+        return d
+      }))
+    }, 1800)
+  }
+
+  const deleteDiscussion = (id) => {
+    setDiscussions(prev => prev.filter(d => d.id !== id))
+    if (activeDiscussionId === id) setActiveDiscussionId(null)
+  }
+
+  const clearDiscussionChat = (id) => {
+    setDiscussions(prev => prev.map(d => (d.id === id ? { ...d, messages: [] } : d)))
+  }
+
+  const deleteMessage = (discId, msgId) => {
+    setDiscussions(prev => prev.map(d => (d.id === discId ? { ...d, messages: d.messages.filter(m => m.id !== msgId) } : d)))
+  }
+
+  const openDiscussionWithCaregiver = (caregiver) => {
+    let existing = discussions.find(d => d.caregiverId === caregiver.id || d.name === caregiver.name)
+    if (!existing) {
+      const newDisc = {
+        id: 'D_' + Date.now(),
+        caregiverId: caregiver.id,
+        name: caregiver.name,
+        specialty: caregiver.specialty,
+        photo: caregiver.photo,
+        status: 'online',
+        lastSeen: 'Online',
+        unreadCount: 0,
+        messages: [
+          {
+            id: 'm_init_' + Date.now(),
+            sender: 'caregiver',
+            text: `Hello! Thank you for contacting me. I specialize in ${SPECIALTY_META[caregiver.specialty]?.label || 'care'}. How can I assist you?`,
+            time: 'Just now',
+            date: 'Today',
+            status: 'read'
+          }
+        ]
+      }
+      setDiscussions(prev => [newDisc, ...prev])
+      existing = newDisc
+    }
+    setActiveDiscussionId(existing.id)
+    setActiveTab('discussions')
+  }
+
+  const [workflowParams, setWorkflowParams] = useState(null)
+
+  const handleInternalNavigate = (target, params) => {
+    if (params) {
+      setWorkflowParams(params)
+    }
+    if (target === 'search') {
+      setActiveTab('explore')
+    } else if (target === 'booking_wizard' || target === 'booking') {
+      openBookingWizard(params)
+    } else if (['payment', 'confirmed', 'home', 'explore', 'discussions', 'requests', 'bookings', 'calendar', 'earnings', 'reviews', 'notifications', 'refer', 'profile', 'overview'].includes(target)) {
+      setActiveTab(target)
+    } else if (onNavigate) {
+      onNavigate(target, params)
+    }
+  }
+
   // Calculate unread count
   const unreadNotificationsCount = notifications.filter(n => n.unread && !n.archived).length
 
@@ -291,22 +475,23 @@ export default function CaregiverDashboard({ onNavigate }) {
   const calTotalDays = new Date(calYear, calMonth + 1, 0).getDate()
 
   return (
-    <CaregiverLayout
-      activeTab={activeTab}
-      setActiveTab={setActiveTab}
-      sidebarOpen={sidebarOpen}
-      setSidebarOpen={setSidebarOpen}
-      notificationsCount={unreadNotificationsCount}
-      notifications={notifications}
-      onMarkRead={readToggleNotification}
-      onMarkAllRead={markAllNotificationsRead}
-      onReplyClick={(n) => setModalConfig({
-        title: `Reply to ${n.recipient || n.title}`,
-        initialRecipient: n.recipient || n.title,
-        initialSubject: `Re: ${n.title}`,
-      })}
-      onNavigate={onNavigate}
-    >
+    <>
+      <CaregiverLayout
+        activeTab={activeTab}
+        setActiveTab={setActiveTab}
+        sidebarOpen={sidebarOpen}
+        setSidebarOpen={setSidebarOpen}
+        notificationsCount={unreadNotificationsCount}
+        notifications={notifications}
+        onMarkRead={readToggleNotification}
+        onMarkAllRead={markAllNotificationsRead}
+        onReplyClick={(n) => setModalConfig({
+          title: `Reply to ${n.recipient || n.title}`,
+          initialRecipient: n.recipient || n.title,
+          initialSubject: `Re: ${n.title}`,
+        })}
+        onNavigate={handleInternalNavigate}
+      >
       {/* ─── 1. OVERVIEW TAB ─── */}
       {activeTab === 'overview' && (
         <div className="w-full space-y-6 animate-fadeIn">
@@ -434,281 +619,78 @@ export default function CaregiverDashboard({ onNavigate }) {
         </div>
       )}
 
-      {/* ─── 2. REQUESTS TAB (FULL WIDTH) ─── */}
-      {activeTab === 'requests' && (
-        <div className="w-full space-y-5 animate-fadeIn">
-          <div className="flex items-center justify-between gap-4 flex-wrap">
-            <div>
-              <h2 className="font-display text-2xl font-bold text-[#1E4030]">Incoming Care Requests</h2>
-              <p className="text-sm text-[#8A7E74]">Review, accept, or decline booking requests from households across Cameroon.</p>
-            </div>
-            <span className="text-xs bg-[#EDF7F2] text-[#1E4030] font-bold px-3 py-1 rounded-full border border-green-200">
-              {incomingRequests.length} Pending
-            </span>
-          </div>
-
-          <div className="space-y-4">
-            {incomingRequests.map(r => (
-              <RequestCard
-                key={r.id}
-                request={r}
-                onViewDetails={triggerRequestDetailsModal}
-                onDecline={(id) => handleRequestAction(id, 'decline')}
-                onAccept={(id) => handleRequestAction(id, 'accept')}
-                isDetailedView={true}
-              />
-            ))}
-            {incomingRequests.length === 0 && (
-              <div className="py-16 text-center bg-white border border-[#E2D9CF] rounded-3xl">
-                <ClipboardList size={32} className="mx-auto text-[#8A7E74]/40 mb-3" />
-                <p className="text-sm font-bold text-[#1C1A17]">No pending requests</p>
-                <p className="text-xs text-[#8A7E74] mt-1">You have responded to all incoming requests for now.</p>
-              </div>
-            )}
-          </div>
-        </div>
+      {/* ─── 0. HOME TAB (Client Experience) ─── */}
+      {activeTab === 'home' && (
+        <HomeTab
+          onNavigate={handleInternalNavigate}
+          openBookingWizard={openBookingWizard}
+          userFirstName="Marie-Claire"
+        />
       )}
 
-      {/* ─── 3. BOOKINGS TAB (FULL WIDTH) ─── */}
+      {/* ─── 1. EXPLORE TAB (Client Experience) ─── */}
+      {activeTab === 'explore' && (
+        <ExploreTab
+          selectedId={selectedId}
+          setSelectedId={setSelectedId}
+          filterSpecialty={filterSpecialty}
+          setFilterSpecialty={setFilterSpecialty}
+          filterLocation={filterLocation}
+          setFilterLocation={setFilterLocation}
+          date={date}
+          setDate={setDate}
+          showMobileDetail={showMobileDetail}
+          setShowMobileDetail={setShowMobileDetail}
+          showMobileFilters={showMobileFilters}
+          setShowMobileFilters={setShowMobileFilters}
+          minBudget={minBudget}
+          setMinBudget={setMinBudget}
+          maxBudget={maxBudget}
+          setMaxBudget={setMaxBudget}
+          availableOnly={availableOnly}
+          setAvailableOnly={setAvailableOnly}
+          aiPrompt={aiPrompt}
+          setAiPrompt={setAiPrompt}
+          aiLoading={aiLoading}
+          aiResult={aiResult}
+          handleAiRecommend={handleAiRecommend}
+          onNavigate={handleInternalNavigate}
+          openDiscussionWithCaregiver={openDiscussionWithCaregiver}
+          openBookingWizard={openBookingWizard}
+        />
+      )}
+
+      {/* ─── 2. DISCUSSIONS TAB (Client Experience) ─── */}
+      {(activeTab === 'discussions' || activeTab === 'discussion') && (
+        <DiscussionsTab
+          discussions={discussions}
+          activeDiscussionId={activeDiscussionId}
+          setActiveDiscussionId={setActiveDiscussionId}
+          sendMessage={sendMessage}
+          deleteDiscussion={deleteDiscussion}
+          clearDiscussionChat={clearDiscussionChat}
+          deleteMessage={deleteMessage}
+          onNavigate={handleInternalNavigate}
+        />
+      )}
+
+      {/* ─── 2. REQUESTS TAB (FULL WIDTH) ─── */}
+      {/* ─── 3. REQUESTS TAB (MATCHING USER SCREENSHOT DESIGN) ─── */}
+      {activeTab === 'requests' && (
+        <RequestsTab
+          incomingRequests={incomingRequests}
+          onAccept={(id) => handleRequestAction(id, 'accept')}
+          onDecline={(id) => handleRequestAction(id, 'decline')}
+          onViewDetails={triggerRequestDetailsModal}
+          onNavigate={handleInternalNavigate}
+        />
+      )}
+
+      {/* ─── 4. BOOKINGS TAB (TOGGLE BETWEEN CLIENT BOOKINGS & MY BOOKINGS) ─── */}
       {activeTab === 'bookings' && (
-        <div className="w-full space-y-6 animate-fadeIn">
-          <div className="flex items-center justify-between gap-4 flex-wrap">
-            <div>
-              <h2 className="font-display text-2xl font-bold text-[#1E4030]">My Bookings & Ongoing Sessions</h2>
-              <p className="text-sm text-[#8A7E74]">Manage confirmed visits, view arrival OTP keys, and complete jobs.</p>
-            </div>
-            <button className="bg-[#1E4030] hover:bg-[#152e22] text-white text-xs font-bold px-4 py-2.5 rounded-xl transition-all shadow-sm cursor-pointer">
-              Download Schedule
-            </button>
-          </div>
-
-          {/* Bookings cards list */}
-          <div className="space-y-5">
-            {/* Booking 1: In Progress */}
-            <div className="bg-white border border-[#E2D9CF] rounded-3xl p-6 sm:p-7 shadow-sm space-y-5">
-              <div className="flex flex-col md:flex-row justify-between md:items-center gap-4 pb-4 border-b border-[#F0EBE5]">
-                <div className="flex items-center gap-4">
-                  <div className="w-13 h-13 rounded-2xl bg-[#EDF7F2] border border-green-200 text-[#1E4030] flex items-center justify-center font-bold text-base shadow-2xs">
-                    AK
-                  </div>
-                  <div>
-                    <div className="flex items-center gap-2.5 flex-wrap">
-                      <h3 className="font-bold text-base text-[#1C1A17]">Aïcha K.</h3>
-                      <span className="text-[10px] bg-[#EDF7F2] text-[#1E4030] border border-green-200 px-2.5 py-0.5 rounded-full font-bold">
-                        Home Nursing
-                      </span>
-                      <span className="inline-flex items-center gap-1.5 bg-green-50 text-green-700 border border-green-200 text-[10px] font-bold px-2.5 py-0.5 rounded-full">
-                        <span className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></span>
-                        In Progress
-                      </span>
-                    </div>
-                    <p className="text-xs text-[#8A7E74] mt-0.5">Booking #BK-9021 &middot; Confirmed via Escrow</p>
-                  </div>
-                </div>
-
-                <div className="text-left md:text-right">
-                  <p className="text-lg font-extrabold text-[#1E4030]">14,000 XAF</p>
-                  <p className="text-[11px] text-[#8A7E74]">4 hrs (3,500 XAF/hr)</p>
-                </div>
-              </div>
-
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 text-xs">
-                <div className="bg-[#FAF8F5] p-3.5 rounded-2xl border border-[#E2D9CF] space-y-1">
-                  <span className="text-[10px] text-[#8A7E74] font-bold uppercase tracking-wider">Date & Time</span>
-                  <p className="font-bold text-[#1C1A17] flex items-center gap-1.5">
-                    <Clock size={13} className="text-[#1E4030]" />
-                    Today &middot; 09:00 – 13:00
-                  </p>
-                </div>
-                <div className="bg-[#FAF8F5] p-3.5 rounded-2xl border border-[#E2D9CF] space-y-1">
-                  <span className="text-[10px] text-[#8A7E74] font-bold uppercase tracking-wider">Location</span>
-                  <p className="font-bold text-[#1C1A17] flex items-center gap-1.5">
-                    <MapPin size={13} className="text-[#1E4030]" />
-                    Akwa, Douala
-                  </p>
-                </div>
-                <div className="bg-[#FAF8F5] p-3.5 rounded-2xl border border-[#E2D9CF] space-y-1">
-                  <span className="text-[10px] text-[#8A7E74] font-bold uppercase tracking-wider">Escrow Status</span>
-                  <p className="font-bold text-[#1D6F42] flex items-center gap-1.5">
-                    <ShieldCheck size={14} />
-                    100% Funded & Secured
-                  </p>
-                </div>
-              </div>
-
-              {/* Arrival OTP verification bar */}
-              <div className="bg-[#EDF7F2]/60 border border-green-200/80 rounded-2xl p-4 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
-                <div className="space-y-1">
-                  <h4 className="font-bold text-xs text-[#1E4030] flex items-center gap-1.5">
-                    <Key size={14} />
-                    <span>Client Arrival OTP Verification</span>
-                  </h4>
-                  <p className="text-[11px] text-[#5A5248]">
-                    Ask the household client for their 6-digit confirmation code upon starting your shift.
-                  </p>
-                </div>
-
-                <div className="flex items-center gap-2 w-full sm:w-auto">
-                  <div className="flex items-center gap-1.5">
-                    {otp.map((digit, idx) => (
-                      <input
-                        key={idx}
-                        id={`bookings-otp-${idx}`}
-                        type="text"
-                        maxLength={1}
-                        value={digit}
-                        onChange={e => handleOtpChange(idx, e.target.value, activeTab)}
-                        className="w-9 h-9 border border-[#E2D9CF] rounded-xl text-center bg-white font-bold text-[#1C1A17] text-xs focus:outline-none focus:border-[#1E4030] shadow-2xs"
-                      />
-                    ))}
-                  </div>
-                  <button
-                    disabled={otp.some(d => !d)}
-                    className="bg-[#1E4030] hover:bg-[#152e22] disabled:opacity-40 text-white font-bold text-xs px-4 py-2.5 rounded-xl transition-all shadow-xs cursor-pointer active:scale-95 shrink-0"
-                  >
-                    Verify
-                  </button>
-                </div>
-              </div>
-
-              <div className="flex items-center justify-between gap-3 pt-1 flex-wrap">
-                <div className="text-xs text-[#8A7E74] flex items-center gap-2">
-                  <span className="w-2 h-2 rounded-full bg-green-500"></span>
-                  <span>Escrow payout will release immediately when session concludes.</span>
-                </div>
-                <div className="flex items-center gap-2">
-                  <button
-                    onClick={() => setModalConfig({
-                      title: "Message Aïcha K.",
-                      initialRecipient: "Aïcha K.",
-                      initialSubject: "Regarding today's Home Nursing session"
-                    })}
-                    className="border border-[#E2D9CF] bg-white text-[#1C1A17] hover:bg-[#FAF8F5] font-semibold text-xs px-4 py-2 rounded-xl transition-all flex items-center gap-1.5 cursor-pointer"
-                  >
-                    <MessageSquare size={13} />
-                    <span>Message</span>
-                  </button>
-                  <button
-                    onClick={() => setSelectedBookingDetails({
-                      clientName: 'Aïcha K.',
-                      initials: 'AK',
-                      specialty: 'Home Nursing',
-                      status: 'In Progress',
-                      location: 'Akwa, Douala, Cameroon',
-                      rate: '3,500 XAF',
-                      hours: '4',
-                      sessionsCount: 1,
-                      subtotal: '14,000 XAF',
-                      serviceFee: '1,000 XAF',
-                      total: '13,000 XAF',
-                      schedule: [{ date: 'Today, Nov 2, 2026', time: '09:00 – 13:00', status: 'In Progress' }],
-                      payoutInfo: 'Paid immediately via MTN Mobile Money upon completion',
-                      nextSteps: ['Complete shift care duties.', 'Obtain arrival OTP if not already entered.', 'Confirm completion with family.']
-                    })}
-                    className="bg-[#FAF8F5] text-[#1E4030] border border-[#E2D9CF] hover:border-[#1E4030] font-bold text-xs px-4 py-2 rounded-xl transition-all cursor-pointer"
-                  >
-                    View Details
-                  </button>
-                </div>
-              </div>
-            </div>
-
-            {/* Booking 2: Upcoming Scheduled */}
-            <div className="bg-white border border-[#E2D9CF] rounded-3xl p-6 sm:p-7 shadow-sm space-y-5">
-              <div className="flex flex-col md:flex-row justify-between md:items-center gap-4 pb-4 border-b border-[#F0EBE5]">
-                <div className="flex items-center gap-4">
-                  <div className="w-13 h-13 rounded-2xl bg-[#FAF8F5] border border-[#E2D9CF] text-[#1E4030] flex items-center justify-center font-bold text-base shadow-2xs">
-                    NF
-                  </div>
-                  <div>
-                    <div className="flex items-center gap-2.5 flex-wrap">
-                      <h3 className="font-bold text-base text-[#1C1A17]">The Nkomo Family</h3>
-                      <span className="text-[10px] bg-white text-[#1E4030] border border-[#E2D9CF] px-2.5 py-0.5 rounded-full font-bold">
-                        Elderly Care
-                      </span>
-                      <span className="inline-flex items-center gap-1.5 bg-blue-50 text-blue-700 border border-blue-200 text-[10px] font-bold px-2.5 py-0.5 rounded-full">
-                        Scheduled
-                      </span>
-                    </div>
-                    <p className="text-xs text-[#8A7E74] mt-0.5">Booking #BK-8842 &middot; Recurring Weekly Care</p>
-                  </div>
-                </div>
-
-                <div className="text-left md:text-right">
-                  <p className="text-lg font-extrabold text-[#1E4030]">42,000 XAF / wk</p>
-                  <p className="text-[11px] text-[#8A7E74]">12 hrs weekly</p>
-                </div>
-              </div>
-
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 text-xs">
-                <div className="bg-[#FAF8F5] p-3.5 rounded-2xl border border-[#E2D9CF] space-y-1">
-                  <span className="text-[10px] text-[#8A7E74] font-bold uppercase tracking-wider">Next Session</span>
-                  <p className="font-bold text-[#1C1A17] flex items-center gap-1.5">
-                    <Clock size={13} className="text-[#1E4030]" />
-                    Thursday &middot; 08:00 – 12:00
-                  </p>
-                </div>
-                <div className="bg-[#FAF8F5] p-3.5 rounded-2xl border border-[#E2D9CF] space-y-1">
-                  <span className="text-[10px] text-[#8A7E74] font-bold uppercase tracking-wider">Location</span>
-                  <p className="font-bold text-[#1C1A17] flex items-center gap-1.5">
-                    <MapPin size={13} className="text-[#1E4030]" />
-                    Bonapriso, Douala
-                  </p>
-                </div>
-                <div className="bg-[#FAF8F5] p-3.5 rounded-2xl border border-[#E2D9CF] space-y-1">
-                  <span className="text-[10px] text-[#8A7E74] font-bold uppercase tracking-wider">Schedule Type</span>
-                  <p className="font-bold text-[#1C1A17]">
-                    Mon / Thu / Sat
-                  </p>
-                </div>
-              </div>
-
-              <div className="flex items-center justify-between gap-3 pt-1 flex-wrap">
-                <div className="text-xs text-[#8A7E74]">
-                  Session 4 of 12 &middot; Escrow balance guaranteed
-                </div>
-                <div className="flex items-center gap-2">
-                  <button
-                    onClick={() => setModalConfig({
-                      title: "Message The Nkomo Family",
-                      initialRecipient: "The Nkomo Family",
-                      initialSubject: "Regarding upcoming Elderly Care schedule"
-                    })}
-                    className="border border-[#E2D9CF] bg-white text-[#1C1A17] hover:bg-[#FAF8F5] font-semibold text-xs px-4 py-2 rounded-xl transition-all flex items-center gap-1.5 cursor-pointer"
-                  >
-                    <MessageSquare size={13} />
-                    <span>Message</span>
-                  </button>
-                  <button
-                    onClick={() => setSelectedBookingDetails({
-                      clientName: 'The Nkomo Family',
-                      initials: 'NF',
-                      specialty: 'Elderly Care',
-                      status: 'Scheduled',
-                      location: 'Bonapriso, Douala, Cameroon',
-                      rate: '3,500 XAF',
-                      hours: '12 hrs/wk',
-                      sessionsCount: 12,
-                      subtotal: '126,000 XAF',
-                      serviceFee: '6,000 XAF',
-                      total: '120,000 XAF',
-                      schedule: [
-                        { date: 'Thu Nov 5, 2026', time: '08:00 – 12:00', status: 'Scheduled' },
-                        { date: 'Sat Nov 7, 2026', time: '08:00 – 12:00', status: 'Scheduled' },
-                        { date: 'Mon Nov 9, 2026', time: '08:00 – 12:00', status: 'Scheduled' }
-                      ],
-                      payoutInfo: 'Charged weekly & paid on Fridays to your verified Mobile Money wallet',
-                      nextSteps: ['The next session is scheduled for Thursday at 08:00.', 'Obtain the arrival OTP code upon arriving.', 'Mark completion after the visit.']
-                    })}
-                    className="bg-[#FAF8F5] text-[#1E4030] border border-[#E2D9CF] hover:border-[#1E4030] font-bold text-xs px-4 py-2 rounded-xl transition-all cursor-pointer"
-                  >
-                    View Details
-                  </button>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
+        <BookingsTab
+          onNavigate={handleInternalNavigate}
+        />
       )}
 
       {/* ─── 4. CALENDAR TAB (FULL WIDTH & PREMIUM) ─── */}
@@ -1025,7 +1007,7 @@ export default function CaregiverDashboard({ onNavigate }) {
         <div className="w-full space-y-6 animate-fadeIn">
           <div className="flex items-center justify-between gap-4 flex-wrap">
             <div>
-              <h2 className="font-display text-2xl font-bold text-[#1E4030]">Caregiver Earnings & Escrow Payouts</h2>
+              <h2 className="font-display text-2xl font-bold text-[#1E4030]">Provider Earnings & Escrow Payouts</h2>
               <p className="text-sm text-[#8A7E74]">Track completed sessions, pending balances, and automatic Mobile Money transfers.</p>
             </div>
             <button className="border border-[#E2D9CF] bg-white text-[#1C1A17] hover:bg-[#FAF8F5] text-xs font-bold px-4 py-2.5 rounded-xl transition-all flex items-center gap-1.5 shadow-xs cursor-pointer">
@@ -1266,9 +1248,30 @@ export default function CaregiverDashboard({ onNavigate }) {
         </div>
       )}
 
+      {/* ─── REFER & EARN TAB ─── */}
+      {activeTab === 'refer' && (
+        <ReferEarnTab />
+      )}
+
       {/* ─── 8. PROFILE TAB (MATCHING HOUSEHOLD PROFILE) ─── */}
       {activeTab === 'profile' && (
-        <ProfileTab onNavigate={onNavigate} />
+        <ProfileTab onNavigate={handleInternalNavigate} />
+      )}
+
+      {/* ─── PAYMENT SCREEN (Authorize Mobile Money Escrow) ─── */}
+      {activeTab === 'payment' && (
+        <Payment
+          onNavigate={handleInternalNavigate}
+          screenParams={workflowParams}
+        />
+      )}
+
+      {/* ─── BOOKING CONFIRMED SCREEN ─── */}
+      {activeTab === 'confirmed' && (
+        <BookingConfirmed
+          onNavigate={handleInternalNavigate}
+          screenParams={workflowParams}
+        />
       )}
 
       {/* Confirmation Modal */}
@@ -1291,5 +1294,15 @@ export default function CaregiverDashboard({ onNavigate }) {
         onClose={() => setSelectedBookingDetails(null)}
       />
     </CaregiverLayout>
+
+    {/* ── Booking Wizard Overlay ─────────────────────────── */}
+    {wizardOpen && (
+      <BookingWizard
+        {...wizardParams}
+        onClose={() => setWizardOpen(false)}
+        onComplete={handleWizardComplete}
+      />
+    )}
+  </>
   )
 }

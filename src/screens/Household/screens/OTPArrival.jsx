@@ -17,7 +17,7 @@ export default function OTPArrival({ onNavigate, screenParams }) {
   };
 
   const caregiver = booking.caregiver || CAREGIVERS[0];
-  const meta = SPECIALTY_META[caregiver.specialty] || { label: 'Caregiver' };
+  const meta = SPECIALTY_META[caregiver.specialty] || { label: 'Provider' };
 
   const [otp] = useState(booking.arrivalOtp || '4829');
   const [caregiverInputOtp, setCaregiverInputOtp] = useState('');
@@ -70,7 +70,7 @@ export default function OTPArrival({ onNavigate, screenParams }) {
         </div>
         <h1 className="font-display text-3xl sm:text-4xl font-bold text-[#1E4030]">On-Site Arrival Verification</h1>
         <p className="text-xs sm:text-sm text-[#8A7E74]">
-          Provide your 4-digit arrival OTP to {caregiver.name?.split(' ')[0] || 'your caregiver'} upon their arrival to confirm on-site presence.
+          Provide your 4-digit arrival OTP to {caregiver.name?.split(' ')[0] || 'your provider'} upon their arrival to confirm on-site presence.
         </p>
       </div>
 
@@ -100,7 +100,7 @@ export default function OTPArrival({ onNavigate, screenParams }) {
             {sessionState === 'waiting_arrival' && (
               <div className="inline-flex items-center gap-2 bg-amber-50 text-amber-800 text-xs font-bold px-4 py-2 rounded-full border border-amber-200">
                 <span className="w-2.5 h-2.5 rounded-full bg-amber-500 animate-ping"></span>
-                Waiting for Caregiver Arrival on Site ({booking.time})
+                Waiting for Provider Arrival on Site ({booking.time})
               </div>
             )}
 
@@ -120,11 +120,11 @@ export default function OTPArrival({ onNavigate, screenParams }) {
           </div>
         </div>
 
-        {/* ─── INTERACTIVE MVP SIMULATION: Caregiver Terminal (Entering OTP / Triggering No-Show) ─── */}
+        {/* ─── INTERACTIVE MVP SIMULATION: Provider Terminal (Entering OTP / Triggering No-Show) ─── */}
         <div className="bg-gradient-to-r from-[#1E4030] to-[#152e22] text-white rounded-3xl p-6 sm:p-8 shadow-md space-y-5">
           <div className="flex items-center gap-2 text-xs font-bold text-green-300 uppercase tracking-wider">
             <RefreshCw size={14} className="animate-spin" />
-            <span>Caregiver Terminal Simulation (On-Site Action)</span>
+            <span>Provider Terminal Simulation (On-Site Action)</span>
           </div>
 
           {sessionState === 'waiting_arrival' && (
@@ -147,12 +147,12 @@ export default function OTPArrival({ onNavigate, screenParams }) {
                   className="bg-green-500 hover:bg-green-600 text-white font-bold py-3 px-6 rounded-xl text-xs transition-all shadow-sm flex items-center justify-center gap-2 cursor-pointer"
                 >
                   <CheckCircle2 size={16} />
-                  <span>Simulate Caregiver Entering OTP ({otp})</span>
+                  <span>Simulate Provider Entering OTP ({otp})</span>
                 </button>
               </form>
 
               <div className="pt-3 border-t border-white/10 flex justify-between items-center text-xs">
-                <span className="text-white/60">Caregiver never arrived?</span>
+                <span className="text-white/60">Provider never arrived?</span>
                 <button
                   type="button"
                   onClick={() => setNoShowModalOpen(true)}
@@ -195,9 +195,9 @@ export default function OTPArrival({ onNavigate, screenParams }) {
                 <AlertCircle size={28} />
               </div>
               <div className="space-y-1">
-                <h3 className="font-bold text-base text-[#1C1A17]">Confirm Caregiver No-Show?</h3>
+                <h3 className="font-bold text-base text-[#1C1A17]">Confirm Provider No-Show?</h3>
                 <p className="text-xs text-[#8A7E74] leading-relaxed">
-                  Since the OTP was never entered at arrival time, objective evidence confirms the caregiver did not arrive. Your escrow payment of <strong className="text-[#1E4030]">{booking.totalPrice?.toLocaleString() || '11,000'} XAF</strong> will be refunded immediately.
+                  Since the OTP was never entered at arrival time, objective evidence confirms the provider did not arrive. Your escrow payment of <strong className="text-[#1E4030]">{booking.totalPrice?.toLocaleString() || '11,000'} XAF</strong> will be refunded immediately.
                 </p>
               </div>
               <div className="flex gap-3 pt-2">

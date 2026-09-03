@@ -1,5 +1,5 @@
 import React from 'react'
-import { LogOut, User, CheckCircle2, ClipboardList, Calendar, Clock, Wallet, Star, Bell, X } from 'lucide-react'
+import { LogOut, User, CheckCircle2, ClipboardList, Calendar, Clock, Wallet, Star, Bell, X, Home, Compass, MessageSquare, Gift } from 'lucide-react'
 import { NAVIGATION_ITEMS, CAREGIVER_CONSTANTS } from '../constants/dashboardConstants'
 
 export default function Sidebar({
@@ -12,12 +12,17 @@ export default function Sidebar({
 }) {
   const iconMap = {
     overview: CheckCircle2,
+    home: Home,
+    explore: Compass,
+    discussions: MessageSquare,
+    discussion: MessageSquare,
     requests: ClipboardList,
     bookings: Calendar,
     calendar: Clock,
     earnings: Wallet,
     reviews: Star,
     notifications: Bell,
+    refer: Gift,
     profile: User
   }
 
@@ -58,6 +63,7 @@ export default function Sidebar({
             let displayBadge = null
             if (id === 'requests') displayBadge = 3
             if (id === 'bookings') displayBadge = 2
+            if (id === 'discussions') displayBadge = 1
             if (id === 'notifications') displayBadge = notificationsCount
 
             return (

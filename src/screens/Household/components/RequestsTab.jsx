@@ -1,13 +1,14 @@
 import React, { useState } from 'react';
 import {
   ClipboardList, Clock, MapPin, MoreHorizontal, ChevronRight,
-  X, CheckCircle, AlertCircle, ShieldCheck, MessageSquare, Calendar, DollarSign
+  X, CheckCircle, AlertCircle, ShieldCheck, MessageSquare, Calendar, DollarSign,
+  Eye, Trash2
 } from 'lucide-react';
 import { SPECIALTY_META } from '../../../data';
 
 function RequestDetailsModal({ request, onClose, onOpenDiscussion, onCancelRequest }) {
   if (!request) return null;
-  const meta = SPECIALTY_META[request.specialty] || { label: 'Caregiver' };
+  const meta = SPECIALTY_META[request.specialty] || { label: 'Provider' };
 
   return (
     <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm animate-fadeIn">
@@ -96,14 +97,14 @@ function RequestDetailsModal({ request, onClose, onOpenDiscussion, onCancelReque
           <div className="bg-[#FAF8F5] border border-[#E2D9CF] rounded-xl p-4 space-y-1.5">
             <span className="text-[10px] font-bold text-[#8A7E74] uppercase tracking-wider block">Care Request Summary</span>
             <p className="text-xs text-[#1C1A17] leading-relaxed">
-              {request.patientNotes || 'Caregiver booking requested for family home care in Yaounde/Douala with background check and escrow security.'}
+              {request.patientNotes || 'Provider booking requested for family home care in Yaounde/Douala with background check and escrow security.'}
             </p>
           </div>
 
           {/* Escrow note */}
           <div className="p-3 bg-[#EDF7F2] border border-green-200 rounded-xl flex items-center gap-2.5 text-xs text-[#1E4030]">
             <ShieldCheck size={16} className="shrink-0" />
-            <span>Escrow protection active: Caregiver is only paid upon validated arrival OTP.</span>
+            <span>Escrow protection active: Provider is only paid upon validated arrival OTP.</span>
           </div>
         </div>
 
@@ -162,7 +163,7 @@ export default function RequestsTab({
         </div>
         <div>
           <h2 className="font-display text-2xl font-bold text-[#1E4030]">My Requests</h2>
-          <p className="text-sm text-[#8A7E74]">Every caregiver you reached out to and where they stand.</p>
+          <p className="text-sm text-[#8A7E74]">Every provider you reached out to and where they stand.</p>
         </div>
         <div className="ml-auto bg-[#EDF7F2] border border-green-200/60 text-[#1E4030] text-xs font-bold px-3 py-1.5 rounded-full">
           {requests.length} request{requests.length !== 1 ? 's' : ''}
@@ -172,7 +173,7 @@ export default function RequestsTab({
       {/* Requests List */}
       <div className="space-y-3">
         {requests.map(r => {
-          const meta = SPECIALTY_META[r.specialty] || { label: 'Caregiver' };
+          const meta = SPECIALTY_META[r.specialty] || { label: 'Provider' };
           const showDropdown = activeDropdownId === r.id;
           const statusConfig = (
             r.status === 'Pending'  ? { bg: 'bg-amber-50',   text: 'text-amber-700',  border: 'border-amber-200',  dot: 'bg-amber-400'  } :
@@ -241,7 +242,7 @@ export default function RequestsTab({
                           }}
                           className="w-full px-4 py-2 text-xs text-[#1C1A17] hover:bg-[#FAF8F5] text-left font-semibold transition-colors cursor-pointer flex items-center gap-2"
                         >
-                          <ChevronRight size={13} className="text-[#8A7E74]" />View details
+                          <Eye size={13} className="text-[#8A7E74]" />View details
                         </button>
                         <button
                           onClick={() => {
@@ -252,8 +253,19 @@ export default function RequestsTab({
                         >
                           <MessageSquare size={13} className="text-[#1E4030]" />Message
                         </button>
-                        <button onClick={() => cancelDeleteRequest(r.id)} className="w-full px-4 py-2 text-xs text-red-600 hover:bg-red-50 text-left font-semibold transition-colors cursor-pointer">
-                          {r.status === 'Pending' ? 'Cancel request' : 'Delete'}
+                        <button
+                          onClick={() => cancelDeleteRequest(r.id)}
+                          className="w-full px-4 py-2 text-xs text-red-600 hover:bg-red-50 text-left font-semibold transition-colors cursor-pointer flex items-center gap-2"
+                        >
+                          {r.status === 'Pending' ? (
+                            <>
+                              <X size={13} className="text-red-600" />Cancel request
+                            </>
+                          ) : (
+                            <>
+                              <Trash2 size={13} className="text-red-600" />Delete
+                            </>
+                          )}
                         </button>
                       </div>
                     )}
@@ -267,7 +279,7 @@ export default function RequestsTab({
           <div className="text-center py-16 bg-white border border-[#E2D9CF] rounded-2xl">
             <ClipboardList size={32} className="mx-auto text-[#8A7E74]/30 mb-3" />
             <p className="text-sm font-semibold text-[#8A7E74]">No requests yet</p>
-            <p className="text-xs text-[#8A7E74]/70 mt-1">Explore caregivers and send your first request.</p>
+            <p className="text-xs text-[#8A7E74]/70 mt-1">Explore providers and send your first request.</p>
           </div>
         )}
       </div>

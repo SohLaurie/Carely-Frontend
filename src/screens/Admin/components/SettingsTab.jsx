@@ -50,7 +50,7 @@ export default function SettingsTab() {
   const [chatbotAutoIndex, setChatbotAutoIndex] = useState(true);
   const [chatbotSystemPrompt, setChatbotSystemPrompt] = useState(
     `You are the official Carely AI Assistant for Cameroon healthcare & domestic care services. 
-Assist households in booking verified caregivers (home nurses, elderly care, babysitters, post-op support). 
+Assist households in booking verified providers (home nurses, elderly care, babysitters, post-op support). 
 Provide accurate guidance on Cameroon Mobile Money escrow payments (MTN & Orange), pricing in XAF, and safety protocols.`
   );
 
@@ -231,7 +231,7 @@ Provide accurate guidance on Cameroon Mobile Money escrow payments (MTN & Orange
                   Maintenance Mode
                 </h4>
                 <p className="text-[11px] text-[#8A7E74] leading-relaxed">
-                  When enabled, only administrators can access the console. Regular households and caregivers see a maintenance page.
+                  When enabled, only administrators can access the console. Regular households and providers see a maintenance page.
                 </p>
               </div>
               <button
@@ -515,12 +515,12 @@ Provide accurate guidance on Cameroon Mobile Money escrow payments (MTN & Orange
                 </button>
               </div>
 
-              {/* Caregiver mandatory 2FA toggle */}
+              {/* Provider mandatory 2FA toggle */}
               <div className="p-4 bg-[#FAF8F5] border border-[#E2D9CF] rounded-2xl flex items-center justify-between gap-4">
                 <div className="space-y-1">
-                  <h4 className="font-bold text-xs text-[#1C1A17]">Mandatory 2FA for Caregivers (Payout Security)</h4>
+                  <h4 className="font-bold text-xs text-[#1C1A17]">Mandatory 2FA for Providers (Payout Security)</h4>
                   <p className="text-[11px] text-[#8A7E74] leading-relaxed">
-                    Require OTP verification before caregivers can initiate Mobile Money withdrawals or modify payment accounts.
+                    Require OTP verification before providers can initiate Mobile Money withdrawals or modify payment accounts.
                   </p>
                 </div>
                 <button
@@ -719,7 +719,7 @@ Provide accurate guidance on Cameroon Mobile Money escrow payments (MTN & Orange
               </div>
 
               <div className="space-y-1.5">
-                <label className="block text-[10px] text-[#8A7E74] font-bold uppercase tracking-wider">Minimum Caregiver Payout (XAF)</label>
+                <label className="block text-[10px] text-[#8A7E74] font-bold uppercase tracking-wider">Minimum Provider Payout (XAF)</label>
                 <input
                   type="text"
                   value={campayMinPayout}
@@ -744,7 +744,7 @@ Provide accurate guidance on Cameroon Mobile Money escrow payments (MTN & Orange
               <div className="space-y-1">
                 <h4 className="font-bold text-xs text-[#1C1A17]">Automated Escrow Release upon Client OTP Confirmation</h4>
                 <p className="text-[11px] text-[#8A7E74] leading-relaxed">
-                  Automatically trigger Campay API payout to caregiver's Mobile Money wallet as soon as both parties complete the verification OTP.
+                  Automatically trigger Campay API payout to provider's Mobile Money wallet as soon as both parties complete the verification OTP.
                 </p>
               </div>
               <button
@@ -853,9 +853,9 @@ Provide accurate guidance on Cameroon Mobile Money escrow payments (MTN & Orange
               {/* Auto-index Knowledge Base Toggle */}
               <div className="p-4 bg-[#FAF8F5] border border-[#E2D9CF] rounded-2xl flex items-center justify-between gap-4">
                 <div className="space-y-1">
-                  <h4 className="font-bold text-xs text-[#1C1A17]">Auto-Index Verified Caregiver Profiles in Vector Knowledge Base</h4>
+                  <h4 className="font-bold text-xs text-[#1C1A17]">Auto-Index Verified Provider Profiles in Vector Knowledge Base</h4>
                   <p className="text-[11px] text-[#8A7E74] leading-relaxed">
-                    Allow the AI assistant to search and recommend real caregivers directly based on user symptoms and location.
+                    Allow the AI assistant to search and recommend real providers directly based on user symptoms and location.
                   </p>
                 </div>
                 <button

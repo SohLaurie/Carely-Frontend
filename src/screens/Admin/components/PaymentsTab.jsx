@@ -43,7 +43,7 @@ export default function PaymentsTab({ revenueStats }) {
 
         <div className="bg-white border border-[#E2D9CF] rounded-2xl p-5 shadow-sm space-y-1.5">
           <span className="text-[10px] text-[#8A7E74] font-bold uppercase tracking-wider">Pending Payouts</span>
-          <div className="text-2xl font-bold text-[#1C1A17] font-display">184 <span className="text-xs font-normal text-[#8A7E74] font-sans">caregivers</span></div>
+          <div className="text-2xl font-bold text-[#1C1A17] font-display">184 <span className="text-xs font-normal text-[#8A7E74] font-sans">providers</span></div>
         </div>
 
         <div className="bg-white border border-[#E2D9CF] rounded-2xl p-5 shadow-sm space-y-1.5">
@@ -60,7 +60,7 @@ export default function PaymentsTab({ revenueStats }) {
           <div className="flex justify-between items-center">
             <div>
               <h3 className="font-semibold text-[#1C1A17] text-sm">Payout log</h3>
-              <p className="text-[10px] text-[#8A7E74]">Most recent transfers to caregivers</p>
+              <p className="text-[10px] text-[#8A7E74]">Most recent transfers to providers</p>
             </div>
             <button className="bg-[#FAF8F5] border border-[#E2D9CF] hover:bg-[#EFECE6] px-3.5 py-1.5 rounded-xl text-xs font-semibold text-[#1C1A17] flex items-center gap-1.5 transition-all">
               <Download size={12} />
@@ -73,7 +73,7 @@ export default function PaymentsTab({ revenueStats }) {
               <thead>
                 <tr className="border-b border-[#EFECE6] text-[10px] font-bold text-[#8A7E74] uppercase tracking-wider">
                   <th className="pb-3 pr-2">Date</th>
-                  <th className="pb-3 px-2">Caregiver</th>
+                  <th className="pb-3 px-2">Provider</th>
                   <th className="pb-3 px-2">Method</th>
                   <th className="pb-3 px-2">Amount (XAF)</th>
                   <th className="pb-3 pl-2">Status</th>

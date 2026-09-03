@@ -43,7 +43,7 @@ export default function BookingsTab({ bookings, setSelectedUser, onSelectBooking
           <Search size={14} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-[#8A7E74]" />
           <input
             type="text"
-            placeholder="Search by ref ID, household, caregiver or service..."
+            placeholder="Search by ref ID, household, provider or service..."
             value={searchQuery}
             onChange={e => setSearchQuery(e.target.value)}
             className="w-full pl-9 pr-4 py-2.5 border border-[#E2D9CF] rounded-xl text-xs outline-none bg-[#FAF8F5] focus:ring-1 focus:ring-[#1E4030] text-[#1C1A17] font-medium"
@@ -75,7 +75,7 @@ export default function BookingsTab({ bookings, setSelectedUser, onSelectBooking
               <tr className="bg-[#FAF8F5] border-b border-[#E2D9CF] text-[10px] font-bold text-[#8A7E74] uppercase tracking-wider">
                 <th className="px-6 py-4">Ref ID</th>
                 <th className="px-6 py-4">Household</th>
-                <th className="px-6 py-4">Caregiver</th>
+                <th className="px-6 py-4">Provider</th>
                 <th className="px-6 py-4">Service</th>
                 <th className="px-6 py-4">When</th>
                 <th className="px-6 py-4">Amount (XAF)</th>

@@ -378,7 +378,7 @@ function Step3({ data, set }) {
 
       <div>
         <p className="text-xs font-semibold text-[#1C1A17] mb-3">
-          Have you previously worked as a caregiver or household service provider?
+          Have you previously worked as a care provider or household service provider?
         </p>
         <div className="grid grid-cols-2 gap-2">
           {['Yes', 'No'].map(opt => (

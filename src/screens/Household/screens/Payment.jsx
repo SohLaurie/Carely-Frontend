@@ -17,7 +17,7 @@ export default function Payment({ onNavigate, screenParams }) {
   };
 
   const caregiver = booking.caregiver || CAREGIVERS[0];
-  const meta = SPECIALTY_META[caregiver.specialty] || { label: 'Caregiver' };
+  const meta = SPECIALTY_META[caregiver.specialty] || { label: 'Provider' };
 
   const [provider, setProvider] = useState('mtn'); // 'mtn' | 'orange'
   const [phoneNumber, setPhoneNumber] = useState('+237 6 99 12 34 56');
@@ -81,7 +81,7 @@ export default function Payment({ onNavigate, screenParams }) {
         </div>
         <h1 className="font-display text-3xl sm:text-4xl font-bold text-[#1E4030]">Authorize Mobile Money Escrow</h1>
         <p className="text-xs sm:text-sm text-[#8A7E74]">
-          Funds are held securely in Carely Escrow. The slot permanently locks on {caregiver.name?.split(' ')[0] || 'your caregiver'}'s calendar.
+          Funds are held securely in Carely Escrow. The slot permanently locks on {caregiver.name?.split(' ')[0] || 'your provider'}'s calendar.
         </p>
       </div>
 
@@ -231,7 +231,7 @@ export default function Payment({ onNavigate, screenParams }) {
                 <span>How Escrow Payout Works</span>
               </div>
               <p className="leading-relaxed text-[#1E4030]/80">
-                Funds are held in escrow and ONLY released to the caregiver after the on-site arrival OTP is verified and the 24h completion window confirms.
+                Funds are held in escrow and ONLY released to the provider after the on-site arrival OTP is verified and the 24h completion window confirms.
               </p>
             </div>
           </div>
@@ -291,7 +291,7 @@ export default function Payment({ onNavigate, screenParams }) {
             <div className="space-y-1">
               <h3 className="font-bold text-base text-[#1C1A17]">Cancel & Refund from Escrow?</h3>
               <p className="text-xs text-[#8A7E74] leading-relaxed">
-                Since the session date has not arrived yet, cancelling will release the caregiver slot and immediately refund <strong className="text-[#1E4030]">{amountToCharge.toLocaleString()} XAF</strong> back to your mobile money wallet.
+                Since the session date has not arrived yet, cancelling will release the provider slot and immediately refund <strong className="text-[#1E4030]">{amountToCharge.toLocaleString()} XAF</strong> back to your mobile money wallet.
               </p>
             </div>
             <div className="flex gap-3 pt-2">

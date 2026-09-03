@@ -106,7 +106,7 @@ export default function OverviewTab({
           <div className="bg-white border border-[#E2D9CF] rounded-2xl p-5 shadow-sm space-y-4">
             <div className="flex justify-between items-center">
               <div className="flex items-center gap-2">
-                <h3 className="font-semibold text-[#1C1A17] text-sm">Caregiver Verification Queue</h3>
+                <h3 className="font-semibold text-[#1C1A17] text-sm">Provider Verification Queue</h3>
                 <span className="bg-[#FEF3C7] text-amber-800 text-[10px] font-bold px-2 py-0.5 rounded-full border border-amber-200">
                   {applications.length} pending
                 </span>

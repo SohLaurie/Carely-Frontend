@@ -1,4 +1,4 @@
-﻿import React, { useState } from 'react';
+import React, { useState } from 'react';
 import {
   CalendarCheck, MoreHorizontal, ChevronRight, X, Key, ShieldCheck,
   Clock, MapPin, MessageSquare, CheckCircle2, User, Phone
@@ -7,7 +7,7 @@ import { SPECIALTY_META } from '../../../data';
 
 function BookingDetailsModal({ booking, onClose, onNavigate }) {
   if (!booking) return null;
-  const meta = SPECIALTY_META[booking.specialty] || { label: 'Caregiver' };
+  const meta = SPECIALTY_META[booking.specialty] || { label: 'Provider' };
 
   return (
     <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-fadeIn">
@@ -138,7 +138,7 @@ export default function BookingsTab({
 
       <div className="space-y-3">
         {bookings.map(b => {
-          const meta = SPECIALTY_META[b.specialty] || { label: 'Caregiver' };
+          const meta = SPECIALTY_META[b.specialty] || { label: 'Provider' };
           const showDropdown = activeBookingDropdownId === b.id;
 
           return (

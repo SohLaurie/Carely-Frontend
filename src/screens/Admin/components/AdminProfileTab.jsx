@@ -18,7 +18,7 @@ export default function AdminProfileTab({ onNavigate }) {
     clearanceTier: 'Level 4 (Full Platform Clearance)',
     authMethod: 'MFA Hardware Key + Authenticator App',
     certifications: 'Certified Information Systems Auditor (CISA), Cameroon Data Protection Officer',
-    bio: 'Lead System Administrator at Carely Cameroon. Responsible for platform infrastructure, mobile money escrow security, caregiver compliance verification, and dispute resolution governance.'
+    bio: 'Lead System Administrator at Carely Cameroon. Responsible for platform infrastructure, mobile money escrow security, provider compliance verification, and dispute resolution governance.'
   });
 
   const handleSave = (e) => {

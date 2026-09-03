@@ -1,4 +1,4 @@
-﻿import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import {
   MessageSquare, Search, Phone, Video, MoreVertical, Paperclip,
   Smile, Mic, Send, ArrowLeft, CheckCheck, Check, ShieldCheck,
@@ -183,7 +183,7 @@ export default function DiscussionsTab({
               {[
                 { id: 'all', label: 'All' },
                 { id: 'unread', label: 'Unread' },
-                { id: 'caregivers', label: 'Caregivers' },
+                { id: 'caregivers', label: 'Providers' },
                 { id: 'support', label: 'Support' },
               ].map(tab => (
                 <button

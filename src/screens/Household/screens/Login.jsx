@@ -1,8 +1,8 @@
-﻿import React, { useState } from 'react'
+import React, { useState } from 'react'
 import { Eye, EyeOff, ShieldCheck, Heart, Users, Star, TrendingUp, Lock, CheckCircle } from 'lucide-react'
 
 const FEATURES = [
-  { Icon: ShieldCheck, text: 'Every caregiver is identity verified' },
+  { Icon: ShieldCheck, text: 'Every provider is identity verified' },
   { Icon: Lock,        text: 'Secure escrow payment system' },
   { Icon: CheckCircle, text: 'Dispute protection guarantee' },
 ]
@@ -63,7 +63,7 @@ export default function Login({ onNavigate }) {
               <span className="text-[#E29578]">platform</span>
             </h1>
             <p className="text-white/65 text-base leading-relaxed max-w-md">
-              Connecting Cameroonian families with verified caregivers — nurses, babysitters, and domestic workers.
+              Connecting Cameroonian families with verified providers — nurses, babysitters, and domestic workers.
             </p>
           </div>
           <ul className="space-y-4">

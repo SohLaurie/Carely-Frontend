@@ -61,7 +61,7 @@ export default function TopNavbar({
       case 'profile':
         return {
           title: 'My Profile & Information',
-          subtitle: 'Manage your professional caregiver details, specialties, and contact credentials.',
+          subtitle: 'Manage your professional provider details, specialties, and contact credentials.',
           Icon: User
         }
       default:
