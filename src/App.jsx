@@ -17,6 +17,7 @@ import Register from './screens/Household/screens/Register'
 import RegisterPro from './screens/Household/screens/RegisterPro'
 import Pack from './screens/Household/screens/Pack'
 import Login from './screens/Household/screens/Login'
+import ForgotPassword from './screens/Household/screens/ForgotPassword'
 
 
 
@@ -63,6 +64,8 @@ export default function App() {
       setScreen('pack')
     } else if (path === 'login') {
       setScreen('login')
+    } else if (path === 'forgot-password' || path === 'forgot') {
+      setScreen('forgot-password')
     } else if (path === 'landing' || path === '') {
       setScreen('landing')
     }
@@ -131,6 +134,7 @@ export default function App() {
         {screen === 'registerpro' && <RegisterPro {...nav} />}
         {screen === 'pack'       && <Pack {...nav} />}
         {screen === 'login'      && <Login {...nav} />}
+        {screen === 'forgot-password' && <ForgotPassword {...nav} />}
         {screen === 'search'     && <HouseholdDashboard {...nav} />}
         {screen === 'profile'    && <Profile {...nav} />}
         {screen === 'booking'    && <BookingForm {...nav} />}

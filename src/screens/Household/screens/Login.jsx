@@ -37,72 +37,72 @@ export default function Login({ onNavigate }) {
   }
 
   return (
-    <div className="min-h-screen flex">
+    <div className="h-screen max-h-screen flex flex-col lg:flex-row bg-white overflow-y-auto lg:overflow-hidden">
       {/* Left Panel - desktop */}
-      <div className="hidden lg:flex lg:w-[48%] xl:w-[52%] bg-[#1E4030] flex-col justify-between p-12 relative overflow-hidden">
-        <div className="absolute top-0 right-0 w-80 h-80 bg-white/5 rounded-full -translate-y-1/3 translate-x-1/3" />
-        <div className="absolute bottom-0 left-0 w-96 h-96 bg-white/5 rounded-full translate-y-1/3 -translate-x-1/3" />
-        <div className="absolute top-1/2 right-16 w-40 h-40 bg-[#E29578]/10 rounded-full -translate-y-1/2" />
+      <div className="hidden lg:flex lg:w-[46%] xl:w-[48%] bg-[#1E4030] flex-col justify-between p-8 xl:p-10 relative overflow-hidden shrink-0">
+        <div className="absolute top-0 right-0 w-72 h-72 bg-white/5 rounded-full -translate-y-1/3 translate-x-1/3 pointer-events-none" />
+        <div className="absolute bottom-0 left-0 w-80 h-80 bg-white/5 rounded-full translate-y-1/3 -translate-x-1/3 pointer-events-none" />
+        <div className="absolute top-1/2 right-12 w-36 h-36 bg-[#E29578]/10 rounded-full -translate-y-1/2 pointer-events-none" />
 
         {/* Logo */}
         <div className="flex items-center gap-3 cursor-pointer relative z-10" onClick={() => onNavigate('landing')}>
-          <div className="w-10 h-10 bg-white/15 rounded-xl flex items-center justify-center border border-white/20">
-            <Heart size={20} className="fill-white text-white" />
+          <div className="w-9 h-9 bg-white/15 rounded-xl flex items-center justify-center border border-white/20">
+            <Heart size={18} className="fill-white text-white" />
           </div>
           <div>
-            <p className="font-display font-bold text-lg text-white leading-none">Carely</p>
-            <p className="text-[11px] text-white/50 mt-0.5">Trusted care</p>
+            <p className="font-display font-bold text-base text-white leading-none">Carely</p>
+            <p className="text-[10px] text-white/50 mt-0.5">Trusted care</p>
           </div>
         </div>
 
         {/* Main content */}
-        <div className="relative z-10 space-y-10">
-          <div className="space-y-4">
-            <h1 className="font-display text-4xl xl:text-5xl font-bold text-white leading-tight">
+        <div className="relative z-10 space-y-6 xl:space-y-8 my-auto py-2">
+          <div className="space-y-2.5">
+            <h1 className="font-display text-3xl xl:text-4xl font-bold text-white leading-tight">
               Your trusted care<br />
               <span className="text-[#E29578]">platform</span>
             </h1>
-            <p className="text-white/65 text-base leading-relaxed max-w-md">
+            <p className="text-white/65 text-xs xl:text-sm leading-relaxed max-w-sm">
               Connecting Cameroonian families with verified providers — nurses, babysitters, and domestic workers.
             </p>
           </div>
-          <ul className="space-y-4">
+          <ul className="space-y-2.5">
             {FEATURES.map(({ Icon, text }) => (
-              <li key={text} className="flex items-center gap-3">
-                <div className="w-8 h-8 bg-white/10 rounded-lg flex items-center justify-center shrink-0 border border-white/10">
-                  <Icon size={15} className="text-white" />
+              <li key={text} className="flex items-center gap-2.5">
+                <div className="w-7 h-7 bg-white/10 rounded-lg flex items-center justify-center shrink-0 border border-white/10">
+                  <Icon size={14} className="text-white" />
                 </div>
-                <span className="text-sm text-white/80 font-medium">{text}</span>
+                <span className="text-xs xl:text-sm text-white/85 font-medium">{text}</span>
               </li>
             ))}
           </ul>
-          <div className="grid grid-cols-3 gap-3">
+          <div className="grid grid-cols-3 gap-2.5 pt-1">
             {STATS.map(({ Icon, num, label }) => (
-              <div key={label} className="bg-white/8 border border-white/10 rounded-2xl p-4 text-center">
-                <div className="font-display text-xl font-bold text-white">{num}</div>
-                <div className="text-[10px] text-white/55 mt-1 leading-tight">{label}</div>
+              <div key={label} className="bg-white/8 border border-white/10 rounded-xl p-3 text-center">
+                <div className="font-display text-lg xl:text-xl font-bold text-white">{num}</div>
+                <div className="text-[10px] text-white/55 mt-0.5 leading-tight">{label}</div>
               </div>
             ))}
           </div>
         </div>
 
         {/* Quote */}
-        <div className="relative z-10 bg-white/8 border border-white/10 rounded-2xl p-5">
-          <p className="text-white/75 text-sm italic leading-relaxed">
+        <div className="relative z-10 bg-white/8 border border-white/10 rounded-xl p-3.5 xl:p-4">
+          <p className="text-white/75 text-xs italic leading-relaxed">
             &ldquo;Since I started using Carely, I leave for the office without worry. My mother is in the best hands.&rdquo;
           </p>
-          <div className="flex items-center gap-2 mt-3">
-            <div className="w-7 h-7 rounded-full bg-white/15 flex items-center justify-center text-xs font-bold text-white border border-white/10">C</div>
+          <div className="flex items-center gap-2 mt-2">
+            <div className="w-6 h-6 rounded-full bg-white/15 flex items-center justify-center text-[10px] font-bold text-white border border-white/10">C</div>
             <div>
-              <p className="text-xs font-semibold text-white">Carine Ngo</p>
-              <p className="text-[10px] text-white/45">Yaounde</p>
+              <p className="text-[11px] font-semibold text-white leading-tight">Carine Ngo</p>
+              <p className="text-[9px] text-white/45">Yaounde</p>
             </div>
           </div>
         </div>
       </div>
 
       {/* Right Panel - form */}
-      <div className="flex-1 flex flex-col bg-white">
+      <div className="flex-1 flex flex-col bg-white overflow-y-auto">
         {/* Mobile header */}
         <header className="lg:hidden bg-white border-b border-[#E2D9CF] px-6 py-3.5 flex items-center justify-between">
           <div className="flex items-center gap-2 cursor-pointer" onClick={() => onNavigate('landing')}>
@@ -118,11 +118,11 @@ export default function Login({ onNavigate }) {
         </header>
 
         {/* Form area */}
-        <div className="flex-1 flex flex-col items-center justify-center px-6 sm:px-12 py-12">
-          <div className="w-full max-w-[400px] space-y-8">
-            <div className="space-y-2">
-              <h2 className="font-display text-3xl font-extrabold text-[#1C1A17] tracking-tight">Welcome back</h2>
-              <p className="text-sm text-[#8A7E74]">Sign in to manage your bookings and account.</p>
+        <div className="flex-1 flex flex-col items-center justify-center px-6 sm:px-12 py-8 lg:py-6">
+          <div className="w-full max-w-[390px] space-y-6">
+            <div className="space-y-1.5">
+              <h2 className="font-display text-2xl sm:text-3xl font-extrabold text-[#1C1A17] tracking-tight">Welcome back</h2>
+              <p className="text-xs sm:text-sm text-[#8A7E74]">Sign in to manage your bookings and account.</p>
             </div>
 
             <form onSubmit={handleSubmit} className="space-y-5">
@@ -162,7 +162,16 @@ export default function Login({ onNavigate }) {
                   <input type="checkbox" checked={rememberMe} onChange={(e) => setRememberMe(e.target.checked)} className="w-4 h-4 rounded border-[#E2D9CF] accent-[#1E4030] cursor-pointer" />
                   <span className="text-xs text-[#8A7E74] font-medium">Remember me</span>
                 </label>
-                <a href="#forgot" onClick={(e) => e.preventDefault()} className="text-xs font-semibold text-[#1E4030] hover:underline cursor-pointer">Forgot password?</a>
+                <a
+                  href="#forgot"
+                  onClick={(e) => {
+                    e.preventDefault();
+                    onNavigate('forgot-password');
+                  }}
+                  className="text-xs font-semibold text-[#1E4030] hover:underline cursor-pointer"
+                >
+                  Forgot password?
+                </a>
               </div>
               <button
                 type="submit"
