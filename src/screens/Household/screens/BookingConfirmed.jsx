@@ -1,11 +1,11 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import {
   CheckCircle2, Calendar, Clock, MapPin, Key, ShieldCheck,
   ArrowRight, MessageSquare, Download, Share2, ArrowLeft
 } from 'lucide-react';
 import { CAREGIVERS, SPECIALTY_META } from '../../../data';
 
-export default function BookingConfirmed({ onNavigate, screenParams }) {
+export default function BookingConfirmed({ onNavigate, screenParams, loadBookings }) {
   const booking = screenParams?.booking || {
     caregiver: CAREGIVERS[0],
     sessionType: 'once',
@@ -15,6 +15,12 @@ export default function BookingConfirmed({ onNavigate, screenParams }) {
     arrivalOtp: '4829',
     status: 'Confirmed'
   };
+
+  useEffect(() => {
+    if (typeof loadBookings === 'function') {
+      loadBookings();
+    }
+  }, [loadBookings]);
 
   const caregiver = booking.caregiver || CAREGIVERS[0];
   const meta = SPECIALTY_META[caregiver.specialty] || { label: 'Provider' };
@@ -45,11 +51,11 @@ export default function BookingConfirmed({ onNavigate, screenParams }) {
           <span className="text-xs font-bold text-green-300 uppercase tracking-widest block">
             Day of Service Arrival OTP
           </span>
-          <div className="font-mono text-4xl font-extrabold tracking-[0.4em] text-white bg-white/10 border border-white/20 py-3 rounded-2xl max-w-xs mx-auto">
-            {booking.arrivalOtp || '4829'}
+          <div className="font-mono text-3xl sm:text-4xl font-extrabold tracking-[0.3em] text-white bg-white/10 border border-white/20 py-3 px-4 rounded-2xl max-w-xs mx-auto">
+            {booking.arrivalOtp || booking.sessions?.[0]?.otp_code || '4829'}
           </div>
           <p className="text-xs text-white/70 max-w-sm mx-auto">
-            Share this 4-digit code with {caregiver.name.split(' ')[0]} when they arrive at your door to start the session.
+            Share this verification code with {caregiver.name.split(' ')[0]} when they arrive at your door to start the session.
           </p>
           <div className="pt-2">
             <button
@@ -66,11 +72,22 @@ export default function BookingConfirmed({ onNavigate, screenParams }) {
           <h3 className="font-bold text-base text-[#1C1A17] border-b border-[#F0EBE4] pb-3">Session Information</h3>
 
           <div className="flex items-center gap-4">
-            <div className="w-16 h-16 rounded-2xl overflow-hidden bg-[#FAF8F5] border border-[#E2D9CF] shrink-0">
-              <img src={caregiver.photo} alt={caregiver.name} className="w-full h-full object-cover" />
+            <div className="w-16 h-16 rounded-2xl overflow-hidden bg-[#FAF8F5] border border-[#E2D9CF] shrink-0 flex items-center justify-center">
+              {caregiver.photo ? (
+                <img src={caregiver.photo} alt={caregiver.name} className="w-full h-full object-cover" />
+              ) : (
+                <div className="w-full h-full bg-[#D6EBE0] text-[#1E4030] font-bold text-lg flex items-center justify-center">
+                  {caregiver.initials || 'NZ'}
+                </div>
+              )}
             </div>
             <div className="space-y-1">
-              <h4 className="font-bold text-base text-[#1C1A17]">{caregiver.name}</h4>
+              <div className="flex items-center gap-2">
+                <h4 className="font-bold text-base text-[#1C1A17]">{caregiver.name}</h4>
+                <span className="text-[10px] bg-[#EDF7F2] text-[#1E4030] border border-green-200 px-2 py-0.5 rounded-full font-bold">
+                  {caregiver.profession || meta.label || 'Cleaner'}
+                </span>
+              </div>
               <p className="text-xs text-[#8A7E74] flex items-center gap-1.5">
                 <MapPin size={13} className="text-[#1E4030]" />
                 {caregiver.location}
@@ -99,10 +116,13 @@ export default function BookingConfirmed({ onNavigate, screenParams }) {
               <span>Chat in Discussions</span>
             </button>
             <button
-              onClick={() => onNavigate('search')}
+              onClick={() => {
+                if (typeof loadBookings === 'function') loadBookings();
+                onNavigate('bookings');
+              }}
               className="flex-1 bg-[#1E4030] hover:bg-[#152e22] text-white py-3 rounded-xl text-xs font-bold transition-all shadow-sm flex items-center justify-center gap-2 cursor-pointer"
             >
-              <span>Back to Dashboard</span>
+              <span>View in My Bookings</span>
               <ArrowRight size={14} />
             </button>
           </div>

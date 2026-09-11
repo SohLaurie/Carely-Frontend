@@ -1,12 +1,13 @@
-﻿import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   Clock, ShieldCheck, ArrowLeft, CheckCircle2, XCircle,
   AlertCircle, ChevronRight, User, RefreshCw, X, MessageSquare, Phone
 } from 'lucide-react';
 import { CAREGIVERS, SPECIALTY_META } from '../../../data';
+import { fetchBooking, cancelBooking } from '../../../services/bookingApi';
 
 export default function RequestPending({ onNavigate, screenParams }) {
-  const request = screenParams?.activeRequest || {
+  const request = screenParams?.activeRequest || screenParams?.booking || {
     caregiver: CAREGIVERS[0],
     sessionType: 'once',
     date: 'Mon Aug 4',
@@ -16,13 +17,58 @@ export default function RequestPending({ onNavigate, screenParams }) {
     notes: 'Morning home care assistance'
   };
 
+  const bookingId = screenParams?.activeBookingId || request.bookingId || request.id;
+
   const caregiver = request.caregiver || CAREGIVERS[0];
   const meta = SPECIALTY_META[caregiver.specialty] || { label: 'Caregiver' };
 
   // 24-Hour Response Window Countdown Simulation
   const [timeLeft, setTimeLeft] = useState({ hours: 23, minutes: 58, seconds: 45 });
-  const [status, setStatus] = useState('pending'); // 'pending' | 'accepted' | 'declined' | 'cancelled'
+  const [status, setStatus] = useState(request.status === 'Accepted' ? 'accepted' : 'pending'); // 'pending' | 'accepted' | 'declined' | 'cancelled'
   const [cancelModalOpen, setCancelModalOpen] = useState(false);
+
+  // Poll backend booking status if valid booking ID is provided
+  useEffect(() => {
+    if (!bookingId || typeof bookingId !== 'string' || !bookingId.includes('-')) return;
+
+    let isMounted = true;
+    const pollInterval = setInterval(async () => {
+      try {
+        const liveBooking = await fetchBooking(bookingId);
+        if (!isMounted || !liveBooking) return;
+
+        if (liveBooking.status === 'accepted') {
+          clearInterval(pollInterval);
+          setStatus('accepted');
+          setTimeout(() => {
+            onNavigate('payment', {
+              booking: {
+                ...request,
+                ...liveBooking,
+                id: liveBooking.id,
+                totalPrice: Number(liveBooking.total_price) || request.totalPrice,
+                status: 'Accepted',
+                caregiver: {
+                  ...caregiver,
+                  name: liveBooking.provider ? `${liveBooking.provider.firstName || ''} ${liveBooking.provider.lastName || ''}`.trim() : caregiver.name,
+                }
+              }
+            });
+          }, 1200);
+        } else if (liveBooking.status === 'cancelled') {
+          clearInterval(pollInterval);
+          setStatus('declined');
+        }
+      } catch (e) {
+        console.warn('Polling booking status error:', e.message);
+      }
+    }, 6000);
+
+    return () => {
+      isMounted = false;
+      clearInterval(pollInterval);
+    };
+  }, [bookingId]);
 
   useEffect(() => {
     const timer = setInterval(() => {
@@ -44,6 +90,7 @@ export default function RequestPending({ onNavigate, screenParams }) {
       onNavigate('payment', {
         booking: {
           ...request,
+          id: bookingId,
           status: 'Accepted'
         }
       });
@@ -54,7 +101,14 @@ export default function RequestPending({ onNavigate, screenParams }) {
     setStatus('declined');
   };
 
-  const handleCancelRequest = () => {
+  const handleCancelRequest = async () => {
+    if (bookingId && typeof bookingId === 'string' && bookingId.includes('-')) {
+      try {
+        await cancelBooking(bookingId);
+      } catch (err) {
+        console.warn('Backend cancel error:', err.message);
+      }
+    }
     setStatus('cancelled');
     setCancelModalOpen(false);
     setTimeout(() => {
@@ -183,34 +237,7 @@ export default function RequestPending({ onNavigate, screenParams }) {
           )}
         </div>
 
-        {/* ─── INTERACTIVE MVP SIMULATION BAR (To test both acceptance & decline) ─── */}
-        {status === 'pending' && (
-          <div className="bg-gradient-to-r from-[#1E4030] to-[#152e22] text-white rounded-3xl p-6 shadow-md space-y-4">
-            <div className="flex items-center gap-2 text-xs font-bold text-green-300 uppercase tracking-wider">
-              <RefreshCw size={14} className="animate-spin" />
-              <span>MVP Simulation Controls: Test Caregiver Response</span>
-            </div>
-            <p className="text-xs text-white/80 leading-relaxed">
-              Use the buttons below to test how the workflow handles when the caregiver accepts vs when they decline/timeout.
-            </p>
-            <div className="flex flex-col sm:flex-row gap-3 pt-1">
-              <button
-                onClick={handleSimulateAccept}
-                className="flex-1 bg-green-500 hover:bg-green-600 text-white font-bold py-3 px-4 rounded-xl text-xs transition-all shadow-sm flex items-center justify-center gap-2 cursor-pointer"
-              >
-                <CheckCircle2 size={16} />
-                <span>Simulate Caregiver Accepts (Go to Step 3: Payment)</span>
-              </button>
-              <button
-                onClick={handleSimulateDecline}
-                className="flex-1 bg-red-600/80 hover:bg-red-600 text-white font-bold py-3 px-4 rounded-xl text-xs transition-all shadow-sm flex items-center justify-center gap-2 cursor-pointer"
-              >
-                <XCircle size={16} />
-                <span>Simulate Caregiver Declines (Show Alternatives)</span>
-              </button>
-            </div>
-          </div>
-        )}
+
 
         {/* Alternative Caregiver Suggestions (Displayed when declined/timeout) */}
         {status === 'declined' && (

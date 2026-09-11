@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { Eye, EyeOff, ArrowRight, ArrowLeft, ShieldCheck, Heart, Check, Pencil, Leaf } from 'lucide-react'
+import { registerClient } from '../../../services/auth.service.js'
 
 // ── Reusable components ────────────────────────────────────────────────────────
 
@@ -579,6 +580,8 @@ export default function Register({ onNavigate }) {
   const [step, setStep] = useState(1)
   const [data, setData] = useState(initialData)
   const [submitted, setSubmitted] = useState(false)
+  const [submitting, setSubmitting] = useState(false)
+  const [submitError, setSubmitError] = useState('')
 
   const set = (key, value) => setData(prev => ({ ...prev, [key]: value }))
 
@@ -586,11 +589,20 @@ export default function Register({ onNavigate }) {
   const back = () => setStep(s => Math.max(s - 1, 1))
   const goTo = (s) => setStep(s)
 
-  const handleSubmit = () => {
-    setSubmitted(true)
-    setTimeout(() => {
-      onNavigate('household')
-    }, 2000)
+  const handleSubmit = async () => {
+    if (submitting) return
+    setSubmitting(true)
+    setSubmitError('')
+    try {
+      await registerClient(data)
+      setSubmitted(true)
+      setTimeout(() => {
+        onNavigate('search')
+      }, 2000)
+    } catch (err) {
+      setSubmitError(err.message || 'Registration failed. Please try again.')
+      setSubmitting(false)
+    }
   }
 
   if (submitted) {
@@ -612,8 +624,8 @@ export default function Register({ onNavigate }) {
       {/* Top header */}
       <header className="bg-[#FAF8F5] border-b border-[#E2D9CF] px-6 lg:px-12 py-3.5 flex items-center justify-between sticky top-0 z-40">
         <div className="flex items-center gap-2.5">
-          <div className="w-9 h-9 bg-[#1E4030] rounded-xl flex items-center justify-center shadow-sm">
-            <Heart size={17} className="fill-white text-[#1E4030]" />
+          <div className="w-10 h-10 bg-white rounded-xl p-1 flex items-center justify-center border border-[#E2D9CF] shadow-xs shrink-0">
+            <img src="/logo.png" alt="Carely Logo" className="w-full h-full object-contain" />
           </div>
           <div className="leading-tight">
             <p className="font-display font-bold text-sm text-[#1E4030]">Carely</p>
@@ -687,13 +699,20 @@ export default function Register({ onNavigate }) {
                 <button
                   type="button"
                   onClick={handleSubmit}
-                  className="flex items-center gap-2 text-sm font-semibold text-white bg-[#1E4030] hover:bg-[#152e22] px-5 py-2.5 rounded-xl transition-all shadow-sm cursor-pointer"
+                  disabled={submitting}
+                  className="flex items-center gap-2 text-sm font-semibold text-white bg-[#1E4030] hover:bg-[#152e22] disabled:opacity-60 px-5 py-2.5 rounded-xl transition-all shadow-sm cursor-pointer"
                 >
-                  Create My Carely Account
-                  <ArrowRight size={14} />
+                  {submitting ? 'Creating account...' : 'Create My Carely Account'}
+                  {!submitting && <ArrowRight size={14} />}
                 </button>
               )}
             </div>
+            {/* Registration error */}
+            {submitError && (
+              <div className="mt-3 text-xs text-red-600 font-medium text-center bg-red-50 border border-red-200 rounded-xl px-4 py-2">
+                {submitError}
+              </div>
+            )}
           </div>
 
           {/* Sidebar */}

@@ -1,5 +1,6 @@
-﻿import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Menu, ShieldCheck, Bell, Clock, Check, Trash2, Reply, MessageSquare } from 'lucide-react';
+import { getStoredUser, getUserDisplayName, getUserInitials } from '../../../services/api.js';
 
 const titleMap = {
   explore:       'Explore Caregivers',
@@ -34,6 +35,10 @@ export default function TopNavbar({
   const [notifDropdownOpen, setNotifDropdownOpen] = useState(false);
   const [confirmDialog, setConfirmDialog]     = useState(null);
   const dropdownRef                           = useRef(null);
+
+  const user = getStoredUser();
+  const displayName = getUserDisplayName(user, 'Aïcha');
+  const initials = getUserInitials(user, 'AK');
 
   useEffect(() => {
     const update = () => {
@@ -204,12 +209,23 @@ export default function TopNavbar({
           {/* User Profile Pill - Opens Profile Tab directly! */}
           <div
             onClick={() => setActiveTab && setActiveTab('profile')}
-            className="flex items-center gap-2 bg-[#FAF8F5] border border-[#E2D9CF] pl-2 pr-3 py-1.5 rounded-full cursor-pointer hover:border-[#1E4030]/40 transition-colors shadow-2xs"
+            className="flex items-center gap-2 bg-[#FAF8F5] border border-[#E2D9CF] pl-1.5 pr-3 py-1.5 rounded-full cursor-pointer hover:border-[#1E4030]/40 transition-colors shadow-2xs"
             title="Open Profile Settings"
           >
-            <div className="w-8 h-8 rounded-full bg-[#1E4030] text-white flex items-center justify-center text-xs font-bold font-display">AK</div>
-            <span className="text-xs font-semibold text-[#1C1A17] hidden md:inline">Aïcha</span>
+            {user?.photoUrl ? (
+              <img
+                src={user.photoUrl}
+                alt={displayName}
+                className="w-8 h-8 rounded-full object-cover border border-[#E2D9CF] shrink-0"
+              />
+            ) : (
+              <div className="w-8 h-8 rounded-full bg-[#1E4030] text-white flex items-center justify-center text-xs font-bold font-display">
+                {initials}
+              </div>
+            )}
+            <span className="text-xs font-semibold text-[#1C1A17] hidden md:inline">{displayName}</span>
           </div>
+
         </div>
       </header>
 

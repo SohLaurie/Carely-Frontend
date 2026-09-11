@@ -1,8 +1,17 @@
-import { useState } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { CAREGIVERS, SPECIALTY_META } from '../../../data';
+import { apiGet, getStoredUser } from '../../../services/api';
+import { fetchMyBookings, cancelBooking } from '../../../services/bookingApi';
 import {
-  initialRequests,
-  initialBookings,
+  fetchDiscussions,
+  fetchMessages,
+  sendMessageApi,
+  getOrCreateDiscussion,
+  deleteDiscussionThread,
+  clearDiscussionChat as clearDiscussionChatApi,
+  deleteDiscussionMessage
+} from '../../../services/discussionApi';
+import {
   initialNotifications,
   initialDiscussions
 } from '../data/mockHouseholdData';
@@ -26,67 +35,242 @@ export function useHouseholdDashboard(screenParams) {
   const [aiLoading, setAiLoading] = useState(false);
   const [aiResult, setAiResult] = useState(null);
 
-  const [requests, setRequests] = useState(initialRequests);
+  const [requests, setRequests] = useState([]);
   const [activeDropdownId, setActiveDropdownId] = useState(null);
 
-  const [bookings, setBookings] = useState(initialBookings);
+  const [bookings, setBookings] = useState([]);
   const [activeBookingDropdownId, setActiveBookingDropdownId] = useState(null);
 
   const [notifFilter, setNotifFilter] = useState('all');
   const [notifications, setNotifications] = useState(initialNotifications);
 
   // Discussions State
-  const [discussions, setDiscussions] = useState(initialDiscussions);
+  const [discussions, setDiscussions] = useState([]);
   const [activeDiscussionId, setActiveDiscussionId] = useState(null);
 
-  const handleAiRecommend = () => {
+  const loadDiscussions = useCallback(async () => {
+    try {
+      const user = getStoredUser();
+      const currentUserId = user?.id;
+      const list = await fetchDiscussions();
+      if (Array.isArray(list)) {
+        setDiscussions(prev => {
+          return list.map(item => {
+            const existing = prev.find(p => p.id === item.id);
+            const msgs = existing?.messages || (item.lastMessage ? [{
+              id: 'last-' + item.id,
+              sender: item.lastSenderId === currentUserId ? 'user' : 'caregiver',
+              text: item.lastMessage,
+              attachmentUrl: item.lastAttachmentUrl,
+              attachmentName: item.lastAttachmentName,
+              attachmentType: item.lastAttachmentType,
+              status: item.lastMessageStatus || 'delivered',
+              time: item.lastMessageTime ? new Date(item.lastMessageTime).toLocaleTimeString('default', { hour: '2-digit', minute: '2-digit', hour12: false }) : 'Recently'
+            }] : []);
+
+            return {
+              ...item,
+              messages: msgs
+            };
+          });
+        });
+      }
+    } catch (err) {
+      console.warn('Failed to load discussions:', err.message);
+    }
+  }, []);
+
+  useEffect(() => {
+    loadDiscussions();
+    const interval = setInterval(loadDiscussions, 4000);
+    return () => clearInterval(interval);
+  }, [loadDiscussions]);
+
+  useEffect(() => {
+    if (!activeDiscussionId) return;
+    let isMounted = true;
+
+    const loadActiveMessages = async () => {
+      try {
+        const user = getStoredUser();
+        const currentUserId = user?.id;
+        const msgs = await fetchMessages(activeDiscussionId);
+        if (!isMounted) return;
+
+        setDiscussions(prev => prev.map(d => {
+          if (d.id === activeDiscussionId) {
+            return {
+              ...d,
+              unreadCount: 0,
+              messages: msgs.map(m => ({
+                ...m,
+                sender: (m.senderId === currentUserId || m.sender === 'user') ? 'user' : 'caregiver',
+                time: m.time || (m.createdAt ? new Date(m.createdAt).toLocaleTimeString('default', { hour: '2-digit', minute: '2-digit', hour12: false }) : 'Just now')
+              }))
+            };
+          }
+          return d;
+        }));
+      } catch (err) {
+        console.warn('Error fetching active messages:', err.message);
+      }
+    };
+
+    loadActiveMessages();
+    const msgInterval = setInterval(loadActiveMessages, 2500);
+    return () => {
+      isMounted = false;
+      clearInterval(msgInterval);
+    };
+  }, [activeDiscussionId]);
+
+  const loadBookings = useCallback(async () => {
+    try {
+      const rawList = await fetchMyBookings();
+      if (!Array.isArray(rawList)) return;
+
+      const mapped = rawList.map(b => {
+        const providerName = b.provider ? `${b.provider.firstName || ''} ${b.provider.lastName || ''}`.trim() : 'Care Provider';
+        const profession = b.provider?.profession || b.provider?.professionOther || (Array.isArray(b.provider?.specialties) ? b.provider?.specialties[0] : b.provider?.specialties) || 'Cleaner';
+        const specialty = profession;
+        const initials = `${(b.provider?.firstName?.[0] || 'N')}${(b.provider?.lastName?.[0] || 'Z')}`.toUpperCase();
+        const photo = b.provider?.photoUrl || null;
+        const timeFormatted = (b.start_time && b.end_time) ? `${b.start_time.slice(0, 5)} – ${b.end_time.slice(0, 5)}` : '09:00 – 12:00';
+        const priceFormatted = `${Number(b.total_price || 0).toLocaleString()} XAF`;
+        const pricePerHour = Number(b.provider?.pricePerHour || b.provider?.price_per_hour) || 50;
+        const subtotal = Number(b.subtotal || 0);
+        const serviceFee = Number(b.service_fee || 5);
+        const totalPrice = Number(b.total_price || 0);
+
+        let displayStatus = 'Pending';
+        if (b.status === 'accepted') displayStatus = 'Accepted';
+        else if (b.status === 'declined') displayStatus = 'Declined';
+        else if (b.status === 'confirmed' || b.status === 'in_progress') displayStatus = 'Confirmed';
+        else if (b.status === 'completed') displayStatus = 'Completed';
+        else if (b.status === 'cancelled') displayStatus = 'Cancelled';
+
+        let dateStr = b.start_date || 'Upcoming';
+        if (b.start_date && typeof b.start_date === 'string' && b.start_date.includes('T')) {
+          try {
+            dateStr = new Date(b.start_date).toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' });
+          } catch {}
+        }
+
+        return {
+          id: b.id,
+          name: providerName,
+          profession,
+          specialty,
+          initials,
+          date: dateStr,
+          time: timeFormatted,
+          startTime: b.start_time,
+          endTime: b.end_time,
+          status: displayStatus,
+          rawStatus: b.status,
+          timeSent: b.created_at ? new Date(b.created_at).toLocaleDateString() : 'Recently',
+          location: b.provider?.location || 'Yaoundé / Douala',
+          pricePerHour,
+          subtotal,
+          serviceFee,
+          totalPrice,
+          totalPriceFormatted: priceFormatted,
+          totalSessions: b.total_sessions || 1,
+          durationWeeks: b.duration_weeks || 1,
+          patientNotes: b.notes || 'Carely verified booking request',
+          photo,
+          sessions: b.sessions || [],
+          bookingType: b.session_type,
+          arrivalOtp: b.sessions?.[0]?.otp_code || '—',
+          escrowStatus: b.payment_status === 'paid' ? 'Held in Escrow' : (b.payment_status === 'refunded' ? 'Refunded' : 'Payment Pending'),
+          caregiver: {
+            id: b.provider_id,
+            name: providerName,
+            photo,
+            initials,
+            profession,
+            specialty,
+            pricePerHour,
+            rating: b.provider?.rating || 5.0,
+          }
+        };
+      });
+
+      const reqs = mapped.filter(m => ['pending', 'accepted', 'declined', 'cancelled'].includes(m.rawStatus));
+      const bks = mapped.filter(m => ['confirmed', 'in_progress', 'completed'].includes(m.rawStatus));
+
+      setRequests(reqs);
+      setBookings(bks);
+    } catch (e) {
+      console.warn('Could not load real bookings, leaving empty:', e.message);
+      setRequests([]);
+      setBookings([]);
+    }
+  }, []);
+
+  // Fetch real bookings on mount and on poll
+  useEffect(() => {
+    loadBookings();
+    const interval = setInterval(loadBookings, 4000);
+    return () => clearInterval(interval);
+  }, [loadBookings]);
+
+  const handleAiRecommend = async () => {
     if (!aiPrompt.trim()) return;
     setAiLoading(true);
     setAiResult(null);
 
-    setTimeout(() => {
+    try {
+      const data = await apiGet('/providers');
+      const list = (data?.providers || []).filter(p => p.approval_status === 'approved' && p.subscription_paid);
       const query = aiPrompt.toLowerCase();
-      let matched = CAREGIVERS[0];
-      let reason = '';
 
-      if (query.includes('nurse') || query.includes('nursing') || query.includes('medical') || query.includes('elder') || query.includes('senior')) {
-        matched = CAREGIVERS.find(c => c.specialty === 'nursing') || CAREGIVERS[0];
-        reason = `Based on your request for clinical support, we recommend ${matched.name}. She is a certified nurse with ${matched.experience} years of clinical experience in home care, post-surgical support, and geriatric assistance in Bastos, Yaounde.`;
-      } else if (query.includes('baby') || query.includes('child') || query.includes('sit') || query.includes('kid') || query.includes('young') || query.includes('school')) {
-        matched = CAREGIVERS.find(c => c.specialty === 'babysitting') || CAREGIVERS[1];
-        reason = `Based on your childcare needs, we recommend ${matched.name}. She is a certified early childhood educator with ${matched.experience} years of experience supporting kids of all ages with active learning programs in Douala.`;
-      } else if (query.includes('clean') || query.includes('house') || query.includes('cook') || query.includes('domestic') || query.includes('maid') || query.includes('iron') || query.includes('laundry')) {
-        matched = CAREGIVERS.find(c => c.specialty === 'cleaning') || CAREGIVERS[2];
-        reason = `Based on your home care/cleaning needs, we recommend ${matched.name}. She is a meticulous housekeeper with ${matched.experience} years of experience in organizing, laundry/ironing, and eco-friendly cleaning.`;
-      } else if (query.includes('garden') || query.includes('lawn') || query.includes('yard') || query.includes('tree') || query.includes('landscape')) {
-        matched = CAREGIVERS.find(c => c.specialty === 'gardening') || CAREGIVERS[4] || CAREGIVERS[0];
-        reason = `Based on your gardening request, we recommend ${matched.name}. He has ${matched.experience} years of professional landscaping experience in Yaounde.`;
-      } else if (query.includes('pet') || query.includes('dog') || query.includes('cat') || query.includes('animal')) {
-        matched = CAREGIVERS.find(c => c.specialty === 'pet_care') || CAREGIVERS[5] || CAREGIVERS[0];
-        reason = `For pet care, we recommend ${matched.name}. She is a certified vet assistant with ${matched.experience} years of animal sitting experience.`;
-      } else if (query.includes('cook') || query.includes('food') || query.includes('meal') || query.includes('kitchen') || query.includes('chef')) {
-        matched = CAREGIVERS.find(c => c.specialty === 'cooking') || CAREGIVERS[6] || CAREGIVERS[0];
-        reason = `For family nutrition and home cooking, we recommend ${matched.name}. She has ${matched.experience} years of professional culinary experience in Douala.`;
-      } else {
-        const locMatch = CAREGIVERS.find(c => query.includes(c.location.split(',')[0].toLowerCase()) || query.includes(c.location.split(',')[1].trim().toLowerCase()));
-        if (locMatch) {
-          matched = locMatch;
-          reason = `We found a top-rated caregiver near your specified location: ${matched.name}. She is located in ${matched.location} and specializes in ${SPECIALTY_META[matched.specialty]?.label || 'Care'}.`;
-        } else {
-          matched = CAREGIVERS[0];
-          reason = `We matched you with our highest-rated caregiver, ${matched.name}. She is located in ${matched.location} and has verified background references checked.`;
-        }
+      let matched = list[0];
+      if (list.length > 0) {
+        const found = list.find(p => {
+          const prof = (p.profession || '').toLowerCase();
+          const spec = (Array.isArray(p.specialties) ? p.specialties.join(' ') : String(p.specialties || '')).toLowerCase();
+          const loc = (p.location || p.city || '').toLowerCase();
+          const bio = (p.bio || '').toLowerCase();
+          return query.split(' ').some(w => w.length > 3 && (prof.includes(w) || spec.includes(w) || loc.includes(w) || bio.includes(w)));
+        });
+        if (found) matched = found;
       }
 
+      if (matched) {
+        const matchedName = `${matched.first_name || ''} ${matched.last_name || ''}`.trim() || 'Verified Provider';
+        const matchedProf = matched.profession || 'Care Provider';
+        const matchedLoc = matched.location || matched.city || 'Yaoundé';
+        const matchedExp = matched.experience || (matched.experience_yrs ? `${matched.experience_yrs} yrs` : 'experienced');
+        const reason = `Based on your request, we recommend ${matchedName} (${matchedProf} in ${matchedLoc}, ${matchedExp} experience). Verified and registered on Carely.`;
+
+        setAiLoading(false);
+        setAiResult({ matchedId: matched.id, message: reason });
+        setSelectedId(matched.id);
+        if (matched.specialties?.[0] || matched.profession) {
+          setFilterSpecialty((matched.specialties?.[0] || matched.profession).toLowerCase().replace(/\s+/g, '_'));
+        }
+        if (matched.location || matched.city) {
+          setFilterLocation(matched.location || matched.city);
+        }
+      } else {
+        setAiLoading(false);
+        setAiResult({ message: 'No registered providers match your query. Explore all verified providers below.' });
+      }
+    } catch (err) {
       setAiLoading(false);
-      setAiResult({ matchedId: matched.id, message: reason });
-      setSelectedId(matched.id);
-      setFilterSpecialty(matched.specialty);
-      setFilterLocation(matched.location.split(',')[0].trim());
-    }, 1500);
+      setAiResult({ message: 'Unable to match right now. Please explore registered providers below.' });
+    }
   };
 
-  const cancelDeleteRequest = (id) => {
+  const cancelDeleteRequest = async (id) => {
+    if (typeof id === 'string' && id.includes('-')) {
+      try {
+        await cancelBooking(id);
+      } catch (err) {
+        console.warn('cancelBooking API error:', err.message);
+      }
+    }
     setRequests(prev => prev.filter(req => req.id !== id));
     setActiveDropdownId(null);
   };
@@ -154,74 +338,89 @@ export function useHouseholdDashboard(screenParams) {
   };
 
   // Discussions actions
-  const sendMessage = (discussionId, text) => {
-    if (!text.trim()) return;
+  const sendMessage = async (discussionId, text, attachmentData = null) => {
+    if (!text?.trim() && !attachmentData) return;
+    const user = getStoredUser();
+    const currentUserId = user?.id;
     const now = new Date();
-    const timeStr = now.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' });
+    const timeStr = now.toLocaleTimeString('default', { hour: '2-digit', minute: '2-digit', hour12: false });
 
-    const userMessage = {
-      id: 'msg-' + Date.now(),
+    const tempId = 'temp-' + Date.now();
+    const optimisticMsg = {
+      id: tempId,
+      senderId: currentUserId,
       sender: 'user',
-      text: text.trim(),
+      text: text ? text.trim() : '',
+      attachmentUrl: attachmentData?.attachmentUrl,
+      attachmentName: attachmentData?.attachmentName,
+      attachmentType: attachmentData?.attachmentType,
+      attachmentSize: attachmentData?.attachmentSize,
+      attachmentMime: attachmentData?.attachmentMime,
       time: timeStr,
       date: 'Today',
-      status: 'read'
+      status: 'delivered'
     };
 
-    setDiscussions(prev =>
-      prev.map(d => {
-        if (d.id === discussionId) {
-          return {
-            ...d,
-            messages: [...d.messages, userMessage],
-            unreadCount: 0
-          };
-        }
-        return d;
-      })
-    );
+    setDiscussions(prev => prev.map(d => {
+      if (d.id === discussionId) {
+        return {
+          ...d,
+          lastMessage: text ? text.trim() : (attachmentData?.attachmentName || 'Attachment'),
+          lastMessageTime: now.toISOString(),
+          messages: [...(d.messages || []), optimisticMsg]
+        };
+      }
+      return d;
+    }));
 
-    setTimeout(() => {
-      const caregiverReplies = [
-        "Thank you for the update! I have noted that down.",
-        "Perfect! I will be there punctually. Looking forward to assisting your family.",
-        "Understood. Please let me know if there are any specific medical or house guidelines to prepare.",
-        "Got it! See you then. Have a wonderful day!"
-      ];
-      const randomReply = caregiverReplies[Math.floor(Math.random() * caregiverReplies.length)];
-      const replyTime = new Date().toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' });
-
-      const botMessage = {
-        id: 'msg-reply-' + Date.now(),
-        sender: 'caregiver',
-        text: randomReply,
-        time: replyTime,
-        date: 'Today',
-        status: 'read'
+    try {
+      const payload = {
+        text: text ? text.trim() : '',
+        attachmentUrl: attachmentData?.attachmentUrl,
+        attachmentName: attachmentData?.attachmentName,
+        attachmentType: attachmentData?.attachmentType,
+        attachmentSize: attachmentData?.attachmentSize,
+        attachmentMime: attachmentData?.attachmentMime
       };
-
-      setDiscussions(prev =>
-        prev.map(d => {
+      const res = await sendMessageApi(discussionId, payload);
+      if (res) {
+        setDiscussions(prev => prev.map(d => {
           if (d.id === discussionId) {
             return {
               ...d,
-              messages: [...d.messages, botMessage]
+              messages: (d.messages || []).map(m => m.id === tempId ? {
+                ...res,
+                sender: 'user',
+                time: timeStr
+              } : m)
             };
           }
           return d;
-        })
-      );
-    }, 1200);
+        }));
+      }
+    } catch (err) {
+      console.error('Failed to send message via API:', err);
+    }
   };
 
-  const deleteDiscussion = (discussionId) => {
+  const deleteDiscussion = async (discussionId) => {
+    try {
+      await deleteDiscussionThread(discussionId);
+    } catch (err) {
+      console.warn('Delete discussion API error:', err);
+    }
     setDiscussions(prev => prev.filter(d => d.id !== discussionId));
     if (activeDiscussionId === discussionId) {
       setActiveDiscussionId(null);
     }
   };
 
-  const clearDiscussionChat = (discussionId) => {
+  const clearDiscussionChat = async (discussionId) => {
+    try {
+      await clearDiscussionChatApi(discussionId);
+    } catch (err) {
+      console.warn('Clear chat API error:', err);
+    }
     setDiscussions(prev =>
       prev.map(d => {
         if (d.id === discussionId) {
@@ -232,13 +431,18 @@ export function useHouseholdDashboard(screenParams) {
     );
   };
 
-  const deleteMessage = (discussionId, messageId) => {
+  const deleteMessage = async (discussionId, messageId) => {
+    try {
+      await deleteDiscussionMessage(discussionId, messageId);
+    } catch (err) {
+      console.warn('Delete message API error:', err);
+    }
     setDiscussions(prev =>
       prev.map(d => {
         if (d.id === discussionId) {
           return {
             ...d,
-            messages: d.messages.filter(m => m.id !== messageId)
+            messages: (d.messages || []).filter(m => m.id !== messageId)
           };
         }
         return d;
@@ -246,32 +450,54 @@ export function useHouseholdDashboard(screenParams) {
     );
   };
 
-  const openDiscussionWithCaregiver = (caregiverOrName) => {
-    const targetName = typeof caregiverOrName === 'string' ? caregiverOrName : caregiverOrName?.name;
+  const openDiscussionWithCaregiver = async (caregiverOrName) => {
+    let recipientId = caregiverOrName?.userId || caregiverOrName?.user_id || caregiverOrName?.id;
+    const targetName = typeof caregiverOrName === 'string' ? caregiverOrName : (caregiverOrName?.name || caregiverOrName?.fullName);
+
+    // If exists in discussions list already
     const existing = discussions.find(d => 
-      (targetName && d.name.toLowerCase().includes(targetName.toLowerCase())) ||
-      (caregiverOrName?.id && d.caregiverId === caregiverOrName.id)
+      (recipientId && d.caregiverId === recipientId) ||
+      (targetName && d.name && d.name.toLowerCase().includes(targetName.toLowerCase()))
     );
 
     if (existing) {
       setActiveDiscussionId(existing.id);
-    } else {
-      const newD = {
-        id: 'D-' + Date.now(),
-        caregiverId: caregiverOrName?.id || 'new',
-        name: targetName || 'Caregiver',
-        specialty: caregiverOrName?.specialty || 'nursing',
-        photo: caregiverOrName?.photo || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=400&h=400&fit=crop&auto=format',
-        status: 'online',
-        lastSeen: 'Online',
-        unreadCount: 0,
-        messages: [
-          { id: 'init-1', sender: 'caregiver', text: `Hello! I am ${targetName || 'your caregiver'}. How can I help you today?`, time: 'Just now', date: 'Today', status: 'read' }
-        ]
-      };
-      setDiscussions(prev => [newD, ...prev]);
-      setActiveDiscussionId(newD.id);
+      setActiveTab('discussions');
+      return;
     }
+
+    // Lookup provider user_id if needed
+    if (!recipientId || typeof recipientId !== 'string' || !recipientId.includes('-')) {
+      try {
+        const data = await apiGet('/providers');
+        const list = data?.providers || [];
+        const matched = list.find(p => {
+          const pName = `${p.first_name || ''} ${p.last_name || ''}`.trim().toLowerCase();
+          return targetName && (pName.includes(targetName.toLowerCase()) || targetName.toLowerCase().includes(pName));
+        });
+        if (matched) {
+          recipientId = matched.user_id || matched.id;
+        }
+      } catch {}
+    }
+
+    if (recipientId) {
+      try {
+        const conv = await getOrCreateDiscussion(recipientId);
+        if (conv) {
+          setDiscussions(prev => {
+            const exists = prev.some(d => d.id === conv.id);
+            return exists ? prev : [conv, ...prev];
+          });
+          setActiveDiscussionId(conv.id);
+          setActiveTab('discussions');
+          return;
+        }
+      } catch (err) {
+        console.warn('Failed to get or create discussion:', err.message);
+      }
+    }
+
     setActiveTab('discussions');
   };
 
@@ -337,6 +563,7 @@ export function useHouseholdDashboard(screenParams) {
     clearDiscussionChat,
     deleteMessage,
     openDiscussionWithCaregiver,
-    unreadMessagesCount
+    unreadMessagesCount,
+    loadBookings
   };
 }

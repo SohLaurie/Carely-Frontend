@@ -10,6 +10,26 @@ function RequestDetailsModal({ request, onClose, onOpenDiscussion, onCancelReque
   if (!request) return null;
   const meta = SPECIALTY_META[request.specialty] || { label: 'Provider' };
 
+  const fee = Number(request.serviceFee) || 5;
+  const rawTotal = typeof request.totalPrice === 'number'
+    ? request.totalPrice
+    : parseInt(String(request.totalPrice || '').replace(/[^0-9]/g, ''), 10) || 0;
+  const hourlyRate = Number(request.pricePerHour) || 50;
+  const sessions = Number(request.totalSessions) || 1;
+  const subtotal = Number(request.subtotal) || (rawTotal > fee ? rawTotal - fee : rawTotal);
+  const total = rawTotal || (subtotal + fee);
+
+  let hours = 1;
+  if (request.startTime && request.endTime) {
+    const [sh, sm] = request.startTime.split(':').map(Number);
+    const [eh, em] = request.endTime.split(':').map(Number);
+    const diffMin = (eh * 60 + em) - (sh * 60 + sm);
+    if (diffMin > 0) hours = Math.round((diffMin / 60) * 10) / 10;
+  } else if (subtotal > 0 && hourlyRate > 0) {
+    hours = Math.round((subtotal / (hourlyRate * sessions)) * 10) / 10;
+  }
+  if (hours <= 0) hours = 1;
+
   return (
     <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm animate-fadeIn">
       <div className="bg-white w-full max-w-lg rounded-3xl shadow-2xl border border-[#E2D9CF] overflow-hidden flex flex-col max-h-[90vh]">
@@ -36,14 +56,20 @@ function RequestDetailsModal({ request, onClose, onOpenDiscussion, onCancelReque
         <div className="p-6 overflow-y-auto space-y-5">
           {/* Caregiver Summary */}
           <div className="bg-[#FAF8F5] border border-[#E2D9CF] rounded-2xl p-4 flex items-center gap-4">
-            <div className="w-16 h-16 rounded-2xl overflow-hidden bg-white border border-[#E2D9CF] shrink-0 shadow-sm">
-              <img src={request.photo} alt={request.name} className="w-full h-full object-cover" />
+            <div className="w-16 h-16 rounded-2xl overflow-hidden bg-white border border-[#E2D9CF] shrink-0 shadow-sm flex items-center justify-center">
+              {request.photo ? (
+                <img src={request.photo} alt={request.name} className="w-full h-full object-cover" />
+              ) : (
+                <div className="w-full h-full bg-[#D6EBE0] text-[#1E4030] font-bold text-lg flex items-center justify-center">
+                  {request.initials || 'NZ'}
+                </div>
+              )}
             </div>
             <div className="flex-1 min-w-0 space-y-1">
               <div className="flex items-center gap-2 flex-wrap">
                 <h4 className="font-bold text-base text-[#1C1A17]">{request.name}</h4>
                 <span className="text-[10px] bg-[#EDF7F2] text-[#1E4030] border border-green-200 px-2 py-0.5 rounded-full font-bold">
-                  {meta.label}
+                  {request.profession || request.caregiver?.profession || meta.label || 'Cleaner'}
                 </span>
               </div>
               <p className="text-xs text-[#8A7E74] flex items-center gap-1.5">
@@ -77,19 +103,64 @@ function RequestDetailsModal({ request, onClose, onOpenDiscussion, onCancelReque
                 {request.date} ({request.time})
               </span>
             </div>
+          </div>
 
-            <div className="bg-[#FAF8F5] border border-[#E2D9CF] rounded-xl p-3 space-y-1">
-              <span className="text-[10px] font-bold text-[#8A7E74] uppercase tracking-wider block">Hourly Rate</span>
-              <span className="text-xs font-bold text-[#1C1A17]">
-                {request.pricePerHour?.toLocaleString() || '3,500'} XAF / hr
+          {/* Exact Price Breakdown Card */}
+          <div className="bg-[#FAF8F5] border border-[#E2D9CF] rounded-2xl p-4 space-y-3">
+            <div className="flex items-center justify-between border-b border-[#E2D9CF] pb-2">
+              <span className="text-[11px] font-bold text-[#1C1A17] uppercase tracking-wider flex items-center gap-1.5">
+                <DollarSign size={14} className="text-[#1E4030]" />
+                Price Breakdown
+              </span>
+              <span className="text-[10px] font-bold px-2.5 py-0.5 rounded-full bg-[#EDF7F2] text-[#1E4030] border border-green-200">
+                {request.escrowStatus || (request.status === 'Accepted' ? 'Awaiting Payment' : 'Unpaid')}
               </span>
             </div>
 
-            <div className="bg-[#FAF8F5] border border-[#E2D9CF] rounded-xl p-3 space-y-1">
-              <span className="text-[10px] font-bold text-[#8A7E74] uppercase tracking-wider block">Total Estimated Fee</span>
-              <span className="text-xs font-bold text-[#1E4030]">
-                {request.totalPrice || '10,500 XAF'}
-              </span>
+            <div className="space-y-2 text-xs text-[#78716C]">
+              <div className="flex justify-between items-center">
+                <span>Caregiver Rate</span>
+                <span className="font-semibold text-[#1C1A17]">
+                  {hourlyRate.toLocaleString()} XAF / hr
+                </span>
+              </div>
+
+              <div className="flex justify-between items-center">
+                <span>Session Duration</span>
+                <span className="font-semibold text-[#1C1A17]">
+                  {hours} hr{hours > 1 ? 's' : ''} ({request.time})
+                </span>
+              </div>
+
+              {sessions > 1 && (
+                <div className="flex justify-between items-center">
+                  <span>Total Sessions</span>
+                  <span className="font-semibold text-[#1C1A17]">
+                    {sessions} sessions ({request.bookingType === 'recurring' ? `${request.durationWeeks || 1} weeks` : 'one-off'})
+                  </span>
+                </div>
+              )}
+
+              <div className="flex justify-between items-center">
+                <span>Care Subtotal</span>
+                <span className="font-semibold text-[#1C1A17]">
+                  {subtotal.toLocaleString()} XAF
+                </span>
+              </div>
+
+              <div className="flex justify-between items-center">
+                <span>Platform Fee (Escrow Protection)</span>
+                <span className="font-semibold text-[#1E4030]">
+                  {fee.toLocaleString()} XAF
+                </span>
+              </div>
+
+              <div className="pt-2 border-t border-[#E2D9CF] flex justify-between items-center font-bold text-sm">
+                <span className="text-[#1C1A17]">Total Booking Amount</span>
+                <span className="text-[#1E4030] text-base">
+                  {total.toLocaleString()} XAF
+                </span>
+              </div>
             </div>
           </div>
 
@@ -184,13 +255,21 @@ export default function RequestsTab({
           return (
             <div key={r.id} className="bg-white border border-[#E2D9CF] rounded-2xl p-5 sm:p-6 shadow-sm hover:shadow-md hover:border-[#D4C9BE] transition-all relative group">
               <div className="flex items-center gap-4">
-                <div className="w-14 h-14 rounded-2xl overflow-hidden bg-[#FAF8F5] border border-[#E2D9CF] shrink-0 shadow-sm">
-                  <img src={r.photo} alt={r.name} className="w-full h-full object-cover" />
+                <div className="w-14 h-14 rounded-2xl overflow-hidden bg-[#FAF8F5] border border-[#E2D9CF] shrink-0 shadow-sm flex items-center justify-center">
+                  {r.photo ? (
+                    <img src={r.photo} alt={r.name} className="w-full h-full object-cover" />
+                  ) : (
+                    <div className="w-full h-full bg-[#D6EBE0] text-[#1E4030] font-bold text-base flex items-center justify-center">
+                      {r.initials || 'NZ'}
+                    </div>
+                  )}
                 </div>
                 <div className="flex-1 min-w-0 space-y-1.5">
                   <div className="flex items-center gap-2.5 flex-wrap">
                     <h4 className="font-bold text-base text-[#1C1A17]">{r.name}</h4>
-                    <span className="text-[11px] bg-[#FAF8F5] text-[#8A7E74] border border-[#E2D9CF] px-2.5 py-0.5 rounded-full font-semibold">{meta.label}</span>
+                    <span className="text-[11px] bg-[#FAF8F5] text-[#8A7E74] border border-[#E2D9CF] px-2.5 py-0.5 rounded-full font-semibold">
+                      {r.profession || r.caregiver?.profession || meta.label || 'Cleaner'}
+                    </span>
                   </div>
                   <div className="flex items-center gap-4 text-xs text-[#8A7E74]">
                     <span className="flex items-center gap-1.5"><Clock size={12} className="text-[#B0A89E]" />{r.timeSent}</span>
@@ -212,21 +291,29 @@ export default function RequestsTab({
                           onClick={() => {
                             setActiveDropdownId(null);
                             const bookingVal = {
+                              id: r.id,
+                              bookingId: r.id,
                               caregiver: {
+                                id: r.caregiver?.id,
                                 name: r.name,
                                 photo: r.photo,
                                 specialty: r.specialty,
                                 location: r.location,
-                                rating: 4.8,
-                                pricePerHour: r.pricePerHour || 3500
+                                rating: r.caregiver?.rating || 5.0,
+                                pricePerHour: r.pricePerHour || 50
                               },
                               sessionType: r.bookingType || 'once',
                               date: r.date,
                               time: r.time,
-                              totalPrice: typeof r.totalPrice === 'string'
-                                ? parseInt(r.totalPrice.replace(/[^0-9]/g, ''))
-                                : (r.totalPrice || 10500),
-                              durationWeeks: 1,
+                              startTime: r.startTime,
+                              endTime: r.endTime,
+                              subtotal: r.subtotal || 50,
+                              serviceFee: r.serviceFee || 5,
+                              totalPrice: typeof r.totalPrice === 'number'
+                                ? r.totalPrice
+                                : parseInt(String(r.totalPrice).replace(/[^0-9]/g, '')) || 55,
+                              durationWeeks: r.durationWeeks || 1,
+                              totalSessions: r.totalSessions || 1,
                               status: 'Accepted'
                             };
                             onNavigate('payment', { booking: bookingVal });

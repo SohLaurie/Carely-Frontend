@@ -145,87 +145,51 @@ export const initialDisputes = [
 export const initialUsers = [
   {
     id: 'USR001',
-    name: 'Aicha Kamga',
-    email: 'aicha.k@gmail.com',
-    phone: '+237 6 99 12 34 56',
-    role: 'Household',
+    name: 'Carely Admin',
+    email: 'carelycorp237@gmail.com',
+    phone: '+237 6 99 00 00 00',
+    role: 'Admin',
     city: 'Yaounde',
-    joined: 'Jan 2026',
+    joined: 'Sep 2026',
     status: 'Active',
     twoFactor: true,
-    initials: 'AK'
+    initials: 'CA'
   },
   {
     id: 'USR002',
-    name: 'Marie-Claire Nkomo',
-    email: 'mc.nkomo@gmail.com',
-    phone: '+237 6 99 22 33 44',
+    name: 'Nawal Zephira',
+    email: 'zephira005@gmail.com',
+    phone: '+237 6 91 36 66 21',
     role: 'Caregiver',
     city: 'Yaounde',
-    joined: 'Nov 2025',
+    joined: 'Sep 2026',
     status: 'Active',
-    twoFactor: true,
-    initials: 'MN'
+    twoFactor: false,
+    initials: 'NZ'
   },
   {
     id: 'USR003',
-    name: 'Paul Fouda',
-    email: 'paulf@outlook.com',
-    phone: '+237 6 77 11 22 33',
-    role: 'Household',
-    city: 'Douala',
-    joined: 'Feb 2026',
-    status: 'Active',
+    name: 'Nfor Raissa',
+    email: 'nforraissa@gmail.com',
+    phone: '+237 6 51 87 70 74',
+    role: 'Caregiver',
+    city: 'Yaounde',
+    joined: 'Sep 2026',
+    status: 'Pending',
     twoFactor: false,
-    initials: 'PF'
+    initials: 'NR'
   },
   {
     id: 'USR004',
-    name: 'Elise Ngo',
-    email: 'elise.ngo@gmail.com',
-    phone: '+237 6 55 44 33 22',
-    role: 'Caregiver',
-    city: 'Douala',
-    joined: 'Sep 2025',
-    status: 'Suspended',
-    twoFactor: false,
-    initials: 'EN'
-  },
-  {
-    id: 'USR005',
-    name: 'Patrick Nguema',
-    email: 'p.nguema@gmail.com',
-    phone: '+237 6 88 55 44 33',
-    role: 'Caregiver',
-    city: 'Douala',
-    joined: 'Mar 2026',
-    status: 'Pending',
-    twoFactor: true,
-    initials: 'PN'
-  },
-  {
-    id: 'USR006',
-    name: 'Mme Onana',
-    email: 'onana.g@gmail.com',
-    phone: '+237 6 99 88 77 66',
+    name: 'Soh Laurie',
+    email: 'laurienoubissie@gmail.com',
+    phone: '+237 6 91 36 66 21',
     role: 'Household',
     city: 'Yaounde',
-    joined: 'Dec 2025',
-    status: 'Active',
-    twoFactor: true,
-    initials: 'MO'
-  },
-  {
-    id: 'USR007',
-    name: 'Serge Ntamack',
-    email: 'serge.n@gmail.com',
-    phone: '+237 6 70 12 34 56',
-    role: 'Household',
-    city: 'Yaounde',
-    joined: 'Oct 2025',
+    joined: 'Sep 2026',
     status: 'Active',
     twoFactor: false,
-    initials: 'SN'
+    initials: 'SL'
   }
 ];
 

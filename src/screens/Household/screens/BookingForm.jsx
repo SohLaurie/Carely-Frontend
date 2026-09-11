@@ -1,4 +1,4 @@
-﻿import React, { useState } from 'react';
+import React, { useState } from 'react';
 import {
   ArrowLeft, Calendar, Clock, ShieldAlert, Check,
   Stethoscope, Baby, Sparkles, AlertCircle, Repeat,
@@ -55,7 +55,7 @@ export default function BookingForm({ onNavigate, screenParams }) {
 
   const hoursPerSession = calculateHours();
   const pricePerHour = caregiver.pricePerHour;
-  const serviceFee = 500;
+  const serviceFee = 5;
 
   // Single calculation
   const singleSubtotal = hoursPerSession * pricePerHour;

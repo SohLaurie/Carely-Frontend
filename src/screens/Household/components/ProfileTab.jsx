@@ -1,24 +1,74 @@
-import React, { useState } from 'react';
-import {
-  User, Mail, Phone, MapPin, ShieldCheck, Check, Save, Camera, Globe
-} from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { User, Mail, Phone, MapPin, ShieldCheck, Check, Save, Camera, Globe } from 'lucide-react';
+import { getStoredUser, getUserInitials } from '../../../services/api.js';
+import { fetchCurrentProfile, updateCurrentProfile } from '../../../services/auth.service.js';
 
 export default function ProfileTab({ onNavigate }) {
   const [savedSuccess, setSavedSuccess] = useState(false);
+  const [saveLoading, setSaveLoading] = useState(false);
+
+  const storedUser = getStoredUser();
+  const [user, setUser] = useState(storedUser);
+
+  const getInitialName = (u) => u?.name || `${u?.firstName || ''} ${u?.lastName || ''}`.trim() || 'Household Client';
+  const getInitialEmail = (u) => u?.email || '';
+  const getInitialPhone = (u) => u?.phone || '';
+  const getInitialLocation = (u) => u?.city ? `${u.city}, Cameroon` : 'Yaoundé, Cameroon';
 
   const [formData, setFormData] = useState({
-    fullName: 'Aïcha Kemajou',
-    email: 'aicha.kemajou@example.cm',
-    phone: '+237 6 99 12 34 56',
-    location: 'Bastos, Yaounde, Cameroon',
-    preferredLanguage: 'French & English',
-    emergencyContact: 'Dr. Jean-Paul Kemajou (+237 6 77 88 99 00)',
+    fullName: getInitialName(storedUser),
+    email: getInitialEmail(storedUser),
+    phone: getInitialPhone(storedUser),
+    location: getInitialLocation(storedUser),
+    preferredLanguage: storedUser?.preferredLanguage || 'French & English',
+    emergencyContact: storedUser?.emergencyContact || '',
   });
 
-  const handleSave = (e) => {
+  useEffect(() => {
+    let isMounted = true;
+    async function loadProfile() {
+      const freshUser = await fetchCurrentProfile();
+      if (freshUser && isMounted) {
+        setUser(freshUser);
+        setFormData(prev => ({
+          ...prev,
+          fullName: getInitialName(freshUser),
+          email: getInitialEmail(freshUser),
+          phone: getInitialPhone(freshUser),
+          location: getInitialLocation(freshUser),
+        }));
+      }
+    }
+    loadProfile();
+    return () => { isMounted = false; };
+  }, []);
+
+  const initials = getUserInitials(user, 'CL');
+  const memberSince = user?.createdAt ? new Date(user.createdAt).getFullYear() : 2024;
+
+  const handleSave = async (e) => {
     e.preventDefault();
-    setSavedSuccess(true);
-    setTimeout(() => setSavedSuccess(false), 3000);
+    setSaveLoading(true);
+    try {
+      const nameParts = formData.fullName.trim().split(/\s+/);
+      const firstName = nameParts[0] || 'Client';
+      const lastName = nameParts.slice(1).join(' ') || '';
+
+      const updated = await updateCurrentProfile({
+        firstName,
+        lastName,
+        phone: formData.phone,
+        city: formData.location.replace(/,\s*Cameroon$/i, '').trim(),
+      });
+
+      setUser(updated);
+      setSavedSuccess(true);
+      setTimeout(() => setSavedSuccess(false), 3000);
+    } catch (err) {
+      console.error('Failed to update client profile:', err);
+    } finally {
+      setSaveLoading(false);
+    }
   };
 
   return (
@@ -43,14 +93,22 @@ export default function ProfileTab({ onNavigate }) {
         )}
       </div>
 
-      {/* Profile Overview Card (Current User: Aïcha Kemajou) */}
+      {/* Profile Overview Card */}
       <div className="bg-white border border-[#E2D9CF] rounded-3xl p-6 sm:p-8 shadow-sm">
         <div className="flex flex-col sm:flex-row items-center sm:items-start gap-6">
           {/* Avatar with edit badge */}
           <div className="relative">
-            <div className="w-24 h-24 rounded-2xl bg-[#1E4030] text-white flex items-center justify-center text-3xl font-bold font-display shadow-md border-2 border-white">
-              AK
-            </div>
+            {user?.photoUrl ? (
+              <img
+                src={user.photoUrl}
+                alt={formData.fullName}
+                className="w-24 h-24 rounded-2xl object-cover shadow-md border-2 border-white"
+              />
+            ) : (
+              <div className="w-24 h-24 rounded-2xl bg-[#1E4030] text-white flex items-center justify-center text-3xl font-bold font-display shadow-md border-2 border-white">
+                {initials}
+              </div>
+            )}
             <button className="absolute -bottom-2 -right-2 w-8 h-8 rounded-full bg-white border border-[#E2D9CF] text-[#1E4030] flex items-center justify-center shadow-md hover:bg-[#FAF8F5] transition-colors cursor-pointer">
               <Camera size={14} />
             </button>
@@ -83,7 +141,7 @@ export default function ProfileTab({ onNavigate }) {
                 <div className="text-[10px] text-[#8A7E74]">Client Rating</div>
               </div>
               <div className="bg-[#FAF8F5] border border-[#E2D9CF] rounded-2xl p-3 text-center">
-                <div className="text-base font-bold text-[#1E4030]">2024</div>
+                <div className="text-base font-bold text-[#1E4030]">{memberSince}</div>
                 <div className="text-[10px] text-[#8A7E74]">Member Since</div>
               </div>
             </div>

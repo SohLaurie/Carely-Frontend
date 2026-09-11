@@ -8,6 +8,9 @@ export default function Sidebar({
   sidebarOpen,
   setSidebarOpen,
   notificationsCount = 5,
+  requestsCount = 0,
+  bookingsCount = 0,
+  unreadMessagesCount = 0,
   onNavigate
 }) {
   const iconMap = {
@@ -22,22 +25,24 @@ export default function Sidebar({
     earnings: Wallet,
     reviews: Star,
     notifications: Bell,
-    refer: Gift,
-    profile: User
+    refer: Gift
   }
+
+  // Ensure 'profile' is strictly excluded from main menu list (only rendered in bottom footer)
+  const mainMenuItems = NAVIGATION_ITEMS.filter(item => item.id !== 'profile')
 
   return (
     <>
       <aside
-        className={`fixed inset-y-0 left-0 z-50 w-64 bg-[#0F1A14] text-white flex flex-col justify-between transition-transform duration-300 lg:static lg:translate-x-0 ${
+        className={`fixed inset-y-0 left-0 z-50 w-64 h-screen bg-[#0F1A14] text-white flex flex-col justify-between transition-transform duration-300 lg:static lg:translate-x-0 lg:h-screen lg:shrink-0 ${
           sidebarOpen ? 'translate-x-0' : '-translate-x-full'
         }`}
       >
         {/* Sidebar Header */}
-        <div className="p-6 border-b border-white/10 flex items-center justify-between">
+        <div className="p-6 border-b border-white/10 flex items-center justify-between shrink-0">
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 bg-[#1E4030] rounded-xl flex items-center justify-center border border-white/10 shadow-sm">
-              <span className="font-display font-black text-lg text-white">C</span>
+            <div className="w-10 h-10 bg-white rounded-xl p-1 flex items-center justify-center border border-white/20 shadow-sm shrink-0">
+              <img src="/logo.png" alt="Carely Logo" className="w-full h-full object-contain" />
             </div>
             <div>
               <h2 className="font-display text-base font-bold text-white tracking-wide">
@@ -54,17 +59,17 @@ export default function Sidebar({
         </div>
 
         {/* Menu Navigation */}
-        <nav className="flex-1 px-4 py-6 space-y-1.5">
-          {NAVIGATION_ITEMS.map(({ id, label }) => {
+        <nav className="flex-1 px-4 py-4 space-y-1.5 overflow-y-auto">
+          {mainMenuItems.map(({ id, label }) => {
             const active = activeTab === id
             const Icon = iconMap[id] || Bell
 
             // Badges
             let displayBadge = null
-            if (id === 'requests') displayBadge = 3
-            if (id === 'bookings') displayBadge = 2
-            if (id === 'discussions') displayBadge = 1
-            if (id === 'notifications') displayBadge = notificationsCount
+            if ((id === 'discussions' || id === 'discussion') && unreadMessagesCount > 0) displayBadge = unreadMessagesCount
+            if (id === 'requests' && requestsCount > 0) displayBadge = requestsCount
+            if (id === 'bookings' && bookingsCount > 0) displayBadge = bookingsCount
+            if (id === 'notifications' && notificationsCount > 0) displayBadge = notificationsCount
 
             return (
               <button
@@ -92,7 +97,7 @@ export default function Sidebar({
         </nav>
 
         {/* Sidebar Footer */}
-        <div className="p-4 border-t border-white/10 space-y-1">
+        <div className="p-4 border-t border-white/10 space-y-1 shrink-0">
           <button
             onClick={() => {
               setActiveTab('profile')

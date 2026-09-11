@@ -1,10 +1,10 @@
-import React, { useState, useRef } from 'react'
+import React, { useState, useRef, useEffect, useCallback, useMemo } from 'react'
 import {
   MapPin, Clock, Key, CheckCircle2, MessageSquare, Star, Bell,
   Check, Archive, Trash2, ArchiveRestore, Lock, Download,
   ArrowUpRight, Sparkles, X, XCircle, Calendar, Wallet, User,
   Mail, Phone, ShieldCheck, Save, Camera, Globe, Plus, Paperclip,
-  Reply, ClipboardList, ArrowRight, Eye, ChevronLeft, ChevronRight, Send
+  Reply, ClipboardList, ArrowRight, Eye, ChevronLeft, ChevronRight, Send, RefreshCw
 } from 'lucide-react'
 
 // Hook, layouts, constants, services and components
@@ -30,7 +30,24 @@ import BookingConfirmed from '../Household/screens/BookingConfirmed'
 import { CAREGIVERS, SPECIALTY_META } from '../../data'
 import { initialDiscussions as defaultClientDiscussions } from '../Household/data/mockHouseholdData'
 import { payoutHistory, caregiverReviews, initialDiscussions } from './data/mockDashboardData'
-import { CAREGIVER_CONSTANTS } from './constants/dashboardConstants'
+import { fetchSubscriptionStatus, paySubscription } from '../../services/admin.service.js'
+import SubscriptionPaymentModal from './components/SubscriptionPaymentModal'
+import { getStoredUser, apiGet } from '../../services/api.js'
+import { verifySessionOtp, providerCompleteSession } from '../../services/bookingApi.js'
+import {
+  fetchDiscussions,
+  fetchMessages,
+  sendMessageApi,
+  getOrCreateDiscussion,
+  deleteDiscussionThread,
+  clearDiscussionChat as clearDiscussionChatApi,
+  deleteDiscussionMessage
+} from '../../services/discussionApi.js'
+import {
+  fetchMyCalendar,
+  blockDateSlot,
+  unblockByDate
+} from '../../services/availabilityApi.js'
 
 // ── Confirmation Modal ──
 function ConfirmModal({ dialog, onClose }) {
@@ -153,16 +170,81 @@ export default function CaregiverDashboard({ onNavigate }) {
     notifications,
     setNotifications,
     incomingRequests,
+    incomingBookings,
+    outgoingRequests,
+    outgoingBookings,
     handleRequestAction,
-    handleOtpChange
+    handleOtpChange,
+    loadProviderRequests
   } = useDashboard()
 
   const [confirmDialog, setConfirmDialog] = useState(null)
   const [modalConfig, setModalConfig] = useState(null)
   const [profileSaved, setProfileSaved] = useState(false)
 
-  // Dynamic calendar date state
-  const [calendarDate, setCalendarDate] = useState(new Date(2026, 10, 1))
+  // Active Session interaction state
+  const [activeSessionOtpLoading, setActiveSessionOtpLoading] = useState(false)
+  const [activeSessionError, setActiveSessionError] = useState('')
+  const [activeSessionSuccess, setActiveSessionSuccess] = useState('')
+  const [completingJob, setCompletingJob] = useState(false)
+
+  // ── Subscription Status State ──
+  const [subStatus, setSubStatus] = useState(null)
+  const [subLoading, setSubLoading] = useState(false)
+  const [payMessage, setPayMessage] = useState('')
+  const [showPaymentModal, setShowPaymentModal] = useState(false)
+
+  const loadSubStatus = async () => {
+    try {
+      const data = await fetchSubscriptionStatus()
+      setSubStatus(data)
+      // If approved and not yet paid, inject payment notification into notifications
+      if (data && data.approvalStatus === 'approved' && !data.subscriptionPaid) {
+        const notifId = 'sub-pay-notif'
+        setNotifications(prev => {
+          if (prev.some(n => n.id === notifId)) return prev
+          return [
+            {
+              id: notifId,
+              title: 'Action Required: Pay Subscription',
+              desc: 'Your profile is approved! Pay the 25 XAF subscription via Campay to activate your account and start receiving bookings.',
+              time: 'Just now',
+              unread: true,
+              type: 'payment',
+            },
+            ...prev
+          ]
+        })
+      }
+    } catch {
+      // If not logged in as a provider or offline, ignore gracefully
+    }
+  }
+
+  useEffect(() => {
+    loadSubStatus()
+  }, [])
+
+  const handlePaySubscription = async () => {
+    setSubLoading(true)
+    setPayMessage('')
+    try {
+      const res = await paySubscription()
+      setPayMessage(res.message || 'Payment prompt sent to your phone! Please confirm 25 XAF on your phone.')
+      setTimeout(loadSubStatus, 4000)
+    } catch (err) {
+      setPayMessage(err.message || 'Payment initiation failed. Please try again.')
+    } finally {
+      setSubLoading(false)
+    }
+  }
+
+  // Dynamic calendar date state (defaults to current date, not hardcoded month)
+  const [calendarDate, setCalendarDate] = useState(new Date())
+  const [calendarEvents, setCalendarEvents] = useState({})
+  const [calendarLoading, setCalendarLoading] = useState(false)
+  const [calendarActionLoading, setCalendarActionLoading] = useState(false)
+  const [calendarMessage, setCalendarMessage] = useState('')
 
   const handlePrevMonth = () => {
     setCalendarDate(new Date(calendarDate.getFullYear(), calendarDate.getMonth() - 1, 1))
@@ -172,27 +254,225 @@ export default function CaregiverDashboard({ onNavigate }) {
     setCalendarDate(new Date(calendarDate.getFullYear(), calendarDate.getMonth() + 1, 1))
   }
 
-  // Caregiver Profile Form Data
-  const [caregiverProfile, setCaregiverProfile] = useState({
-    fullName: 'Marie-Claire Nkomo',
-    email: 'marieclaire.nkomo@carely.cm',
-    phone: '+237 6 99 22 33 44',
-    secondaryPhone: '+237 6 77 11 22 33',
-    location: 'Bastos, Yaoundé, Cameroon',
-    emergencyContact: 'Dr. Joseph Nkomo (+237 6 55 44 33 22)',
-    preferredLanguage: 'French & English',
-    specialty: 'Home Nursing & Post-op Care',
-    hourlyRate: '3,500',
-    experienceYears: '6',
-    certifications: 'Registered Nurse (RN), BLS/CPR Certified, Post-Op Care Specialization',
-    bio: 'Certified state nurse with 6 years of clinical experience in hospitals and home health care. Dedicated to providing compassionate, reliable, and hygienic nursing care for post-surgical recovery and elderly comfort.'
-  })
+  // Load calendar data from API with fallback
+  const loadCalendarData = useCallback(async (dateToLoad = calendarDate) => {
+    const yr = dateToLoad.getFullYear()
+    const mo = dateToLoad.getMonth() + 1
+    const user = getStoredUser()
+    const currentUserId = user?.id
 
-  const handleProfileSave = (e) => {
-    e.preventDefault()
-    setProfileSaved(true)
-    setTimeout(() => setProfileSaved(false), 3000)
+    try {
+      setCalendarLoading(true)
+      const data = await fetchMyCalendar(yr, mo)
+      if (data && data.dayStates) {
+        setDayStates(data.dayStates)
+      }
+      if (data && data.eventsByDay) {
+        setCalendarEvents(data.eventsByDay)
+      }
+    } catch (err) {
+      console.warn('Availability API request failed, building from incomingBookings fallback:', err)
+      const computedStates = {}
+      const computedEvents = {}
+      const totalDays = new Date(yr, mo, 0).getDate()
+      for (let d = 1; d <= totalDays; d++) {
+        computedEvents[d] = []
+      }
+
+      // Check incoming bookings for current provider
+      incomingBookings.forEach(b => {
+        if (b.rawStatus === 'cancelled' || b.rawStatus === 'declined') return
+        const bDate = b.startDate ? new Date(b.startDate) : null
+        if (bDate && bDate.getFullYear() === yr && (bDate.getMonth() + 1) === mo) {
+          const d = bDate.getDate()
+          computedStates[d] = b.bookingType === 'recurring' ? 'recurring' : 'booked'
+          computedEvents[d]?.push({
+            type: 'session',
+            id: b.id,
+            bookingId: b.id,
+            clientName: b.clientName,
+            time: b.time,
+            status: b.status,
+            profession: b.profession
+          })
+        }
+      })
+
+      // Load blocked dates from localStorage
+      const storageKey = currentUserId ? `carely_blocked_dates_${currentUserId}` : 'carely_blocked_dates'
+      const storedBlocks = JSON.parse(localStorage.getItem(storageKey) || '[]')
+      storedBlocks.forEach(bDateStr => {
+        const [by, bm, bd] = bDateStr.split('-').map(Number)
+        if (by === yr && bm === mo) {
+          computedStates[bd] = 'blocked'
+          computedEvents[bd]?.push({
+            type: 'blocked',
+            reason: 'Unavailable'
+          })
+        }
+      })
+
+      setDayStates(computedStates)
+      setCalendarEvents(computedEvents)
+    } finally {
+      setCalendarLoading(false)
+    }
+  }, [calendarDate, incomingBookings, setDayStates])
+
+  // Load calendar on mount, month change, or tab activation
+  useEffect(() => {
+    loadCalendarData(calendarDate)
+  }, [calendarDate, activeTab, loadCalendarData])
+
+  // Block a day
+  const handleBlockDay = async (dayNum) => {
+    const yr = calendarDate.getFullYear()
+    const mo = String(calendarDate.getMonth() + 1).padStart(2, '0')
+    const dayStr = String(dayNum).padStart(2, '0')
+    const dateStr = `${yr}-${mo}-${dayStr}`
+    const user = getStoredUser()
+    const currentUserId = user?.id
+    const storageKey = currentUserId ? `carely_blocked_dates_${currentUserId}` : 'carely_blocked_dates'
+
+    setCalendarActionLoading(true)
+    setCalendarMessage('')
+    try {
+      // Optimistic update
+      setDayStates(prev => ({ ...prev, [dayNum]: 'blocked' }))
+      setCalendarEvents(prev => ({
+        ...prev,
+        [dayNum]: [...(prev[dayNum] || []), { type: 'blocked', reason: 'Unavailable' }]
+      }))
+
+      // Persist in localStorage
+      const storedBlocks = JSON.parse(localStorage.getItem(storageKey) || '[]')
+      if (!storedBlocks.includes(dateStr)) {
+        storedBlocks.push(dateStr)
+        localStorage.setItem(storageKey, JSON.stringify(storedBlocks))
+      }
+
+      // Call API
+      await blockDateSlot(dateStr, dateStr, 'Unavailable')
+      setCalendarMessage(`Day ${dayNum} marked as blocked.`)
+      await loadCalendarData(calendarDate)
+    } catch (err) {
+      console.error('Failed to block day:', err)
+      setCalendarMessage(err.message || 'Blocked locally.')
+    } finally {
+      setCalendarActionLoading(false)
+    }
   }
+
+  // Unblock a day
+  const handleUnblockDay = async (dayNum) => {
+    const yr = calendarDate.getFullYear()
+    const mo = String(calendarDate.getMonth() + 1).padStart(2, '0')
+    const dayStr = String(dayNum).padStart(2, '0')
+    const dateStr = `${yr}-${mo}-${dayStr}`
+    const user = getStoredUser()
+    const currentUserId = user?.id
+    const storageKey = currentUserId ? `carely_blocked_dates_${currentUserId}` : 'carely_blocked_dates'
+
+    setCalendarActionLoading(true)
+    setCalendarMessage('')
+    try {
+      // Optimistic update
+      setDayStates(prev => {
+        const next = { ...prev }
+        delete next[dayNum]
+        return next
+      })
+      setCalendarEvents(prev => ({
+        ...prev,
+        [dayNum]: (prev[dayNum] || []).filter(e => e.type !== 'blocked')
+      }))
+
+      // Remove from localStorage
+      const storedBlocks = JSON.parse(localStorage.getItem(storageKey) || '[]')
+      const filtered = storedBlocks.filter(d => d !== dateStr)
+      localStorage.setItem(storageKey, JSON.stringify(filtered))
+
+      // Call API
+      await unblockByDate(dateStr)
+      setCalendarMessage(`Day ${dayNum} is now open and available.`)
+      await loadCalendarData(calendarDate)
+    } catch (err) {
+      console.error('Failed to unblock day:', err)
+      setCalendarMessage(err.message || 'Unblocked locally.')
+    } finally {
+      setCalendarActionLoading(false)
+    }
+  }
+
+  // Selected day sessions for side panel
+  const selectedDaySessions = useMemo(() => {
+    const yr = calendarDate.getFullYear()
+    const mo = calendarDate.getMonth() + 1
+    const dayNum = selectedDay
+
+    const events = calendarEvents[dayNum] || []
+    const sessionEvents = events.filter(e => e.type === 'session')
+
+    // Find in incomingBookings for complete info
+    const matchedBookings = incomingBookings.filter(b => {
+      if (b.rawStatus === 'cancelled' || b.rawStatus === 'declined') return false
+      if (b.startDate) {
+        const d = new Date(b.startDate)
+        if (d.getFullYear() === yr && (d.getMonth() + 1) === mo && d.getDate() === dayNum) {
+          return true
+        }
+      }
+      if (Array.isArray(b.sessions)) {
+        return b.sessions.some(s => {
+          if (s.scheduled_date) {
+            const sd = new Date(s.scheduled_date)
+            return sd.getFullYear() === yr && (sd.getMonth() + 1) === mo && sd.getDate() === dayNum
+          }
+          return false
+        })
+      }
+      return false
+    })
+
+    if (matchedBookings.length > 0) {
+      return matchedBookings.map(b => ({
+        id: b.id,
+        bookingId: b.id,
+        clientName: b.clientName,
+        profession: b.profession || 'Caregiver Service',
+        time: b.time,
+        location: b.location,
+        status: b.status,
+        price: b.price
+      }))
+    }
+
+    if (sessionEvents.length > 0) {
+      return sessionEvents.map(s => ({
+        id: s.id,
+        bookingId: s.bookingId,
+        clientName: s.clientName || 'Household Client',
+        profession: s.sessionType === 'recurring' ? 'Recurring Care Service' : 'Home Care Service',
+        time: s.time,
+        location: 'Yaoundé / Douala',
+        status: s.status === 'ARRIVED' ? 'In Progress' : 'Confirmed',
+        price: 'Secured in Escrow'
+      }))
+    }
+
+    return []
+  }, [calendarDate, selectedDay, calendarEvents, incomingBookings])
+
+  const currentDayStatus = useMemo(() => {
+    if (selectedDaySessions.length > 0) return 'booked'
+    const state = dayStates[selectedDay]
+    if (state === 'blocked') return 'blocked'
+    if (state === 'recurring') return 'recurring'
+    if (state === 'booked') return 'booked'
+    return 'available'
+  }, [selectedDay, dayStates, selectedDaySessions])
+
+
 
   // ── Client Feature States (Home, Explore, Discussions, Refer & Earn, Booking Wizard) ──
   const [selectedId, setSelectedId] = useState('1')
@@ -209,8 +489,84 @@ export default function CaregiverDashboard({ onNavigate }) {
   const [aiLoading, setAiLoading] = useState(false)
   const [aiResult, setAiResult] = useState(null)
 
-  const [discussions, setDiscussions] = useState(defaultClientDiscussions)
+  const [discussions, setDiscussions] = useState([])
   const [activeDiscussionId, setActiveDiscussionId] = useState(null)
+
+  const loadCaregiverDiscussions = async () => {
+    try {
+      const user = getStoredUser()
+      const currentUserId = user?.id
+      const list = await fetchDiscussions()
+      if (Array.isArray(list)) {
+        setDiscussions(prev => {
+          return list.map(item => {
+            const existing = prev.find(p => p.id === item.id)
+            const msgs = existing?.messages || (item.lastMessage ? [{
+              id: 'last-' + item.id,
+              sender: item.lastSenderId === currentUserId ? 'user' : 'caregiver',
+              text: item.lastMessage,
+              attachmentUrl: item.lastAttachmentUrl,
+              attachmentName: item.lastAttachmentName,
+              attachmentType: item.lastAttachmentType,
+              status: item.lastMessageStatus || 'delivered',
+              time: item.lastMessageTime ? new Date(item.lastMessageTime).toLocaleTimeString('default', { hour: '2-digit', minute: '2-digit', hour12: false }) : 'Recently'
+            }] : [])
+
+            return {
+              ...item,
+              messages: msgs
+            }
+          })
+        })
+      }
+    } catch (err) {
+      console.warn('Failed to load caregiver discussions:', err.message)
+    }
+  }
+
+  useEffect(() => {
+    loadCaregiverDiscussions()
+    const interval = setInterval(loadCaregiverDiscussions, 4000)
+    return () => clearInterval(interval)
+  }, [])
+
+  useEffect(() => {
+    if (!activeDiscussionId) return
+    let isMounted = true
+
+    const loadActiveMessages = async () => {
+      try {
+        const user = getStoredUser()
+        const currentUserId = user?.id
+        const msgs = await fetchMessages(activeDiscussionId)
+        if (!isMounted) return
+
+        setDiscussions(prev => prev.map(d => {
+          if (d.id === activeDiscussionId) {
+            return {
+              ...d,
+              unreadCount: 0,
+              messages: msgs.map(m => ({
+                ...m,
+                sender: (m.senderId === currentUserId || m.sender === 'user') ? 'user' : 'caregiver',
+                time: m.time || (m.createdAt ? new Date(m.createdAt).toLocaleTimeString('default', { hour: '2-digit', minute: '2-digit', hour12: false }) : 'Just now')
+              }))
+            }
+          }
+          return d
+        }))
+      } catch (err) {
+        console.warn('Error fetching active messages:', err.message)
+      }
+    }
+
+    loadActiveMessages()
+    const msgInterval = setInterval(loadActiveMessages, 2500)
+    return () => {
+      isMounted = false
+      clearInterval(msgInterval)
+    }
+  }, [activeDiscussionId])
 
   // Booking Wizard State
   const [wizardOpen, setWizardOpen] = useState(false)
@@ -226,128 +582,179 @@ export default function CaregiverDashboard({ onNavigate }) {
     setActiveTab('bookings')
   }
 
-  const handleAiRecommend = () => {
+  const handleAiRecommend = async () => {
     if (!aiPrompt.trim()) return
     setAiLoading(true)
     setAiResult(null)
 
-    setTimeout(() => {
+    try {
+      const data = await apiGet('/providers')
+      const list = (data?.providers || []).filter(p => p.approval_status === 'approved' && p.subscription_paid)
       const query = aiPrompt.toLowerCase()
-      let matched = CAREGIVERS[0]
-      let reason = ''
 
-      if (query.includes('nurse') || query.includes('nursing') || query.includes('medical') || query.includes('elder') || query.includes('senior')) {
-        matched = CAREGIVERS.find(c => c.specialty === 'nursing') || CAREGIVERS[0]
-        reason = `Based on your request for clinical support, we recommend ${matched.name}. She is a certified nurse with ${matched.experience} years of clinical experience in home care, post-surgical support, and geriatric assistance in Bastos, Yaounde.`
-      } else if (query.includes('baby') || query.includes('child') || query.includes('sit') || query.includes('kid') || query.includes('young') || query.includes('school')) {
-        matched = CAREGIVERS.find(c => c.specialty === 'babysitting') || CAREGIVERS[1]
-        reason = `Based on your childcare needs, we recommend ${matched.name}. She is a certified early childhood educator with ${matched.experience} years of experience supporting kids of all ages with active learning programs in Douala.`
-      } else if (query.includes('clean') || query.includes('house') || query.includes('cook') || query.includes('domestic') || query.includes('maid') || query.includes('iron') || query.includes('laundry')) {
-        matched = CAREGIVERS.find(c => c.specialty === 'cleaning') || CAREGIVERS[2]
-        reason = `Based on your home care/cleaning needs, we recommend ${matched.name}. She is a meticulous housekeeper with ${matched.experience} years of experience in organizing, laundry/ironing, and eco-friendly cleaning.`
-      } else if (query.includes('garden') || query.includes('lawn') || query.includes('yard') || query.includes('tree') || query.includes('landscape')) {
-        matched = CAREGIVERS.find(c => c.specialty === 'gardening') || CAREGIVERS[4] || CAREGIVERS[0]
-        reason = `Based on your gardening request, we recommend ${matched.name}. He has ${matched.experience} years of professional landscaping experience in Yaounde.`
-      } else if (query.includes('pet') || query.includes('dog') || query.includes('cat') || query.includes('animal')) {
-        matched = CAREGIVERS.find(c => c.specialty === 'pet_care') || CAREGIVERS[5] || CAREGIVERS[0]
-        reason = `For pet care, we recommend ${matched.name}. She is a certified vet assistant with ${matched.experience} years of animal sitting experience.`
-      } else if (query.includes('cook') || query.includes('food') || query.includes('meal') || query.includes('kitchen') || query.includes('chef')) {
-        matched = CAREGIVERS.find(c => c.specialty === 'cooking') || CAREGIVERS[6] || CAREGIVERS[0]
-        reason = `For family nutrition and home cooking, we recommend ${matched.name}. She has ${matched.experience} years of professional culinary experience in Douala.`
-      } else {
-        const locMatch = CAREGIVERS.find(c => query.includes(c.location.split(',')[0].toLowerCase()) || query.includes(c.location.split(',')[1].trim().toLowerCase()))
-        if (locMatch) {
-          matched = locMatch
-          reason = `We found a top-rated caregiver near your specified location: ${matched.name}. She is located in ${matched.location} and specializes in ${SPECIALTY_META[matched.specialty]?.label || 'Care'}.`
-        } else {
-          matched = CAREGIVERS[0]
-          reason = `We matched you with our highest-rated caregiver, ${matched.name}. She is located in ${matched.location} and has verified background references checked.`
-        }
+      let matched = list[0]
+      if (list.length > 0) {
+        const found = list.find(p => {
+          const prof = (p.profession || '').toLowerCase()
+          const spec = (Array.isArray(p.specialties) ? p.specialties.join(' ') : String(p.specialties || '')).toLowerCase()
+          const loc = (p.location || p.city || '').toLowerCase()
+          const bio = (p.bio || '').toLowerCase()
+          return query.split(' ').some(w => w.length > 3 && (prof.includes(w) || spec.includes(w) || loc.includes(w) || bio.includes(w)))
+        })
+        if (found) matched = found
       }
 
+      if (matched) {
+        const matchedName = `${matched.first_name || ''} ${matched.last_name || ''}`.trim() || 'Verified Provider'
+        const matchedProf = matched.profession || 'Care Provider'
+        const matchedLoc = matched.location || matched.city || 'Yaoundé'
+        const matchedExp = matched.experience || (matched.experience_yrs ? `${matched.experience_yrs} yrs` : 'experienced')
+        const reason = `Based on your requirements, we recommend ${matchedName} (${matchedProf} in ${matchedLoc}, ${matchedExp} experience). Verified and registered on Carely.`
+
+        setAiLoading(false)
+        setAiResult({ matchedId: matched.id, message: reason })
+        setSelectedId(matched.id)
+        if (matched.specialties?.[0] || matched.profession) {
+          setFilterSpecialty((matched.specialties?.[0] || matched.profession).toLowerCase().replace(/\s+/g, '_'))
+        }
+        if (matched.location || matched.city) {
+          setFilterLocation(matched.location || matched.city)
+        }
+      } else {
+        setAiLoading(false)
+        setAiResult({ message: 'No registered providers match your query. Explore all verified providers below.' })
+      }
+    } catch (err) {
       setAiLoading(false)
-      setAiResult({ matchedId: matched.id, message: reason })
-      setSelectedId(matched.id)
-      setFilterSpecialty(matched.specialty)
-      setFilterLocation(matched.location.split(',')[0].trim())
-    }, 1500)
+      setAiResult({ message: 'Unable to match right now. Please explore registered providers below.' })
+    }
   }
 
-  const sendMessage = (discussionId, text) => {
-    const timeStr = new Date().toLocaleTimeString('default', { hour: '2-digit', minute: '2-digit', hour12: false })
+  const sendMessage = async (discussionId, text, attachmentData = null) => {
+    if (!text?.trim() && !attachmentData) return
+    const user = getStoredUser()
+    const currentUserId = user?.id
+    const now = new Date()
+    const timeStr = now.toLocaleTimeString('default', { hour: '2-digit', minute: '2-digit', hour12: false })
+
+    const tempId = 'temp-' + Date.now()
+    const optimisticMsg = {
+      id: tempId,
+      senderId: currentUserId,
+      sender: 'user',
+      text: text ? text.trim() : '',
+      attachmentUrl: attachmentData?.attachmentUrl,
+      attachmentName: attachmentData?.attachmentName,
+      attachmentType: attachmentData?.attachmentType,
+      attachmentSize: attachmentData?.attachmentSize,
+      attachmentMime: attachmentData?.attachmentMime,
+      time: timeStr,
+      date: 'Today',
+      status: 'delivered'
+    }
+
     setDiscussions(prev => prev.map(d => {
       if (d.id === discussionId) {
         return {
           ...d,
-          messages: [
-            ...d.messages,
-            { id: 'm' + Date.now(), sender: 'user', text, time: timeStr, date: 'Today', status: 'delivered' }
-          ]
+          lastMessage: text ? text.trim() : (attachmentData?.attachmentName || 'Attachment'),
+          lastMessageTime: now.toISOString(),
+          messages: [...(d.messages || []), optimisticMsg]
         }
       }
       return d
     }))
 
-    setTimeout(() => {
-      let replyText = "Thank you for reaching out! I am available to support your family."
-      if (discussionId === 'D4') {
-        replyText = "Carely concierge here. How may we assist your booking today?"
+    try {
+      const payload = {
+        text: text ? text.trim() : '',
+        attachmentUrl: attachmentData?.attachmentUrl,
+        attachmentName: attachmentData?.attachmentName,
+        attachmentType: attachmentData?.attachmentType,
+        attachmentSize: attachmentData?.attachmentSize,
+        attachmentMime: attachmentData?.attachmentMime
       }
-      setDiscussions(prev => prev.map(d => {
-        if (d.id === discussionId) {
-          return {
-            ...d,
-            messages: [
-              ...d.messages,
-              { id: 'm_reply_' + Date.now(), sender: 'caregiver', text: replyText, time: timeStr, date: 'Today', status: 'read' }
-            ]
+      const res = await sendMessageApi(discussionId, payload)
+      if (res) {
+        setDiscussions(prev => prev.map(d => {
+          if (d.id === discussionId) {
+            return {
+              ...d,
+              messages: (d.messages || []).map(m => m.id === tempId ? {
+                ...res,
+                sender: 'user',
+                time: timeStr
+              } : m)
+            }
           }
-        }
-        return d
-      }))
-    }, 1800)
+          return d
+        }))
+      }
+    } catch (err) {
+      console.error('Failed to send message via API:', err)
+    }
   }
 
-  const deleteDiscussion = (id) => {
+  const deleteDiscussion = async (id) => {
+    try {
+      await deleteDiscussionThread(id)
+    } catch (err) {
+      console.warn('Delete discussion API error:', err)
+    }
     setDiscussions(prev => prev.filter(d => d.id !== id))
     if (activeDiscussionId === id) setActiveDiscussionId(null)
   }
 
-  const clearDiscussionChat = (id) => {
-    setDiscussions(prev => prev.map(d => (d.id === id ? { ...d, messages: [] } : d)))
+  const clearDiscussionChat = async (id) => {
+    try {
+      await clearDiscussionChatApi(id)
+    } catch (err) {
+      console.warn('Clear chat API error:', err)
+    }
+    setDiscussions(prev => prev.map(d => (d.id === id ? { ...d, messages: [], unreadCount: 0 } : d)))
   }
 
-  const deleteMessage = (discId, msgId) => {
+  const deleteMessage = async (discId, msgId) => {
+    try {
+      await deleteDiscussionMessage(discId, msgId)
+    } catch (err) {
+      console.warn('Delete message API error:', err)
+    }
     setDiscussions(prev => prev.map(d => (d.id === discId ? { ...d, messages: d.messages.filter(m => m.id !== msgId) } : d)))
   }
 
-  const openDiscussionWithCaregiver = (caregiver) => {
-    let existing = discussions.find(d => d.caregiverId === caregiver.id || d.name === caregiver.name)
-    if (!existing) {
-      const newDisc = {
-        id: 'D_' + Date.now(),
-        caregiverId: caregiver.id,
-        name: caregiver.name,
-        specialty: caregiver.specialty,
-        photo: caregiver.photo,
-        status: 'online',
-        lastSeen: 'Online',
-        unreadCount: 0,
-        messages: [
-          {
-            id: 'm_init_' + Date.now(),
-            sender: 'caregiver',
-            text: `Hello! Thank you for contacting me. I specialize in ${SPECIALTY_META[caregiver.specialty]?.label || 'care'}. How can I assist you?`,
-            time: 'Just now',
-            date: 'Today',
-            status: 'read'
-          }
-        ]
-      }
-      setDiscussions(prev => [newDisc, ...prev])
-      existing = newDisc
+  const openDiscussionWithCaregiver = async (caregiver) => {
+    let recipientId = caregiver?.userId || caregiver?.user_id || caregiver?.booker_id || caregiver?.provider_id || caregiver?.recipientId || caregiver?.id
+    const targetName = typeof caregiver === 'string' ? caregiver : (caregiver?.name || caregiver?.fullName || caregiver?.clientName)
+
+    const existing = discussions.find(d => 
+      (recipientId && (d.caregiverId === recipientId || d.participantId === recipientId || d.id === recipientId)) ||
+      (targetName && d.name && d.name.toLowerCase().includes(targetName.toLowerCase()))
+    )
+
+    if (existing) {
+      setActiveDiscussionId(existing.id)
+      setActiveTab('discussions')
+      return
     }
-    setActiveDiscussionId(existing.id)
+
+    if (recipientId) {
+      try {
+        const conv = await getOrCreateDiscussion(recipientId)
+        if (conv) {
+          setDiscussions(prev => {
+            const exists = prev.some(d => d.id === conv.id)
+            return exists ? prev : [conv, ...prev]
+          })
+          setActiveDiscussionId(conv.id)
+          setActiveTab('discussions')
+          return
+        }
+      } catch (err) {
+        console.warn('Failed to open discussion:', err.message)
+      }
+    }
+
     setActiveTab('discussions')
   }
 
@@ -361,6 +768,8 @@ export default function CaregiverDashboard({ onNavigate }) {
       setActiveTab('explore')
     } else if (target === 'booking_wizard' || target === 'booking') {
       openBookingWizard(params)
+    } else if (target === 'discussions' && (params?.recipientId || params?.id || params?.caregiver || params?.booker_id || params?.clientName || params?.name)) {
+      openDiscussionWithCaregiver(params?.caregiver || params)
     } else if (['payment', 'confirmed', 'home', 'explore', 'discussions', 'requests', 'bookings', 'calendar', 'earnings', 'reviews', 'notifications', 'refer', 'profile', 'overview'].includes(target)) {
       setActiveTab(target)
     } else if (onNavigate) {
@@ -370,45 +779,106 @@ export default function CaregiverDashboard({ onNavigate }) {
 
   // Calculate unread count
   const unreadNotificationsCount = notifications.filter(n => n.unread && !n.archived).length
+  const unreadMessagesCount = (discussions || []).reduce((acc, d) => acc + (Number(d.unreadCount) || 0), 0)
 
-  // Confirmed bookings list
-  const upcomingBookings = [
-    { name: 'Aïcha K.', initials: 'AK', location: 'Akwa, Douala', time: 'Today · 09:00 – 13:00', status: 'In Progress', statusColor: 'bg-green-50 text-green-700 border-green-200' },
-    { name: 'Paul M.', initials: 'PM', location: 'Bastos, Yaounde', time: 'Today · 15:00 – 17:00', status: 'Awaiting OTP', statusColor: 'bg-amber-50 text-amber-700 border-amber-200' },
-    { name: 'The Nkomo Family', initials: 'NF', location: 'Bonapriso, Douala', time: 'Thu · 08:00 – 12:00', status: 'Scheduled', statusColor: 'bg-gray-50 text-gray-700 border-gray-200' },
-    { name: 'Elise F.', initials: 'EF', location: 'Omnisports, Yaounde', time: 'Fri · 10:00 – 14:00', status: 'Scheduled', statusColor: 'bg-gray-50 text-gray-700 border-gray-200' }
-  ]
+  // Derive active session: any in_progress session, or the earliest confirmed session awaiting arrival check-in
+  const activeBooking = (incomingBookings || []).find(b =>
+    b.rawStatus === 'in_progress' ||
+    b.sessionStatus === 'ARRIVED' ||
+    b.sessionStatus === 'AWAITING_CONFIRMATION'
+  ) || (incomingBookings || []).find(b =>
+    b.rawStatus === 'confirmed'
+  ) || null
+
+  // Confirmed bookings list derived from real incoming bookings, excluding active session
+  const upcomingBookings = (incomingBookings || [])
+    .filter(b => b.id !== activeBooking?.id && b.rawStatus !== 'completed')
+    .map(b => ({
+      name: b.clientName || b.name || 'Household Client',
+      initials: b.initials || 'HC',
+      location: b.location || 'Yaoundé / Douala',
+      time: b.date ? `${b.date} · ${b.time}` : (b.time || 'Upcoming Shift'),
+      status: b.status || 'Confirmed',
+      statusColor: b.status === 'In Progress'
+        ? 'bg-green-50 text-green-700 border-green-200'
+        : b.status === 'Awaiting OTP'
+        ? 'bg-amber-50 text-amber-700 border-amber-200'
+        : 'bg-gray-50 text-gray-700 border-gray-200'
+    }))
+
+  const handleVerifyActiveSessionOtp = async () => {
+    if (!activeBooking?.sessionId) return
+    const code = otp.join('')
+    if (code.length < 4) {
+      setActiveSessionError('Please enter the complete 6-digit OTP code.')
+      return
+    }
+    setActiveSessionOtpLoading(true)
+    setActiveSessionError('')
+    setActiveSessionSuccess('')
+    try {
+      await verifySessionOtp(activeBooking.sessionId, code)
+      setActiveSessionSuccess('OTP verified successfully! Session is now in progress.')
+      setOtp(['', '', '', '', '', ''])
+      if (loadProviderRequests) await loadProviderRequests()
+    } catch (err) {
+      setActiveSessionError(err.message || 'Invalid OTP code. Please check with the client.')
+    } finally {
+      setActiveSessionOtpLoading(false)
+    }
+  }
+
+  const handleProviderMarkJobComplete = async () => {
+    if (!activeBooking?.sessionId) return
+    setCompletingJob(true)
+    setActiveSessionError('')
+    try {
+      await providerCompleteSession(activeBooking.sessionId)
+      setActiveSessionSuccess('Job marked complete! The client has been notified to release escrow.')
+      if (loadProviderRequests) await loadProviderRequests()
+    } catch (err) {
+      setActiveSessionError(err.message || 'Could not complete session.')
+    } finally {
+      setCompletingJob(false)
+    }
+  }
 
   const triggerRequestDetailsModal = (r) => {
-    const isRecurring = r.id === 'REQ102'
+    const rateVal = Number(r.pricePerHour) || 50
+    const feeVal = Number(r.serviceFee) || 5
+    let hoursVal = 2
+    if (r.startTime && r.endTime) {
+      const [sh, sm] = r.startTime.split(':').map(Number)
+      const [eh, em] = r.endTime.split(':').map(Number)
+      if (!isNaN(sh) && !isNaN(eh)) {
+        const diff = (eh * 60 + (em || 0)) - (sh * 60 + (sm || 0))
+        if (diff > 0) hoursVal = Math.round((diff / 60) * 10) / 10
+      }
+    }
+    const sessions = Number(r.totalSessions) || 1
+    const subtotalVal = Number(r.subtotal) || (rateVal * hoursVal * sessions)
+    const totalVal = Number(r.totalPrice) || (subtotalVal + feeVal)
+
     setSelectedBookingDetails({
-      clientName: r.clientName,
-      initials: r.initials,
-      specialty: r.specialty,
-      status: 'Pending Request',
-      location: r.location,
-      rate: '3,500 XAF',
-      hours: '4',
-      sessionsCount: isRecurring ? 12 : 1,
-      subtotal: isRecurring ? '168,000 XAF' : '14,000 XAF',
-      serviceFee: isRecurring ? '8,000 XAF' : '1,000 XAF',
-      total: isRecurring ? '160,000 XAF' : '13,000 XAF',
-      schedule: isRecurring ? [
-        { date: 'Mon Nov 8, 2026', time: '09:00 – 13:00', status: 'Pending' },
-        { date: 'Wed Nov 10, 2026', time: '09:00 – 13:00', status: 'Pending' },
-        { date: 'Fri Nov 12, 2026', time: '09:00 – 13:00', status: 'Pending' }
-      ] : [
-        { date: r.date, time: r.time, status: 'Pending' }
+      clientName: r.clientName || 'Household Client',
+      initials: r.initials || 'HC',
+      specialty: r.specialty || 'Care Service',
+      status: r.status || 'Pending Request',
+      location: r.location || 'Yaoundé / Douala',
+      rate: `${rateVal.toLocaleString()} XAF / hr`,
+      hours: String(hoursVal),
+      sessionsCount: sessions,
+      subtotal: `${subtotalVal.toLocaleString()} XAF`,
+      serviceFee: `${feeVal.toLocaleString()} XAF`,
+      total: `${totalVal.toLocaleString()} XAF`,
+      schedule: [
+        { date: r.date || 'Upcoming', time: r.time || 'Scheduled Slot', status: r.status || 'Pending' }
       ],
-      payoutInfo: isRecurring ? 'Charged weekly & paid on Fridays to your verified wallet' : 'Payout pending approval and completion',
-      nextSteps: isRecurring ? [
-        'This is a recurring Post-op Care request from M. Fouda for 3 weeks.',
-        'Accept the request to confirm the entire 3-week schedule.',
-        'You will earn 160,000 XAF net payout upon completing all sessions.'
-      ] : [
-        `This is an incoming request from ${r.clientName}.`,
-        `You can accept or decline this request using the actions in the Requests tab.`,
-        `If accepted, the session will be scheduled on ${r.date} from ${r.time}.`
+      payoutInfo: 'Payout released from escrow upon arrival OTP presence confirmation & completion',
+      nextSteps: [
+        `This is an incoming request from ${r.clientName || 'the client'}.`,
+        `You can accept or decline this request using the actions below or in the Requests tab.`,
+        `If accepted, the session will be scheduled on ${r.date || 'the agreed date'}.`
       ]
     })
   }
@@ -482,6 +952,9 @@ export default function CaregiverDashboard({ onNavigate }) {
         sidebarOpen={sidebarOpen}
         setSidebarOpen={setSidebarOpen}
         notificationsCount={unreadNotificationsCount}
+        requestsCount={incomingRequests.length}
+        bookingsCount={incomingBookings.length}
+        unreadMessagesCount={unreadMessagesCount}
         notifications={notifications}
         onMarkRead={readToggleNotification}
         onMarkAllRead={markAllNotificationsRead}
@@ -492,6 +965,66 @@ export default function CaregiverDashboard({ onNavigate }) {
         })}
         onNavigate={handleInternalNavigate}
       >
+        {/* ─── Subscription & Approval Status Banner ─── */}
+        {subStatus && !subStatus.accountActive && subStatus.approvalStatus === 'approved' && (
+          <div className="bg-gradient-to-r from-amber-50 to-emerald-50 border-2 border-[#1E4030]/20 rounded-2xl p-5 shadow-xs animate-fadeIn space-y-3">
+            <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+              <div className="flex items-start gap-3.5">
+                <div className="w-10 h-10 rounded-xl bg-[#1E4030] text-white flex items-center justify-center shrink-0 shadow-xs">
+                  <ShieldCheck size={20} />
+                </div>
+                <div>
+                  <div className="flex items-center gap-2">
+                    <h3 className="font-bold text-sm text-[#1C1A17]">Application Approved! Activate Account</h3>
+                    <span className="bg-amber-100 text-amber-800 text-[10px] font-bold px-2 py-0.5 rounded-full border border-amber-300">
+                      Action Required
+                    </span>
+                  </div>
+                  <p className="text-xs text-[#8A7E74] mt-0.5 leading-relaxed">
+                    Your provider profile has been verified and approved by the admin. Pay your <span className="font-bold text-[#1E4030]">25 XAF</span> subscription via Campay to activate your account and start receiving client bookings.
+                  </p>
+                </div>
+              </div>
+              <div className="flex items-center gap-2.5 shrink-0 w-full sm:w-auto">
+                <button
+                  type="button"
+                  onClick={() => setShowPaymentModal(true)}
+                  className="flex-1 sm:flex-none bg-[#1E4030] hover:bg-[#152e22] text-white text-xs font-bold px-4 py-2.5 rounded-xl shadow-xs transition-all cursor-pointer flex items-center justify-center gap-2"
+                >
+                  Proceed to Payment
+                </button>
+                <button
+                  type="button"
+                  onClick={loadSubStatus}
+                  className="border border-[#E2D9CF] bg-white hover:bg-[#FAF8F5] text-[#1C1A17] text-xs font-semibold px-3 py-2.5 rounded-xl transition-all cursor-pointer"
+                  title="Check if payment was confirmed"
+                >
+                  Verify Payment
+                </button>
+              </div>
+            </div>
+            {payMessage && (
+              <div className="text-xs bg-white border border-[#E2D9CF] text-[#1E4030] px-3.5 py-2 rounded-xl font-medium">
+                {payMessage}
+              </div>
+            )}
+          </div>
+        )}
+
+        {subStatus && subStatus.approvalStatus === 'pending' && (
+          <div className="bg-blue-50/70 border border-blue-200 rounded-2xl p-4 shadow-xs animate-fadeIn flex items-center gap-3.5">
+            <div className="w-9 h-9 rounded-xl bg-blue-100 text-blue-700 flex items-center justify-center shrink-0">
+              <Clock size={18} />
+            </div>
+            <div className="flex-1">
+              <h4 className="text-xs font-bold text-blue-900">Application Under Review</h4>
+              <p className="text-[11px] text-blue-700 mt-0.5">
+                Your caregiver credentials are under review by our admin team. Once approved, you will receive a notification here to pay the 25 XAF subscription and activate your profile.
+              </p>
+            </div>
+          </div>
+        )}
+
       {/* ─── 1. OVERVIEW TAB ─── */}
       {activeTab === 'overview' && (
         <div className="w-full space-y-6 animate-fadeIn">
@@ -514,57 +1047,115 @@ export default function CaregiverDashboard({ onNavigate }) {
 
               {/* Active Session Card */}
               <div className="bg-white border border-[#E2D9CF] rounded-3xl p-6 shadow-sm space-y-4">
-                <div className="flex items-start gap-4">
-                  <div className="w-12 h-12 rounded-2xl bg-[#EDF7F2] border border-green-200 flex items-center justify-center text-[#1E4030] shrink-0 shadow-sm">
-                    <Key size={20} />
-                  </div>
-                  <div className="space-y-1.5 flex-1">
-                    <div className="flex items-center gap-2">
-                      <span className="inline-flex items-center gap-1.5 bg-[#EDF7F2] text-[#1E4030] text-[10px] font-bold px-2.5 py-0.5 rounded-full border border-green-200">
-                        <span className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></span>
-                        Active Session In Progress
-                      </span>
-                      <h4 className="font-bold text-sm text-[#1C1A17]">Session with Aïcha K.</h4>
+                {activeBooking ? (
+                  <>
+                    <div className="flex items-start gap-4">
+                      <div className="w-12 h-12 rounded-2xl bg-[#EDF7F2] border border-green-200 flex items-center justify-center text-[#1E4030] shrink-0 shadow-sm">
+                        <Key size={20} />
+                      </div>
+                      <div className="space-y-1.5 flex-1 min-w-0">
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <span className="inline-flex items-center gap-1.5 bg-[#EDF7F2] text-[#1E4030] text-[10px] font-bold px-2.5 py-0.5 rounded-full border border-green-200">
+                            <span className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></span>
+                            {activeBooking.rawStatus === 'in_progress' || activeBooking.sessionStatus === 'ARRIVED' ? 'Active Session In Progress' : 'Ready for Arrival Check-in'}
+                          </span>
+                          <h4 className="font-bold text-sm text-[#1C1A17]">Session with {activeBooking.clientName}</h4>
+                        </div>
+                        <p className="text-xs text-[#8A7E74] leading-relaxed">
+                          {activeBooking.profession || 'Cleaner'} &middot; {activeBooking.time} &middot; {activeBooking.location}
+                        </p>
+                      </div>
                     </div>
-                    <p className="text-xs text-[#8A7E74] leading-relaxed">
-                      Home Nursing &middot; 09:00 – 13:00 &middot; Enter the arrival OTP code provided by the client to verify session and secure escrow payout.
+
+                    {activeSessionError && (
+                      <div className="p-3 bg-red-50 border border-red-200 text-red-700 text-xs rounded-xl flex items-center gap-2">
+                        <XCircle size={14} className="shrink-0" />
+                        <span>{activeSessionError}</span>
+                      </div>
+                    )}
+                    {activeSessionSuccess && (
+                      <div className="p-3 bg-emerald-50 border border-emerald-200 text-[#1E4030] text-xs rounded-xl flex items-center gap-2 font-medium">
+                        <CheckCircle2 size={14} className="text-emerald-600 shrink-0" />
+                        <span>{activeSessionSuccess}</span>
+                      </div>
+                    )}
+
+                    {/* If session is SCHEDULED and needs arrival OTP */}
+                    {activeBooking.sessionStatus === 'SCHEDULED' && activeBooking.rawStatus !== 'in_progress' ? (
+                      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pt-2 bg-[#FAF8F5] p-4 rounded-2xl border border-[#E2D9CF]">
+                        <div className="space-y-1">
+                          <span className="text-xs font-bold text-[#1C1A17] block">Enter Client's Arrival OTP</span>
+                          <p className="text-[11px] text-[#8A7E74]">Ask {activeBooking.clientName} for their 6-digit code to start the session.</p>
+                          <div className="flex items-center gap-2 pt-1">
+                            {otp.map((digit, idx) => (
+                              <input
+                                key={idx}
+                                id={`otp-${idx}`}
+                                type="text"
+                                maxLength={1}
+                                value={digit}
+                                onChange={e => handleOtpChange(idx, e.target.value, activeTab)}
+                                className="w-9 h-9 sm:w-10 sm:h-10 border border-[#E2D9CF] rounded-xl text-center bg-white font-bold text-[#1C1A17] text-sm focus:outline-none focus:border-[#1E4030] shadow-2xs"
+                              />
+                            ))}
+                          </div>
+                        </div>
+
+                        <div className="flex items-center gap-2 self-end sm:self-center">
+                          <button
+                            type="button"
+                            onClick={() => { setOtp(['', '', '', '', '', '']); setActiveSessionError(''); }}
+                            className="border border-[#E2D9CF] bg-white text-[#1C1A17] hover:bg-[#FAF8F5] font-semibold text-xs px-3.5 py-2.5 rounded-xl transition-all cursor-pointer"
+                          >
+                            Clear
+                          </button>
+                          <button
+                            type="button"
+                            disabled={otp.some(d => !d) || activeSessionOtpLoading}
+                            onClick={handleVerifyActiveSessionOtp}
+                            className="bg-[#1E4030] hover:bg-[#152e22] disabled:opacity-40 text-white font-bold text-xs px-4 py-2.5 rounded-xl transition-all flex items-center gap-1.5 shadow-sm cursor-pointer active:scale-95"
+                          >
+                            <Key size={13} />
+                            {activeSessionOtpLoading ? 'Verifying...' : 'Verify Arrival OTP'}
+                          </button>
+                        </div>
+                      </div>
+                    ) : (
+                      /* If session is ARRIVED or in_progress: Show Mark Job Complete button */
+                      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pt-2 bg-[#EDF7F2]/60 p-4 rounded-2xl border border-green-200">
+                        <div className="space-y-0.5">
+                          <span className="text-xs font-bold text-[#1E4030] flex items-center gap-1.5">
+                            <CheckCircle2 size={14} className="text-[#1E4030]" />
+                            Arrival Confirmed &middot; On-Site Work In Progress
+                          </span>
+                          <p className="text-[11px] text-[#5A5248]">
+                            When service is finished, mark the job complete below.
+                          </p>
+                        </div>
+
+                        <button
+                          type="button"
+                          disabled={completingJob}
+                          onClick={handleProviderMarkJobComplete}
+                          className="bg-[#1E4030] hover:bg-[#152e22] text-white font-bold text-xs px-5 py-2.5 rounded-xl transition-all flex items-center justify-center gap-2 shadow-sm cursor-pointer active:scale-95 whitespace-nowrap disabled:opacity-50"
+                        >
+                          <CheckCircle2 size={14} />
+                          <span>{completingJob ? 'Completing...' : 'Mark Job Complete'}</span>
+                        </button>
+                      </div>
+                    )}
+                  </>
+                ) : (
+                  <div className="py-6 text-center space-y-2">
+                    <div className="w-10 h-10 rounded-2xl bg-[#FAF8F5] border border-[#E2D9CF] flex items-center justify-center text-[#8A7E74] mx-auto">
+                      <Clock size={18} />
+                    </div>
+                    <p className="text-xs font-bold text-[#1C1A17]">No active session in progress</p>
+                    <p className="text-[11px] text-[#8A7E74] max-w-sm mx-auto">
+                      When a confirmed booking arrives, your check-in card and arrival OTP verification will appear here automatically.
                     </p>
                   </div>
-                </div>
-
-                {/* OTP Digits & Confirm row */}
-                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pt-2 bg-[#FAF8F5] p-4 rounded-2xl border border-[#E2D9CF]">
-                  <div className="flex items-center gap-2">
-                    <span className="text-xs font-bold text-[#8A7E74] uppercase tracking-wider mr-1">OTP:</span>
-                    {otp.map((digit, idx) => (
-                      <input
-                        key={idx}
-                        id={`otp-${idx}`}
-                        type="text"
-                        maxLength={1}
-                        value={digit}
-                        onChange={e => handleOtpChange(idx, e.target.value, activeTab)}
-                        className="w-10 h-10 border border-[#E2D9CF] rounded-xl text-center bg-white font-bold text-[#1C1A17] text-sm focus:outline-none focus:border-[#1E4030] shadow-xs"
-                      />
-                    ))}
-                  </div>
-
-                  <div className="flex items-center gap-2">
-                    <button
-                      onClick={() => setOtp(['', '', '', '', '', ''])}
-                      className="border border-[#E2D9CF] bg-white text-[#1C1A17] hover:bg-[#FAF8F5] font-semibold text-xs px-3.5 py-2.5 rounded-xl transition-all cursor-pointer"
-                    >
-                      Clear
-                    </button>
-                    <button
-                      disabled={otp.some(d => !d)}
-                      className="bg-[#1E4030] hover:bg-[#152e22] disabled:opacity-40 text-white font-bold text-xs px-4 py-2.5 rounded-xl transition-all flex items-center gap-1.5 shadow-sm cursor-pointer active:scale-95"
-                    >
-                      <CheckCircle2 size={13} />
-                      Mark Job Complete
-                    </button>
-                  </div>
-                </div>
+                )}
               </div>
 
               {/* Upcoming Bookings Widget */}
@@ -580,25 +1171,31 @@ export default function CaregiverDashboard({ onNavigate }) {
                   </button>
                 </div>
 
-                <div className="divide-y divide-[#F0EBE5]">
-                  {upcomingBookings.map((b, idx) => (
-                    <div key={idx} className="py-3.5 flex items-center justify-between gap-4 first:pt-0 last:pb-0">
-                      <div className="flex items-center gap-3">
-                        <div className="w-10 h-10 rounded-xl bg-[#FAF8F5] border border-[#E2D9CF] flex items-center justify-center text-[#1E4030] font-bold text-xs shrink-0">
-                          {b.initials}
+                {upcomingBookings.length === 0 ? (
+                  <div className="py-8 text-center text-xs text-[#8A7E74]">
+                    No upcoming bookings confirmed yet. Confirmed visits will show here.
+                  </div>
+                ) : (
+                  <div className="divide-y divide-[#F0EBE5]">
+                    {upcomingBookings.map((b, idx) => (
+                      <div key={idx} className="py-3.5 flex items-center justify-between gap-4 first:pt-0 last:pb-0">
+                        <div className="flex items-center gap-3">
+                          <div className="w-10 h-10 rounded-xl bg-[#FAF8F5] border border-[#E2D9CF] flex items-center justify-center text-[#1E4030] font-bold text-xs shrink-0">
+                            {b.initials}
+                          </div>
+                          <div>
+                            <h4 className="font-bold text-xs text-[#1C1A17]">{b.name}</h4>
+                            <p className="text-[10px] text-[#8A7E74]">{b.location} &middot; {b.time}</p>
+                          </div>
                         </div>
-                        <div>
-                          <h4 className="font-bold text-xs text-[#1C1A17]">{b.name}</h4>
-                          <p className="text-[10px] text-[#8A7E74]">{b.location} &middot; {b.time}</p>
-                        </div>
-                      </div>
 
-                      <span className={`text-[10px] font-bold px-3 py-0.5 rounded-full border shrink-0 ${b.statusColor}`}>
-                        {b.status}
-                      </span>
-                    </div>
-                  ))}
-                </div>
+                        <span className={`text-[10px] font-bold px-3 py-0.5 rounded-full border shrink-0 ${b.statusColor}`}>
+                          {b.status}
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                )}
               </div>
             </div>
 
@@ -624,7 +1221,7 @@ export default function CaregiverDashboard({ onNavigate }) {
         <HomeTab
           onNavigate={handleInternalNavigate}
           openBookingWizard={openBookingWizard}
-          userFirstName="Marie-Claire"
+          userFirstName={getStoredUser()?.firstName || getStoredUser()?.first_name || 'Caregiver'}
         />
       )}
 
@@ -671,6 +1268,7 @@ export default function CaregiverDashboard({ onNavigate }) {
           clearDiscussionChat={clearDiscussionChat}
           deleteMessage={deleteMessage}
           onNavigate={handleInternalNavigate}
+          openDiscussionWithCaregiver={openDiscussionWithCaregiver}
         />
       )}
 
@@ -689,7 +1287,11 @@ export default function CaregiverDashboard({ onNavigate }) {
       {/* ─── 4. BOOKINGS TAB (TOGGLE BETWEEN CLIENT BOOKINGS & MY BOOKINGS) ─── */}
       {activeTab === 'bookings' && (
         <BookingsTab
+          clientBookings={incomingBookings}
+          myBookings={outgoingBookings}
           onNavigate={handleInternalNavigate}
+          onMessageClient={(b) => openDiscussionWithCaregiver({ id: b?.booker_id || b?.booker?.id, name: b?.clientName || b?.name, role: 'client' })}
+          onMessageProvider={(b) => openDiscussionWithCaregiver({ id: b?.provider_id || b?.provider?.id, name: b?.name, role: 'provider' })}
         />
       )}
 
@@ -786,8 +1388,27 @@ export default function CaregiverDashboard({ onNavigate }) {
 
                     {Array.from({ length: calTotalDays }).map((_, idx) => {
                       const dayNum = idx + 1
-                      const isCurrentMonth = calMonth === new Date().getMonth() && calYear === new Date().getFullYear()
-                      const status = (isCurrentMonth && dayStates[dayNum]) || 'available'
+                      const dayEvents = calendarEvents[dayNum] || []
+                      const sessionEvent = dayEvents.find(e => e.type === 'session')
+                      const hasSession = !!sessionEvent || incomingBookings.some(b => {
+                        if (b.rawStatus === 'cancelled' || b.rawStatus === 'declined') return false
+                        if (b.startDate) {
+                          const d = new Date(b.startDate)
+                          if (d.getFullYear() === calYear && (d.getMonth() + 1) === (calMonth + 1) && d.getDate() === dayNum) return true
+                        }
+                        if (Array.isArray(b.sessions)) {
+                          return b.sessions.some(s => {
+                            if (s.scheduled_date) {
+                              const sd = new Date(s.scheduled_date)
+                              return sd.getFullYear() === calYear && (sd.getMonth() + 1) === (calMonth + 1) && sd.getDate() === dayNum
+                            }
+                            return false
+                          })
+                        }
+                        return false
+                      })
+
+                      const status = hasSession ? (sessionEvent?.sessionType === 'recurring' ? 'recurring' : 'booked') : (dayStates[dayNum] || 'available')
                       const isSelected = selectedDay === dayNum
 
                       let dayStyle = 'bg-white text-[#1C1A17] border border-[#E2D9CF]'
@@ -795,12 +1416,24 @@ export default function CaregiverDashboard({ onNavigate }) {
 
                       if (status === 'booked') {
                         dayStyle = 'bg-[#1E4030] text-white border border-[#1E4030] shadow-xs'
-                        labelText = '09:00'
+                        if (sessionEvent && sessionEvent.time) {
+                          labelText = sessionEvent.time.split('–')[0]?.trim() || sessionEvent.time.split('—')[0]?.trim() || 'Booked'
+                        } else {
+                          const mb = incomingBookings.find(b => {
+                            if (b.rawStatus === 'cancelled' || b.rawStatus === 'declined') return false
+                            if (b.startDate) {
+                              const d = new Date(b.startDate)
+                              if (d.getFullYear() === calYear && (d.getMonth() + 1) === (calMonth + 1) && d.getDate() === dayNum) return true
+                            }
+                            return false
+                          })
+                          labelText = mb?.startTime?.slice(0, 5) || 'Booked'
+                        }
                       } else if (status === 'recurring') {
                         dayStyle = 'bg-amber-50 text-amber-900 border border-amber-300'
                         labelText = 'Recurring'
                       } else if (status === 'blocked') {
-                        dayStyle = 'bg-red-50/20 text-red-700/60 border border-dashed border-red-200 line-through'
+                        dayStyle = 'bg-red-50/40 text-red-700/70 border border-dashed border-red-300 line-through'
                         labelText = 'Blocked'
                       }
 
@@ -829,137 +1462,241 @@ export default function CaregiverDashboard({ onNavigate }) {
               )}
 
               {/* Week View Grid */}
-              {calendarView === 'week' && (
-                <div className="overflow-x-auto pt-2">
-                  <div className="min-w-[640px] grid grid-cols-[60px_1fr_1fr_1fr_1fr_1fr_1fr_1fr] gap-2 text-center">
-                    <div></div>
-                    {['NOV 3', 'NOV 4', 'NOV 5', 'NOV 6', 'NOV 7', 'NOV 8', 'NOV 9'].map(day => (
-                      <div key={day} className="text-[10px] font-bold text-[#8A7E74] uppercase py-2 bg-[#FAF8F5] rounded-xl border border-[#E2D9CF]">
-                        {day}
-                      </div>
-                    ))}
+              {calendarView === 'week' && (() => {
+                const selDate = new Date(calYear, calMonth, selectedDay)
+                const selDayOfWeek = selDate.getDay() // 0 = Sun
+                const startOfWeek = new Date(calYear, calMonth, selectedDay - selDayOfWeek)
+                const weekDays = Array.from({ length: 7 }).map((_, i) => {
+                  const d = new Date(startOfWeek.getFullYear(), startOfWeek.getMonth(), startOfWeek.getDate() + i)
+                  return {
+                    date: d,
+                    dayNum: d.getDate(),
+                    month: d.getMonth(),
+                    year: d.getFullYear(),
+                    weekday: d.toLocaleString('default', { weekday: 'short' }).toUpperCase(),
+                    label: `${d.toLocaleString('default', { month: 'short' }).toUpperCase()} ${d.getDate()}`
+                  }
+                })
 
-                    {['08:00', '09:00', '10:00', '11:00', '12:00', '13:00', '14:00', '15:00', '16:00', '17:00', '18:00', '19:00'].map(hour => {
-                      const isBookedHour = ['09:00', '10:00', '11:00', '12:00'].includes(hour)
-                      return (
-                        <div key={hour} className="contents">
-                          <div className="text-[10px] font-bold text-[#8A7E74] flex items-center justify-end pr-2.5">
-                            {hour}
+                const HOURS = ['08:00', '09:00', '10:00', '11:00', '12:00', '13:00', '14:00', '15:00', '16:00', '17:00', '18:00', '19:00']
+
+                return (
+                  <div className="overflow-x-auto pt-2">
+                    <div className="min-w-[640px] grid grid-cols-[60px_1fr_1fr_1fr_1fr_1fr_1fr_1fr] gap-2 text-center">
+                      <div></div>
+                      {weekDays.map(wDay => {
+                        const isSel = wDay.dayNum === selectedDay && wDay.month === calMonth
+                        return (
+                          <button
+                            key={wDay.label + wDay.weekday}
+                            onClick={() => {
+                              if (wDay.month === calMonth) setSelectedDay(wDay.dayNum)
+                            }}
+                            className={`text-[10px] font-bold uppercase py-2 rounded-xl border transition-all cursor-pointer ${
+                              isSel
+                                ? 'bg-[#1E4030] text-white border-[#1E4030]'
+                                : 'text-[#8A7E74] bg-[#FAF8F5] border-[#E2D9CF] hover:bg-white'
+                            }`}
+                          >
+                            <div>{wDay.weekday}</div>
+                            <div className="text-[11px] font-extrabold">{wDay.label}</div>
+                          </button>
+                        )
+                      })}
+
+                      {HOURS.map(hour => {
+                        return (
+                          <div key={hour} className="contents">
+                            <div className="text-[10px] font-bold text-[#8A7E74] flex items-center justify-end pr-2.5">
+                              {hour}
+                            </div>
+                            {weekDays.map(wDay => {
+                              const inViewMonth = wDay.month === calMonth && wDay.year === calYear
+                              const dayState = inViewMonth ? dayStates[wDay.dayNum] : null
+                              const isBlocked = dayState === 'blocked'
+                              const events = inViewMonth ? (calendarEvents[wDay.dayNum] || []) : []
+                              const hasBookingAtHour = events.some(e => e.type === 'session' && e.time && e.time.startsWith(hour.slice(0, 2))) ||
+                                incomingBookings.some(b => {
+                                  if (b.rawStatus === 'cancelled' || b.rawStatus === 'declined') return false
+                                  const d = b.startDate ? new Date(b.startDate) : null
+                                  if (d && d.getFullYear() === wDay.year && d.getMonth() === wDay.month && d.getDate() === wDay.dayNum) {
+                                    return b.startTime && b.startTime.startsWith(hour.slice(0, 2))
+                                  }
+                                  return false
+                                })
+
+                              if (isBlocked) {
+                                return (
+                                  <div
+                                    key={wDay.label + hour}
+                                    onClick={() => { if (inViewMonth) setSelectedDay(wDay.dayNum) }}
+                                    className="h-10 bg-red-50/30 border border-dashed border-red-200 rounded-lg flex items-center justify-center text-[8px] text-red-500 font-bold line-through cursor-pointer"
+                                  >
+                                    Blocked
+                                  </div>
+                                )
+                              }
+
+                              if (hasBookingAtHour) {
+                                return (
+                                  <div
+                                    key={wDay.label + hour}
+                                    onClick={() => { if (inViewMonth) setSelectedDay(wDay.dayNum) }}
+                                    className="h-10 bg-[#1E4030] border border-[#1E4030] text-white rounded-lg flex items-center justify-center text-[9px] font-bold shadow-xs cursor-pointer"
+                                  >
+                                    Booked
+                                  </div>
+                                )
+                              }
+
+                              return (
+                                <div
+                                  key={wDay.label + hour}
+                                  onClick={() => { if (inViewMonth) setSelectedDay(wDay.dayNum) }}
+                                  className="h-10 bg-white border border-[#E2D9CF] rounded-lg hover:bg-[#FAF8F5] transition-colors cursor-pointer"
+                                ></div>
+                              )
+                            })}
                           </div>
-                          <div className="h-10 bg-[#FAF8F5] border border-dashed border-[#E2D9CF]/65 rounded-lg"></div>
-                          <div className="h-10 bg-red-50/20 border border-dashed border-red-200/50 rounded-lg flex items-center justify-center text-[8px] text-red-400 font-bold line-through">Blocked</div>
-                          {isBookedHour ? (
-                            <div className="h-10 bg-[#1E4030] border border-[#1E4030] text-white rounded-lg flex items-center justify-center text-[9px] font-bold shadow-xs">
-                              {hour === '09:00' ? 'Booked' : ''}
-                            </div>
-                          ) : (
-                            <div className="h-10 bg-white border border-[#E2D9CF] rounded-lg"></div>
-                          )}
-                          {isBookedHour ? (
-                            <div className="h-10 bg-[#1E4030] border border-[#1E4030] text-white rounded-lg flex items-center justify-center text-[9px] font-bold shadow-xs">
-                              {hour === '09:00' ? 'Booked' : ''}
-                            </div>
-                          ) : (
-                            <div className="h-10 bg-white border border-[#E2D9CF] rounded-lg"></div>
-                          )}
-                          <div className="h-10 bg-white border border-[#E2D9CF] rounded-lg"></div>
-                          {isBookedHour ? (
-                            <div className="h-10 bg-[#1E4030] border border-[#1E4030] text-white rounded-lg flex items-center justify-center text-[9px] font-bold shadow-xs">
-                              {hour === '09:00' ? 'Booked' : ''}
-                            </div>
-                          ) : (
-                            <div className="h-10 bg-white border border-[#E2D9CF] rounded-lg"></div>
-                          )}
-                          <div className="h-10 bg-amber-50/50 border border-amber-200/50 rounded-lg flex items-center justify-center text-[8px] text-amber-800 font-bold uppercase">Recurring</div>
-                        </div>
-                      )
-                    })}
+                        )
+                      })}
+                    </div>
                   </div>
-                </div>
-              )}
+                )
+              })()}
             </div>
 
             {/* Selected day details panel */}
             <div className="bg-white border border-[#E2D9CF] rounded-3xl p-6 shadow-sm space-y-6">
-              <div>
-                <span className="text-[10px] text-[#8A7E74] font-bold tracking-wider uppercase">Selected Day</span>
-                <h3 className="text-base font-extrabold text-[#1C1A17] pt-0.5">November {selectedDay}, 2026</h3>
+              <div className="flex items-center justify-between">
+                <div>
+                  <span className="text-[10px] text-[#8A7E74] font-bold tracking-wider uppercase">Selected Day</span>
+                  <h3 className="text-base font-extrabold text-[#1C1A17] pt-0.5">
+                    {calMonthName.split(' ')[0]} {selectedDay}, {calYear}
+                  </h3>
+                </div>
+                {calendarLoading && (
+                  <RefreshCw size={14} className="text-[#8A7E74] animate-spin" />
+                )}
               </div>
 
+              {calendarMessage && (
+                <div className="text-xs p-2.5 rounded-xl bg-emerald-50 text-emerald-800 border border-emerald-200">
+                  {calendarMessage}
+                </div>
+              )}
+
               <div className="space-y-4">
-                {dayStates[selectedDay] === 'booked' && (
+                {currentDayStatus === 'booked' && (
                   <div className="space-y-4">
                     <span className="text-[10px] text-[#8A7E74] font-bold tracking-wider uppercase">Confirmed Sessions</span>
-                    <div className="bg-[#FAF8F5] border border-[#E2D9CF] rounded-2xl p-4 space-y-3 relative overflow-hidden">
-                      <div className="flex items-center gap-1.5 text-[9px] bg-white border border-[#E2D9CF] text-[#1E4030] px-2.5 py-0.5 rounded-full font-bold w-fit">
-                        <CheckCircle2 size={11} className="text-green-600" />
-                        <span>Locked Session</span>
+                    {selectedDaySessions.length > 0 ? (
+                      selectedDaySessions.map((sess, idx) => (
+                        <div key={sess.id || idx} className="bg-[#FAF8F5] border border-[#E2D9CF] rounded-2xl p-4 space-y-3 relative overflow-hidden">
+                          <div className="flex items-center gap-1.5 text-[9px] bg-white border border-[#E2D9CF] text-[#1E4030] px-2.5 py-0.5 rounded-full font-bold w-fit">
+                            <CheckCircle2 size={11} className="text-green-600" />
+                            <span>Locked Session · {sess.status || 'Confirmed'}</span>
+                          </div>
+                          <div>
+                            <h4 className="font-bold text-sm text-[#1C1A17]">{sess.clientName}</h4>
+                            <p className="text-xs text-[#8A7E74]">{sess.profession}</p>
+                          </div>
+                          <div className="flex items-center gap-1.5 text-xs text-[#1C1A17] font-semibold">
+                            <Clock size={13} className="text-[#1E4030]" />
+                            <span>{sess.time}</span>
+                          </div>
+                          {sess.location && (
+                            <div className="flex items-center gap-1.5 text-xs text-[#8A7E74]">
+                              <MapPin size={12} className="text-[#8A7E74]" />
+                              <span>{sess.location}</span>
+                            </div>
+                          )}
+                        </div>
+                      ))
+                    ) : (
+                      <div className="bg-[#FAF8F5] border border-[#E2D9CF] rounded-2xl p-4 text-xs text-[#8A7E74]">
+                        Session details loading...
                       </div>
-                      <div>
-                        <h4 className="font-bold text-sm text-[#1C1A17]">Aïcha K.</h4>
-                        <p className="text-xs text-[#8A7E74]">Home Nursing</p>
-                      </div>
-                      <div className="flex items-center gap-1.5 text-xs text-[#1C1A17] font-semibold">
-                        <Clock size={13} className="text-[#1E4030]" />
-                        <span>09:00 – 13:00</span>
-                      </div>
-                    </div>
+                    )}
                     <p className="text-[11px] text-[#8A7E74] leading-relaxed">
                       Booked sessions are secured in escrow and can only be managed from the Bookings tab.
                     </p>
-                  </div>
-                )}
-
-                {dayStates[selectedDay] === 'blocked' && (
-                  <div className="space-y-4">
-                    <div className="bg-red-50/50 border border-red-200 text-red-800 rounded-2xl p-4 text-xs font-medium leading-relaxed flex items-start gap-2.5">
-                      <XCircle size={15} className="shrink-0 mt-0.5 text-red-600" />
-                      <span>No sessions scheduled. This day is currently marked as blocked/unavailable.</span>
-                    </div>
                     <button
-                      onClick={() => {
-                        const newStates = { ...dayStates }
-                        delete newStates[selectedDay]
-                        setDayStates(newStates)
-                      }}
-                      className="w-full border border-[#E2D9CF] bg-white text-[#1C1A17] hover:bg-[#FAF8F5] font-bold text-xs py-3 rounded-xl transition-all shadow-xs cursor-pointer"
+                      onClick={() => setActiveTab('bookings')}
+                      className="w-full border border-[#1E4030] bg-[#1E4030] text-white hover:bg-[#163024] font-bold text-xs py-3 rounded-xl transition-all shadow-xs cursor-pointer flex items-center justify-center gap-1.5"
                     >
-                      Mark Available
+                      <span>View in Bookings Tab</span>
+                      <ArrowRight size={13} />
                     </button>
                   </div>
                 )}
 
-                {dayStates[selectedDay] === 'recurring' && (
+                {currentDayStatus === 'blocked' && (
+                  <div className="space-y-4">
+                    <div className="bg-red-50/60 border border-red-200 text-red-800 rounded-2xl p-4 text-xs font-medium leading-relaxed flex items-start gap-2.5">
+                      <XCircle size={16} className="shrink-0 mt-0.5 text-red-600" />
+                      <div>
+                        <p className="font-bold text-red-900">Day Blocked (Unavailable)</p>
+                        <p className="text-[11px] text-red-700/80 mt-0.5">
+                          You have marked this day as unavailable. Clients will not be able to book sessions with you on this date.
+                        </p>
+                      </div>
+                    </div>
+                    <button
+                      onClick={() => handleUnblockDay(selectedDay)}
+                      disabled={calendarActionLoading}
+                      className="w-full border border-emerald-300 bg-emerald-50 text-[#1E4030] hover:bg-emerald-100 font-bold text-xs py-3 rounded-xl transition-all shadow-xs cursor-pointer flex items-center justify-center gap-2"
+                    >
+                      {calendarActionLoading ? (
+                        <RefreshCw size={13} className="animate-spin" />
+                      ) : (
+                        <CheckCircle2 size={14} className="text-emerald-700" />
+                      )}
+                      <span>Unblock This Day (Mark Available)</span>
+                    </button>
+                  </div>
+                )}
+
+                {currentDayStatus === 'recurring' && (
                   <div className="space-y-4">
                     <div className="bg-amber-50 border border-amber-200 text-amber-900 rounded-2xl p-4 space-y-2 relative overflow-hidden">
                       <h4 className="font-bold text-xs uppercase tracking-wider text-amber-800">Recurring Schedule</h4>
                       <p className="text-xs text-[#8A7E74] leading-relaxed">
-                        Part of a Mon / Wed / Fri recurring series for the Fouda household (3 weeks).
+                        Part of a recurring booking series. Manage ongoing series from the Bookings tab.
                       </p>
                     </div>
                     <button
-                      onClick={() => {
-                        setDayStates({ ...dayStates, [selectedDay]: 'blocked' })
-                      }}
-                      className="w-full border border-red-200 bg-red-50 text-red-600 hover:bg-red-100 font-bold text-xs py-3 rounded-xl transition-all shadow-xs cursor-pointer"
+                      onClick={() => setActiveTab('bookings')}
+                      className="w-full border border-amber-300 bg-amber-50 text-amber-900 hover:bg-amber-100 font-bold text-xs py-3 rounded-xl transition-all shadow-xs cursor-pointer flex items-center justify-center gap-1.5"
                     >
-                      Block This Day
+                      <span>Manage in Bookings</span>
+                      <ArrowRight size={13} />
                     </button>
                   </div>
                 )}
 
-                {!dayStates[selectedDay] && (
+                {currentDayStatus === 'available' && (
                   <div className="space-y-4">
-                    <div className="bg-[#EDF7F2]/60 border border-green-200 text-[#1E4030] rounded-2xl p-4 text-xs font-semibold leading-relaxed">
-                      No sessions scheduled. This day is open and available for instant bookings.
+                    <div className="bg-[#EDF7F2]/60 border border-green-200 text-[#1E4030] rounded-2xl p-4 text-xs font-semibold leading-relaxed flex items-start gap-2.5">
+                      <CheckCircle2 size={16} className="shrink-0 mt-0.5 text-emerald-600" />
+                      <div>
+                        <p className="font-bold text-emerald-900">Day Open & Available</p>
+                        <p className="text-[11px] text-[#1E4030]/80 mt-0.5 font-normal">
+                          No sessions scheduled. This day is currently open for clients to book sessions.
+                        </p>
+                      </div>
                     </div>
                     <button
-                      onClick={() => {
-                        setDayStates({ ...dayStates, [selectedDay]: 'blocked' })
-                      }}
-                      className="w-full border border-[#E2D9CF] bg-white text-[#1C1A17] hover:bg-[#FAF8F5] font-bold text-xs py-3 rounded-xl transition-all shadow-xs cursor-pointer"
+                      onClick={() => handleBlockDay(selectedDay)}
+                      disabled={calendarActionLoading}
+                      className="w-full border border-red-200 bg-white text-red-600 hover:bg-red-50 font-bold text-xs py-3 rounded-xl transition-all shadow-xs cursor-pointer flex items-center justify-center gap-2"
                     >
-                      Block This Day
+                      {calendarActionLoading ? (
+                        <RefreshCw size={13} className="animate-spin" />
+                      ) : (
+                        <XCircle size={14} className="text-red-500" />
+                      )}
+                      <span>Block This Day (Mark Unavailable)</span>
                     </button>
                   </div>
                 )}
@@ -975,7 +1712,7 @@ export default function CaregiverDashboard({ onNavigate }) {
                     { key: 'evening', label: 'Evening (16:00 – 20:00)' },
                     { key: 'overnight', label: 'Overnight' }
                   ].map(pill => {
-                    const isBooked = dayStates[selectedDay] === 'booked'
+                    const isBooked = currentDayStatus === 'booked'
                     const active = isBooked ? pill.key === 'morning' : workingHours[pill.key]
 
                     return (
@@ -1292,6 +2029,17 @@ export default function CaregiverDashboard({ onNavigate }) {
       <BookingDetailsModal
         details={selectedBookingDetails}
         onClose={() => setSelectedBookingDetails(null)}
+      />
+
+      {/* Subscription Payment Modal */}
+      <SubscriptionPaymentModal
+        isOpen={showPaymentModal}
+        onClose={() => setShowPaymentModal(false)}
+        initialPhone={subStatus?.phone || getStoredUser()?.phone || ''}
+        onPaymentSuccess={(updatedStatus) => {
+          setSubStatus(updatedStatus)
+          loadSubStatus()
+        }}
       />
     </CaregiverLayout>
 

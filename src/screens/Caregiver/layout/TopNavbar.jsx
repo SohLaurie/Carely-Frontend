@@ -4,6 +4,8 @@ import { CAREGIVER_CONSTANTS } from '../constants/dashboardConstants'
 import NotificationBell from '../components/NotificationBell'
 import ProfileDropdown from '../components/ProfileDropdown'
 
+import { getStoredUser, getUserDisplayName } from '../../../services/api.js'
+
 export default function TopNavbar({
   activeTab,
   setSidebarOpen,
@@ -15,13 +17,17 @@ export default function TopNavbar({
   onViewAllNotifications,
   onProfileClick
 }) {
+  const user = getStoredUser()
+  const caregiverName = getUserDisplayName(user, CAREGIVER_CONSTANTS.DEFAULT_CAREGIVER_NAME)
+
   const getHeaderInfo = () => {
     switch (activeTab) {
       case 'overview':
         return {
           title: 'Overview',
-          subtitle: `Welcome back, ${CAREGIVER_CONSTANTS.DEFAULT_CAREGIVER_NAME}. Here's what's happening today.`
+          subtitle: `Welcome back, ${caregiverName}. Here's what's happening today.`
         }
+
       case 'requests':
         return {
           title: 'Incoming Requests',

@@ -1,31 +1,99 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   User, Mail, Phone, MapPin, ShieldCheck, Check, Save, Camera, Globe, Award, Clock
 } from 'lucide-react';
 import { CAREGIVER_CONSTANTS } from '../constants/dashboardConstants';
+import { getStoredUser, getUserInitials } from '../../../services/api.js';
+import { fetchCurrentProfile, updateCurrentProfile } from '../../../services/auth.service.js';
 
 export default function ProfileTab({ onNavigate }) {
   const [savedSuccess, setSavedSuccess] = useState(false);
+  const [saveLoading, setSaveLoading] = useState(false);
+
+  const storedUser = getStoredUser();
+  const [user, setUser] = useState(storedUser);
+
+  const getInitialName = (u) => u?.name || `${u?.firstName || ''} ${u?.lastName || ''}`.trim() || 'Provider Profile';
+  const getInitialEmail = (u) => u?.email || '';
+  const getInitialPhone = (u) => u?.phone || '';
+  const getInitialLocation = (u) => u?.city ? `${u.city}, Cameroon` : 'Yaoundé, Cameroon';
+  const getInitialProfession = (u) => u?.profession || u?.providerProfile?.profession || u?.specialty || 'Cleaner';
+  const getInitialHourlyRate = (u) => u?.hourlyRate || u?.pricePerHour || u?.providerProfile?.pricePerHour || u?.providerProfile?.hourlyRate || '50';
+  const getInitialExperience = (u) => u?.experience || (u?.experienceYears ? `${u.experienceYears} years` : null) || u?.providerProfile?.experience || '3–5 years';
+  const getInitialBio = (u) => u?.bio || u?.providerProfile?.bio || 'Professional and experienced service provider dedicated to high-quality care, reliability, and client comfort.';
 
   const [formData, setFormData] = useState({
-    fullName: 'Marie-Claire Nkomo',
-    email: 'marieclaire.nkomo@carely.cm',
-    phone: '+237 6 99 22 33 44',
-    secondaryPhone: '+237 6 77 11 22 33',
-    location: 'Bastos, Yaoundé, Cameroon',
-    emergencyContact: 'Dr. Joseph Nkomo (+237 6 55 44 33 22)',
-    preferredLanguage: 'French & English',
-    specialty: 'Home Nursing & Post-op Care',
-    hourlyRate: '3,500',
-    experienceYears: '6',
-    certifications: 'Registered Nurse (RN), BLS/CPR Certified, Post-Op Care Specialization',
-    bio: 'Certified state nurse with 6 years of clinical experience in hospitals and home health care. Dedicated to providing compassionate, reliable, and hygienic nursing care for post-surgical recovery and elderly comfort.'
+    fullName: getInitialName(storedUser),
+    email: getInitialEmail(storedUser),
+    phone: getInitialPhone(storedUser),
+    secondaryPhone: storedUser?.secondaryPhone || '',
+    location: getInitialLocation(storedUser),
+    emergencyContact: storedUser?.emergencyContact || storedUser?.providerProfile?.referencePhone || '',
+    preferredLanguage: Array.isArray(storedUser?.languages) ? storedUser.languages.join(' & ') : (storedUser?.preferredLanguage || 'French & English'),
+    specialty: getInitialProfession(storedUser),
+    hourlyRate: String(getInitialHourlyRate(storedUser)),
+    experienceYears: String(getInitialExperience(storedUser)),
+    serviceRadius: storedUser?.serviceRadius || storedUser?.providerProfile?.serviceRadius || '15 km',
+    certifications: Array.isArray(storedUser?.certifications) ? storedUser.certifications.join(', ') : (storedUser?.certifications || 'Verified Platform Provider'),
+    bio: getInitialBio(storedUser)
   });
 
-  const handleSave = (e) => {
+  useEffect(() => {
+    let isMounted = true;
+    async function loadProfile() {
+      const freshUser = await fetchCurrentProfile();
+      if (freshUser && isMounted) {
+        setUser(freshUser);
+        setFormData(prev => ({
+          ...prev,
+          fullName: getInitialName(freshUser),
+          email: getInitialEmail(freshUser),
+          phone: getInitialPhone(freshUser),
+          location: getInitialLocation(freshUser),
+          specialty: getInitialProfession(freshUser),
+          hourlyRate: String(getInitialHourlyRate(freshUser)),
+          experienceYears: String(getInitialExperience(freshUser)),
+          serviceRadius: freshUser?.serviceRadius || freshUser?.providerProfile?.serviceRadius || prev.serviceRadius,
+          bio: freshUser?.bio || freshUser?.providerProfile?.bio || prev.bio,
+        }));
+      }
+    }
+    loadProfile();
+    return () => { isMounted = false; };
+  }, []);
+
+  const initials = getUserInitials(user, 'PR');
+  const isApproved = (user?.approvalStatus || user?.providerProfile?.approvalStatus || '').toLowerCase() === 'approved';
+  const memberSince = user?.createdAt ? new Date(user.createdAt).getFullYear() : 2024;
+
+  const handleSave = async (e) => {
     e.preventDefault();
-    setSavedSuccess(true);
-    setTimeout(() => setSavedSuccess(false), 3000);
+    setSaveLoading(true);
+    try {
+      const nameParts = formData.fullName.trim().split(/\s+/);
+      const firstName = nameParts[0] || 'Provider';
+      const lastName = nameParts.slice(1).join(' ') || '';
+
+      const updated = await updateCurrentProfile({
+        firstName,
+        lastName,
+        phone: formData.phone,
+        city: formData.location.replace(/,\s*Cameroon$/i, '').trim(),
+        profession: formData.specialty,
+        hourlyRate: parseInt(String(formData.hourlyRate).replace(/\D/g, ''), 10) || 50,
+        experience: formData.experienceYears,
+        serviceRadius: formData.serviceRadius,
+        bio: formData.bio,
+      });
+
+      setUser(updated);
+      setSavedSuccess(true);
+      setTimeout(() => setSavedSuccess(false), 3000);
+    } catch (err) {
+      console.error('Failed to update provider profile:', err);
+    } finally {
+      setSaveLoading(false);
+    }
   };
 
   return (
@@ -50,18 +118,22 @@ export default function ProfileTab({ onNavigate }) {
         )}
       </div>
 
-      {/* Profile Overview Card (Caregiver: Marie-Claire Nkomo) */}
+      {/* Profile Overview Card */}
       <div className="bg-white border border-[#E2D9CF] rounded-3xl p-6 sm:p-8 shadow-sm">
         <div className="flex flex-col sm:flex-row items-center sm:items-start gap-6">
           {/* Avatar with edit badge */}
           <div className="relative">
-            <div className="w-24 h-24 rounded-2xl bg-[#1E4030] text-white flex items-center justify-center text-3xl font-bold font-display shadow-md border-2 border-white overflow-hidden">
+            {user?.photoUrl ? (
               <img
-                src={CAREGIVER_CONSTANTS.DEFAULT_AVATAR}
+                src={user.photoUrl}
                 alt={formData.fullName}
-                className="w-full h-full object-cover"
+                className="w-24 h-24 rounded-2xl object-cover shadow-md border-2 border-white"
               />
-            </div>
+            ) : (
+              <div className="w-24 h-24 rounded-2xl bg-[#1E4030] text-white flex items-center justify-center text-3xl font-bold font-display shadow-md border-2 border-white">
+                {initials}
+              </div>
+            )}
             <button
               type="button"
               className="absolute -bottom-2 -right-2 w-8 h-8 rounded-full bg-white border border-[#E2D9CF] text-[#1E4030] flex items-center justify-center shadow-md hover:bg-[#FAF8F5] transition-colors cursor-pointer"
@@ -82,22 +154,26 @@ export default function ProfileTab({ onNavigate }) {
               </div>
               <div className="inline-flex items-center gap-1.5 bg-[#EDF7F2] border border-green-200 text-[#1E4030] text-xs font-bold px-3 py-1 rounded-full mx-auto sm:mx-0">
                 <ShieldCheck size={14} className="text-[#1D6F42]" />
-                <span>Verified Registered Caregiver</span>
+                <span>{isApproved ? 'Verified Registered Provider' : 'Pending Verification Provider'}</span>
               </div>
             </div>
 
             {/* Quick Stats Grid */}
             <div className="grid grid-cols-3 gap-3 pt-3">
               <div className="bg-[#FAF8F5] border border-[#E2D9CF] rounded-2xl p-3 text-center">
-                <div className="text-base font-bold text-[#1C1A17]">24</div>
-                <div className="text-[10px] text-[#8A7E74]">Completed Sessions</div>
+                <div className="text-base font-bold text-[#1C1A17]">
+                  {Number(formData.hourlyRate || 50).toLocaleString()} XAF
+                </div>
+                <div className="text-[10px] text-[#8A7E74]">Hourly Rate</div>
               </div>
               <div className="bg-[#FAF8F5] border border-[#E2D9CF] rounded-2xl p-3 text-center">
-                <div className="text-base font-bold text-[#1C1A17]">4.9 ★</div>
-                <div className="text-[10px] text-[#8A7E74]">Client Rating (38 reviews)</div>
+                <div className="text-base font-bold text-[#1C1A17]">
+                  {formData.experienceYears}
+                </div>
+                <div className="text-[10px] text-[#8A7E74]">Experience</div>
               </div>
               <div className="bg-[#FAF8F5] border border-[#E2D9CF] rounded-2xl p-3 text-center">
-                <div className="text-base font-bold text-[#1E4030]">2023</div>
+                <div className="text-base font-bold text-[#1E4030]">{memberSince}</div>
                 <div className="text-[10px] text-[#8A7E74]">Member Since</div>
               </div>
             </div>
@@ -192,9 +268,9 @@ export default function ProfileTab({ onNavigate }) {
               <p className="text-xs text-[#8A7E74]">Your verified caregiver qualifications, rate, and specialties</p>
             </div>
 
-            <div className="grid sm:grid-cols-3 gap-5">
+            <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-4">
               <div className="space-y-1.5">
-                <label className="block text-xs font-bold text-[#8A7E74] uppercase tracking-wide">Primary Specialty</label>
+                <label className="block text-xs font-bold text-[#8A7E74] uppercase tracking-wide">Primary Profession</label>
                 <input
                   type="text"
                   value={formData.specialty}
@@ -219,6 +295,16 @@ export default function ProfileTab({ onNavigate }) {
                   type="text"
                   value={formData.experienceYears}
                   onChange={e => setFormData({ ...formData, experienceYears: e.target.value })}
+                  className="w-full px-4 py-3 bg-[#FAF8F5] border border-[#E2D9CF] rounded-xl text-xs text-[#1C1A17] focus:outline-none focus:border-[#1E4030] font-medium"
+                />
+              </div>
+
+              <div className="space-y-1.5">
+                <label className="block text-xs font-bold text-[#8A7E74] uppercase tracking-wide">Service Radius</label>
+                <input
+                  type="text"
+                  value={formData.serviceRadius}
+                  onChange={e => setFormData({ ...formData, serviceRadius: e.target.value })}
                   className="w-full px-4 py-3 bg-[#FAF8F5] border border-[#E2D9CF] rounded-xl text-xs text-[#1C1A17] focus:outline-none focus:border-[#1E4030] font-medium"
                 />
               </div>

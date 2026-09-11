@@ -1,10 +1,10 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Star, MapPin, Clock, ShieldCheck, ArrowRight } from 'lucide-react';
-import { CAREGIVERS } from '../../../../data';
+import { apiGet } from '../../../../services/api';
 
 function getInitials(name) {
-  const parts = name.trim().split(' ');
-  return parts.length >= 2 ? parts[0][0] + parts[parts.length - 1][0] : name[0];
+  const parts = (name || '').trim().split(/\s+/);
+  return parts.length >= 2 ? parts[0][0] + parts[parts.length - 1][0] : (name[0] || 'CP');
 }
 
 // Avatar gradient colors cycling through Carely palette
@@ -19,14 +19,57 @@ const AVATAR_COLORS = [
 export default function ProviderMatchStep({ data, onSelectProvider, onBack }) {
   const { service, address } = data;
   const [selected, setSelected] = useState(data.provider?.id || null);
+  const [providers, setProviders] = useState([]);
+  const [loading, setLoading] = useState(true);
 
-  // Filter by specialty matching service
-  const filtered = CAREGIVERS.filter(p => {
+  useEffect(() => {
+    let isMounted = true;
+    async function load() {
+      try {
+        const res = await apiGet('/providers');
+        if (isMounted && res?.providers) {
+          const list = res.providers
+            .filter(p => p.approval_status === 'approved' && p.subscription_paid)
+            .map(p => ({
+            id: p.id,
+            name: `${p.first_name || ''} ${p.last_name || ''}`.trim() || 'Verified Provider',
+            specialty: (Array.isArray(p.specialties) ? p.specialties[0] : null) || (p.profession ? p.profession.toLowerCase().replace(/\s+/g, '_') : 'cleaning'),
+            specialties: Array.isArray(p.specialties) ? p.specialties : [],
+            profession: p.profession || 'Care Provider',
+            pricePerHour: Number(p.price_per_hour) || 50,
+            location: p.location || p.city || 'Yaoundé',
+            experience: p.experience || (p.experience_yrs ? `${p.experience_yrs} yrs` : '1+ yrs'),
+            bio: p.bio || '',
+            rating: parseFloat(p.rating) > 0 ? parseFloat(p.rating) : 5.0,
+            reviewCount: p.review_count || 0,
+            photo: p.photo_url || null,
+            available: p.is_available !== false,
+            certifications: Array.isArray(p.certifications) && p.certifications.length > 0
+              ? p.certifications
+              : ['ID Verified', 'Background Checked'],
+            approvalStatus: p.approval_status || 'approved',
+            subscriptionPaid: Boolean(p.subscription_paid),
+          }));
+          setProviders(list);
+        }
+      } catch (err) {
+        console.error('Failed to load providers for booking step:', err);
+      } finally {
+        if (isMounted) setLoading(false);
+      }
+    }
+    load();
+    return () => { isMounted = false; };
+  }, []);
+
+  const displayList = providers.filter(p => {
     if (!service) return true;
-    return p.specialty === service.specialty;
+    const target = (service.specialty || service.id || '').toLowerCase();
+    if (p.specialty && p.specialty.toLowerCase().includes(target)) return true;
+    if (p.specialties?.some(s => s.toLowerCase().includes(target))) return true;
+    if (p.profession && p.profession.toLowerCase().includes(target)) return true;
+    return true;
   });
-
-  const displayList = filtered.length > 0 ? filtered : CAREGIVERS.slice(0, 4);
 
   const handleRequest = (provider) => {
     setSelected(provider.id);

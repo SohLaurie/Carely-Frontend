@@ -14,18 +14,29 @@ export default function SingleSessionForm({ data, onChange, onSubmit, onBack }) 
     setExtras(prev => prev.includes(id) ? prev.filter(e => e !== id) : [...prev, id]);
   };
 
-  const canSubmit = date && startTime && endTime;
+  const normalizeTime = (t) => {
+    if (!t) return '';
+    const parts = t.trim().split(':');
+    if (parts.length === 2) {
+      return `${parts[0].padStart(2, '0')}:${parts[1].padStart(2, '0')}`;
+    }
+    return t;
+  };
+
+  const isTimeOrderValid = !startTime || !endTime || endTime > startTime;
+  const canSubmit = Boolean(date && startTime && endTime && isTimeOrderValid);
 
   const handleSubmit = () => {
     if (!canSubmit) return;
-    onChange({ date, startTime, endTime, extras, notes });
+    onChange({
+      date,
+      startTime: normalizeTime(startTime),
+      endTime: normalizeTime(endTime),
+      extras,
+      notes
+    });
     onSubmit();
   };
-
-  // Filter end times to only show slots after start time
-  const endSlots = startTime
-    ? TIME_SLOTS.filter(t => t > startTime)
-    : TIME_SLOTS;
 
   return (
     <div className="ssf-root">
@@ -45,19 +56,40 @@ export default function SingleSessionForm({ data, onChange, onSubmit, onBack }) 
       <div className="ssf-row">
         <div className="ssf-field ssf-field--half">
           <label className="ssf-label">Start time</label>
-          <select className="ssf-select" value={startTime} onChange={e => { setStartTime(e.target.value); setEndTime(''); }}>
-            <option value="">-- Select --</option>
-            {TIME_SLOTS.map(t => <option key={t} value={t}>{t}</option>)}
-          </select>
+          <input
+            type="time"
+            className="ssf-input"
+            list="ssf-start-slots"
+            value={startTime}
+            placeholder="e.g. 05:10"
+            onChange={e => setStartTime(e.target.value)}
+          />
+          <datalist id="ssf-start-slots">
+            {TIME_SLOTS.map(t => <option key={t} value={t} />)}
+          </datalist>
         </div>
         <div className="ssf-field ssf-field--half">
           <label className="ssf-label">End time</label>
-          <select className="ssf-select" value={endTime} onChange={e => setEndTime(e.target.value)} disabled={!startTime}>
-            <option value="">-- Select --</option>
-            {endSlots.map(t => <option key={t} value={t}>{t}</option>)}
-          </select>
+          <input
+            type="time"
+            className="ssf-input"
+            list="ssf-end-slots"
+            value={endTime}
+            min={startTime || undefined}
+            placeholder="e.g. 05:40"
+            onChange={e => setEndTime(e.target.value)}
+          />
+          <datalist id="ssf-end-slots">
+            {TIME_SLOTS.map(t => <option key={t} value={t} />)}
+          </datalist>
         </div>
       </div>
+
+      {!isTimeOrderValid && (
+        <p style={{ color: '#E11D48', fontSize: '0.75rem', marginTop: '-0.5rem', marginBottom: '0.75rem', fontWeight: 600 }}>
+          End time must be after start time.
+        </p>
+      )}
 
       {/* Extra tasks */}
       <div className="ssf-field">

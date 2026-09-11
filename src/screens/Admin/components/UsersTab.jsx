@@ -1,5 +1,6 @@
-import React from 'react';
-import { Search, Eye, Edit2, Ban, CheckCircle, Trash2, ShieldAlert, ShieldCheck, Shield } from 'lucide-react';
+import React, { useState } from 'react';
+import { Search, Eye, Edit2, Ban, CheckCircle, Trash2, ShieldAlert, ShieldCheck, Shield, ChevronLeft, ChevronRight, Unlock } from 'lucide-react';
+import { unlockUserAccount } from '../../../services/admin.service.js';
 
 export default function UsersTab({
   users,
@@ -15,17 +16,52 @@ export default function UsersTab({
   toggleUser2FA,
   deleteUser
 }) {
+  const [currentPage, setCurrentPage] = useState(1);
+  const [pageSize, setPageSize] = useState(5);
+
+  const getNormalizedRole = (role = '') => {
+    const r = String(role).toLowerCase();
+    if (r === 'caregiver' || r === 'provider') return 'Provider';
+    if (r === 'household' || r === 'client') return 'Client';
+    if (r === 'admin') return 'Admin';
+    return role;
+  };
+
+  const handleSearchChange = (val) => {
+    setUserSearchQuery(val);
+    setCurrentPage(1);
+  };
+
+  const handleRoleChange = (val) => {
+    setUserRoleFilter(val);
+    setCurrentPage(1);
+  };
+
+  const handleStatusChange = (val) => {
+    setUserStatusFilter(val);
+    setCurrentPage(1);
+  };
+
   // Filtering Logic
   const filteredUsers = users.filter(u => {
-    const matchesSearch = u.name.toLowerCase().includes(userSearchQuery.toLowerCase()) ||
-                          u.email.toLowerCase().includes(userSearchQuery.toLowerCase()) ||
-                          u.city.toLowerCase().includes(userSearchQuery.toLowerCase());
+    const matchesSearch = (u.name && u.name.toLowerCase().includes(userSearchQuery.toLowerCase())) ||
+                          (u.email && u.email.toLowerCase().includes(userSearchQuery.toLowerCase())) ||
+                          (u.city && u.city.toLowerCase().includes(userSearchQuery.toLowerCase()));
 
-    const matchesRole = userRoleFilter === 'All roles' || u.role === userRoleFilter;
+    const normRole = getNormalizedRole(u.role);
+    const matchesRole = userRoleFilter === 'All roles' || normRole.toLowerCase() === userRoleFilter.toLowerCase();
     const matchesStatus = userStatusFilter === 'All statuses' || u.status === userStatusFilter;
 
     return matchesSearch && matchesRole && matchesStatus;
   });
+
+  // Pagination calculation
+  const totalItems = filteredUsers.length;
+  const totalPages = Math.max(1, Math.ceil(totalItems / pageSize));
+  const validPage = Math.min(currentPage, totalPages);
+  const startIndex = (validPage - 1) * pageSize;
+  const endIndex = Math.min(startIndex + pageSize, totalItems);
+  const paginatedUsers = filteredUsers.slice(startIndex, endIndex);
 
   return (
     <div className="space-y-6 animate-fadeIn">
@@ -38,7 +74,7 @@ export default function UsersTab({
               {users.length} total
             </span>
           </h2>
-          <p className="text-xs text-[#8A7E74]">Manage household clients, verified providers, and account security enforcement.</p>
+          <p className="text-xs text-[#8A7E74]">Manage clients, verified providers, and account security enforcement.</p>
         </div>
       </div>
 
@@ -50,7 +86,7 @@ export default function UsersTab({
             type="text"
             placeholder="Search by name, email or city..."
             value={userSearchQuery}
-            onChange={e => setUserSearchQuery(e.target.value)}
+            onChange={e => handleSearchChange(e.target.value)}
             className="w-full pl-9 pr-4 py-2.5 border border-[#E2D9CF] rounded-xl text-xs outline-none bg-[#FAF8F5] focus:ring-1 focus:ring-[#1E4030] text-[#1C1A17] font-medium"
           />
         </div>
@@ -59,24 +95,26 @@ export default function UsersTab({
           {/* Role Filter */}
           <select
             value={userRoleFilter}
-            onChange={e => setUserRoleFilter(e.target.value)}
+            onChange={e => handleRoleChange(e.target.value)}
             className="bg-[#FAF8F5] border border-[#E2D9CF] px-3.5 py-2 rounded-xl text-xs font-semibold text-[#1C1A17] focus:outline-none focus:ring-1 focus:ring-[#1E4030] cursor-pointer"
           >
             <option value="All roles">All roles</option>
-            <option value="Household">Household</option>
-            <option value="Caregiver">Provider</option>
+            <option value="Client">Client</option>
+            <option value="Provider">Provider</option>
+            <option value="Admin">Admin</option>
           </select>
 
           {/* Status Filter */}
           <select
             value={userStatusFilter}
-            onChange={e => setUserStatusFilter(e.target.value)}
+            onChange={e => handleStatusChange(e.target.value)}
             className="bg-[#FAF8F5] border border-[#E2D9CF] px-3.5 py-2 rounded-xl text-xs font-semibold text-[#1C1A17] focus:outline-none focus:ring-1 focus:ring-[#1E4030] cursor-pointer"
           >
             <option value="All statuses">All statuses</option>
             <option value="Active">Active</option>
             <option value="Suspended">Suspended</option>
             <option value="Pending">Pending</option>
+            <option value="Locked">Locked</option>
           </select>
         </div>
       </div>
@@ -104,12 +142,15 @@ export default function UsersTab({
                   </td>
                 </tr>
               ) : (
-                filteredUsers.map((user) => {
+                paginatedUsers.map((user) => {
+                  const normRole = getNormalizedRole(user.role);
                   let roleColor = 'bg-gray-100 text-gray-800 border-gray-200';
-                  if (user.role === 'Caregiver') {
+                  if (normRole === 'Provider') {
                     roleColor = 'bg-[#EDF7F2] text-[#1E4030] border border-green-200';
-                  } else {
-                    roleColor = 'bg-[#FAF8F5] text-[#1C1A17] border border-[#E2D9CF]';
+                  } else if (normRole === 'Client') {
+                    roleColor = 'bg-blue-50 text-blue-800 border border-blue-200';
+                  } else if (normRole === 'Admin') {
+                    roleColor = 'bg-amber-50 text-amber-900 border border-amber-200';
                   }
 
                   let statusColor = 'bg-gray-100 text-gray-800 border-gray-200';
@@ -119,6 +160,8 @@ export default function UsersTab({
                     statusColor = 'bg-red-100 text-red-800 border-red-200';
                   } else if (user.status === 'Pending') {
                     statusColor = 'bg-amber-100 text-amber-800 border-amber-200';
+                  } else if (user.status === 'Locked' || user.isLocked) {
+                    statusColor = 'bg-rose-100 text-rose-800 border-rose-200';
                   }
 
                   return (
@@ -139,7 +182,7 @@ export default function UsersTab({
                       {/* Role */}
                       <td className="px-6 py-4 whitespace-nowrap">
                         <span className={`inline-flex items-center text-[10px] font-semibold px-2.5 py-0.5 rounded-full border ${roleColor}`}>
-                          {user.role}
+                          {normRole}
                         </span>
                       </td>
 
@@ -216,6 +259,26 @@ export default function UsersTab({
                         >
                           {user.status === 'Active' ? <Ban size={14} /> : <CheckCircle size={14} />}
                         </button>
+                        {(user.status === 'Locked' || user.isLocked) && (
+                          <button
+                            onClick={async () => {
+                              if (window.confirm(`Unlock account for ${user.name} (${user.email})?`)) {
+                                try {
+                                  await unlockUserAccount(user.id);
+                                  user.status = 'Active';
+                                  user.isLocked = false;
+                                  if (toggleUserStatus) toggleUserStatus(user.id, 'reload');
+                                } catch (err) {
+                                  alert(`Failed to unlock account: ${err.message}`);
+                                }
+                              }
+                            }}
+                            title="Unlock Account (Reset lockout & attempts)"
+                            className="p-1.5 text-emerald-600 hover:text-emerald-800 hover:bg-emerald-50 rounded-lg transition-all inline-flex items-center cursor-pointer"
+                          >
+                            <Unlock size={14} />
+                          </button>
+                        )}
                         <button
                           onClick={() => {
                             if (window.confirm(`Are you sure you want to delete ${user.name}?`)) {
@@ -236,6 +299,81 @@ export default function UsersTab({
           </table>
         </div>
       </div>
+
+      {/* Pagination Controls */}
+      {totalItems > 0 && (
+        <div className="bg-white border border-[#E2D9CF] rounded-2xl p-4 shadow-sm flex flex-col sm:flex-row items-center justify-between gap-3">
+          <div className="text-xs text-[#8A7E74]">
+            Showing <span className="font-semibold text-[#1C1A17]">{startIndex + 1}</span> to{' '}
+            <span className="font-semibold text-[#1C1A17]">{endIndex}</span> of{' '}
+            <span className="font-semibold text-[#1C1A17]">{totalItems}</span> users
+          </div>
+
+          <div className="flex items-center gap-2">
+            {/* Rows per page selector */}
+            <div className="flex items-center gap-1.5 mr-2 text-xs text-[#8A7E74]">
+              <span>Per page:</span>
+              <select
+                value={pageSize}
+                onChange={e => {
+                  setPageSize(Number(e.target.value));
+                  setCurrentPage(1);
+                }}
+                className="bg-[#FAF8F5] border border-[#E2D9CF] rounded-lg px-2 py-1 text-xs text-[#1C1A17] font-semibold cursor-pointer focus:outline-none"
+              >
+                <option value={5}>5</option>
+                <option value={10}>10</option>
+                <option value={20}>20</option>
+              </select>
+            </div>
+
+            {/* Previous button */}
+            <button
+              onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
+              disabled={validPage <= 1}
+              className={`px-3 py-1.5 rounded-xl border text-xs font-semibold flex items-center gap-1 transition-all ${
+                validPage <= 1
+                  ? 'border-[#E2D9CF] text-gray-300 bg-gray-50 cursor-not-allowed'
+                  : 'border-[#E2D9CF] text-[#1C1A17] bg-white hover:bg-[#FAF8F5] cursor-pointer'
+              }`}
+            >
+              <ChevronLeft size={14} />
+              <span>Prev</span>
+            </button>
+
+            {/* Page number buttons */}
+            <div className="flex items-center gap-1">
+              {Array.from({ length: totalPages }, (_, i) => i + 1).map(page => (
+                <button
+                  key={page}
+                  onClick={() => setCurrentPage(page)}
+                  className={`w-8 h-8 rounded-xl text-xs font-bold transition-all cursor-pointer ${
+                    page === validPage
+                      ? 'bg-[#1E4030] text-white shadow-sm'
+                      : 'bg-white border border-[#E2D9CF] text-[#1C1A17] hover:bg-[#FAF8F5]'
+                  }`}
+                >
+                  {page}
+                </button>
+              ))}
+            </div>
+
+            {/* Next button */}
+            <button
+              onClick={() => setCurrentPage(prev => Math.min(totalPages, prev + 1))}
+              disabled={validPage >= totalPages}
+              className={`px-3 py-1.5 rounded-xl border text-xs font-semibold flex items-center gap-1 transition-all ${
+                validPage >= totalPages
+                  ? 'border-[#E2D9CF] text-gray-300 bg-gray-50 cursor-not-allowed'
+                  : 'border-[#E2D9CF] text-[#1C1A17] bg-white hover:bg-[#FAF8F5] cursor-pointer'
+              }`}
+            >
+              <span>Next</span>
+              <ChevronRight size={14} />
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

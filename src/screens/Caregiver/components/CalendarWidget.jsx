@@ -6,7 +6,7 @@ export default function CalendarWidget({
   selectedDay,
   setSelectedDay,
   dayStates = {},
-  calendarDate = new Date(2026, 10, 1),
+  calendarDate = new Date(),
   onPrevMonth,
   onNextMonth
 }) {
@@ -64,9 +64,10 @@ export default function CalendarWidget({
 
           {Array.from({ length: totalDays }).map((_, idx) => {
             const dayNum = idx + 1
-            const isBooked = [2, 5, 6, 8, 12, 14, 19, 21, 26].includes(dayNum) && month === 10
-            const isRecurring = [4, 11, 18, 25].includes(dayNum) && month === 10
-            const isBlocked = [15, 22, 29].includes(dayNum) && month === 10
+            const state = dayStates[dayNum] || 'available'
+            const isBooked = state === 'booked'
+            const isRecurring = state === 'recurring'
+            const isBlocked = state === 'blocked'
             const isSelected = selectedDay === dayNum
 
             let dayStyle = 'text-[#1C1A17] hover:bg-[#FAF8F5]'

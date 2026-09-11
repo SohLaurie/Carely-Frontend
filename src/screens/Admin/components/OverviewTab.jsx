@@ -36,7 +36,7 @@ export default function OverviewTab({
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
           <h2 className="text-[#1C1A17] font-display text-xl font-bold">Overview</h2>
-          <p className="text-xs text-[#8A7E74]">Welcome back, Samuel. Platform health and items needing your attention.</p>
+          <p className="text-xs text-[#8A7E74]">Welcome back, Carely Admin. Platform health and items needing your attention.</p>
         </div>
         <div className="flex items-center gap-1.5 bg-[#EDF7F2] border border-green-200 px-3.5 py-1.5 rounded-xl text-xs font-semibold text-[#1D6F42]">
           <Activity size={14} className="animate-pulse" />

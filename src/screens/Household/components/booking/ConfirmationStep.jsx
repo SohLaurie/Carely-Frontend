@@ -26,7 +26,7 @@ function formatSchedule(data) {
   return '–';
 }
 
-export default function ConfirmationStep({ data, onConfirm, onBack }) {
+export default function ConfirmationStep({ data, onConfirm, onBack, isSubmitting = false, error = null }) {
   const { service, address, provider, bookingType } = data;
 
   const ratePerHour = provider?.pricePerHour || 3500;
@@ -51,11 +51,12 @@ export default function ConfirmationStep({ data, onConfirm, onBack }) {
   } else {
     const [sh, sm] = (data.startTime || '09:00').split(':').map(Number);
     const [eh, em] = (data.endTime || '12:00').split(':').map(Number);
-    hours = Math.max(1, +((eh * 60 + em) - (sh * 60 + sm)) / 60);
+    const diffMins = (eh * 60 + (em || 0)) - (sh * 60 + (sm || 0));
+    hours = Math.max(0.25, +(diffMins / 60).toFixed(2));
   }
 
-  const sessionFee = ratePerHour * hours;
-  const escrowFee = 500;
+  const sessionFee = Math.round(ratePerHour * hours);
+  const escrowFee = 5;
   
   let skippedDiscount = 0;
   if (isRecurring && data.skippedDates && data.skippedDates.length > 0) {
@@ -94,7 +95,7 @@ export default function ConfirmationStep({ data, onConfirm, onBack }) {
     skippedDiscount = skippedHours * ratePerHour;
   }
 
-  const totalPrice = Math.max(500, sessionFee - skippedDiscount + escrowFee);
+  const totalPrice = Math.max(5, Math.round(sessionFee - skippedDiscount + escrowFee));
 
   const handleConfirmClick = () => {
     onConfirm && onConfirm({ totalPrice });
@@ -217,7 +218,7 @@ export default function ConfirmationStep({ data, onConfirm, onBack }) {
         </div>
         <div className="cs-price-row">
           <span className="cs-price-label">{hoursLabel}</span>
-          <span className="cs-price-val">{hours} hrs</span>
+          <span className="cs-price-val">{Number(hours).toFixed(Number.isInteger(Number(hours)) ? 0 : 2)} hrs</span>
         </div>
         <div className="cs-price-row">
           <span className="cs-price-label">{sessionFeeLabel}</span>
@@ -246,11 +247,17 @@ export default function ConfirmationStep({ data, onConfirm, onBack }) {
         Funds are held in escrow until service completion.
       </p>
 
+      {error && (
+        <div style={{ background: '#FDE8E8', color: '#9B1C1C', padding: '0.75rem 1rem', borderRadius: '12px', fontSize: '0.8rem', marginBottom: '1rem', textAlign: 'center', border: '1px solid #F8B4B4' }}>
+          {error}
+        </div>
+      )}
+
       {/* Actions */}
       <div className="cs-actions">
-        <button className="cs-btn cs-btn--back" onClick={onBack}>Back</button>
-        <button className="cs-btn cs-btn--confirm" onClick={handleConfirmClick}>
-          Confirm Booking
+        <button className="cs-btn cs-btn--back" onClick={onBack} disabled={isSubmitting}>Back</button>
+        <button className="cs-btn cs-btn--confirm" onClick={handleConfirmClick} disabled={isSubmitting} style={{ opacity: isSubmitting ? 0.7 : 1 }}>
+          {isSubmitting ? 'Sending Request...' : 'Confirm Booking'}
         </button>
       </div>
 

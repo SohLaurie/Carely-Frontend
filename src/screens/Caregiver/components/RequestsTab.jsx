@@ -20,167 +20,20 @@ export default function RequestsTab({
   const [activeDropdownId, setActiveDropdownId] = useState(null);
   const [selectedDetailsItem, setSelectedDetailsItem] = useState(null);
 
-  // Fallback / default data matching the screenshot mocks
-  const defaultJobRequests = incomingRequests.length > 0 ? incomingRequests : [
-    {
-      id: 'REQ101',
-      clientName: 'The Kamga Family',
-      specialty: 'Home Nursing',
-      timeLeft: 'Respond within 18h',
-      date: 'Wed, Nov 6',
-      time: '09:00 — 13:00',
-      location: 'Bastos, Yaoundé',
-      sessionType: 'One-off session',
-      price: '14,000 XAF',
-      pricePerHour: 3500,
-      initials: 'KF',
-      status: 'Pending',
-      summary: 'Home clinical nursing care for elderly parent. Post-op mobility support and vitals monitoring.'
-    },
-    {
-      id: 'REQ102',
-      clientName: 'M. Fouda',
-      specialty: 'Post-op Care',
-      timeLeft: 'Respond within 6h',
-      date: 'Starts Nov 8 · Recurring',
-      time: 'Recurring · Mon / Wed / Fri · 3 weeks',
-      location: 'Bonapriso, Douala',
-      sessionType: 'Recurring · Mon / Wed / Fri · 3 weeks',
-      price: '168,000 XAF total',
-      pricePerHour: 4000,
-      initials: 'F',
-      status: 'Pending',
-      summary: 'Post-surgical wound dressing, rehabilitation assistance, and routine physical therapy exercises.'
-    },
-    {
-      id: 'REQ103',
-      clientName: 'Mme Onana',
-      specialty: 'Elderly Care',
-      timeLeft: 'Respond within 1d 4h',
-      date: 'Sat, Nov 9',
-      time: '08:00 — 17:00',
-      location: 'Nlongkak, Yaoundé',
-      sessionType: 'One-off session',
-      price: '22,500 XAF',
-      pricePerHour: 2500,
-      initials: 'O',
-      status: 'Pending',
-      summary: 'Compassionate companionship, meal preparation, and medication administration support.'
-    },
-    {
-      id: 'REQ104',
-      clientName: 'Dr. Jean Etoa',
-      specialty: 'Home Nursing',
-      timeLeft: 'Respond within 2d',
-      date: 'Mon, Nov 11',
-      time: '10:00 — 14:00',
-      location: 'Golf, Yaoundé',
-      sessionType: 'One-off session',
-      price: '16,000 XAF',
-      pricePerHour: 4000,
-      initials: 'JE',
-      status: 'Pending',
-      summary: 'In-home clinical assistance, diabetic checkups, and physical mobility comfort.'
-    },
-    {
-      id: 'REQ105',
-      clientName: 'Sandrine Mbida',
-      specialty: 'Childcare',
-      timeLeft: 'Respond within 12h',
-      date: 'Sun, Nov 10',
-      time: '14:00 — 18:00',
-      location: 'Bonamoussadi, Douala',
-      sessionType: 'One-off session',
-      price: '15,000 XAF',
-      pricePerHour: 3000,
-      initials: 'SM',
-      status: 'Pending',
-      summary: 'Child supervision, educational tutoring activities, and healthy snacks preparation.'
-    }
-  ];
+  const jobRequests = incomingRequests || [];
+  const [outgoingList, setOutgoingList] = useState(outgoingRequests || []);
 
-  const initialOutgoing = outgoingRequests.length > 0 ? outgoingRequests : [
-    {
-      id: 'R1',
-      name: 'Marie-Claire Nkomo',
-      specialty: 'Home Nursing',
-      sentTime: 'Sent 2h ago',
-      location: 'Bastos, Yaounde',
-      schedule: 'Mon Aug 4 (09:00 – 12:00)',
-      price: '10,500 XAF',
-      pricePerHour: 3500,
-      initials: 'MN',
-      photo: 'https://images.unsplash.com/photo-1627328543975-3f0ba8a823b0?w=400&h=400&fit=crop&auto=format',
-      status: 'Accepted',
-      summary: 'Elderly patient recovery assistance following knee surgery. Morning medication administration and light physical support.'
-    },
-    {
-      id: 'R2',
-      name: 'Fatima Bello',
-      specialty: 'Babysitting & Childcare',
-      sentTime: 'Sent Yesterday',
-      location: 'Akwa, Douala',
-      schedule: 'Tue Aug 5 (13:00 – 17:00)',
-      price: '12,000 XAF',
-      pricePerHour: 3000,
-      initials: 'FB',
-      photo: 'https://images.unsplash.com/photo-1579255565889-2ac16e9b2950?w=400&h=400&fit=crop&auto=format',
-      status: 'Pending',
-      summary: 'Afternoon babysitting for 2 young children including active play and homework guidance.'
-    },
-    {
-      id: 'R3',
-      name: 'Elise Fouda',
-      specialty: 'Domestic Housekeeping',
-      sentTime: 'Sent 3 days ago',
-      location: 'Omnisports, Yaounde',
-      schedule: 'Wed Aug 6 (08:00 – 12:00)',
-      price: '10,500 XAF',
-      pricePerHour: 2500,
-      initials: 'EF',
-      photo: 'https://images.unsplash.com/photo-1677195063105-276fd4b95b21?w=400&h=400&fit=crop&auto=format',
-      status: 'Declined',
-      summary: 'Deep cleaning of 3-bedroom apartment with laundry and kitchen sanitation.'
-    },
-    {
-      id: 'R4',
-      name: 'Paul Mbarga',
-      specialty: 'Elder Care',
-      sentTime: 'Sent 4 days ago',
-      location: 'Bastos, Yaounde',
-      schedule: 'Thu Aug 7 (09:00 – 15:00)',
-      price: '18,000 XAF',
-      pricePerHour: 3000,
-      initials: 'PM',
-      photo: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=400&h=400&fit=crop&auto=format',
-      status: 'Pending',
-      summary: 'Senior mobility support, grocery errands, and meal prep assistance.'
-    },
-    {
-      id: 'R5',
-      name: 'Nadine Mengue',
-      specialty: 'Post-op Care',
-      sentTime: 'Sent 5 days ago',
-      location: 'Bonapriso, Douala',
-      schedule: 'Fri Aug 8 (10:00 – 14:00)',
-      price: '20,000 XAF',
-      pricePerHour: 5000,
-      initials: 'NM',
-      photo: 'https://images.unsplash.com/photo-1544005313-94ddf0286df2?w=400&h=400&fit=crop&auto=format',
-      status: 'Accepted',
-      summary: 'Post-surgical nursing care, medication schedule maintenance, and vitals recording.'
-    }
-  ];
-
-  const [outgoingList, setOutgoingList] = useState(initialOutgoing);
+  React.useEffect(() => {
+    setOutgoingList(outgoingRequests || []);
+  }, [outgoingRequests]);
 
   const handleDeleteBooking = (id) => {
     setOutgoingList(prev => prev.filter(item => item.id !== id));
   };
 
   const itemsPerPage = 3;
-  const activeList = activeSubTab === 'job_requests' ? defaultJobRequests : outgoingList;
-  const totalPages = Math.ceil(activeList.length / itemsPerPage) || 1;
+  const activeList = activeSubTab === 'job_requests' ? jobRequests : outgoingList;
+  const totalPages = Math.max(1, Math.ceil(activeList.length / itemsPerPage));
   const paginatedItems = activeList.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage);
 
   const handlePayClick = (item) => {
@@ -189,7 +42,8 @@ export default function RequestsTab({
       caregiver: {
         id: item.caregiverId || '1',
         name: item.name || item.clientName || 'Marie-Claire Nkomo',
-        photo: item.photo || 'https://images.unsplash.com/photo-1627328543975-3f0ba8a823b0?w=400&h=400&fit=crop&auto=format',
+        photo: item.photo || null,
+        profession: item.profession || item.specialty || 'Cleaner',
         specialty: item.specialty === 'Home Nursing' ? 'nursing' : (item.specialty === 'Babysitting & Childcare' ? 'babysitting' : 'cleaning'),
         location: item.location || 'Bastos, Yaoundé',
         rating: 4.93,
@@ -266,7 +120,7 @@ export default function RequestsTab({
           <span className={`text-[11px] font-bold px-2 py-0.5 rounded-full shrink-0 ${
             activeSubTab === 'job_requests' ? 'bg-[#1E4030] text-white' : 'bg-[#E0DBD5] text-[#5A5248]'
           }`}>
-            {defaultJobRequests.length} new
+            {jobRequests.length} new
           </span>
         </button>
       </div>
@@ -280,7 +134,7 @@ export default function RequestsTab({
         </p>
         <span className="text-xs font-semibold bg-[#E2F0E8] text-[#1D6F42] border border-[#C6E4D3] px-3 py-1 rounded-full whitespace-nowrap">
           {activeSubTab === 'job_requests'
-            ? `${defaultJobRequests.length} pending`
+            ? `${jobRequests.length} pending`
             : `${outgoingList.length} requests`}
         </span>
       </div>
@@ -382,6 +236,15 @@ export default function RequestsTab({
                 </div>
               </div>
             ))}
+            {paginatedItems.length === 0 && (
+              <div className="text-center py-16 bg-white border border-[#E2D9CF] rounded-3xl p-8 space-y-3">
+                <ClipboardList size={36} className="mx-auto text-[#8A7E74]/40" />
+                <h3 className="font-bold text-base text-[#1C1A17]">No job requests yet</h3>
+                <p className="text-xs text-[#8A7E74] max-w-sm mx-auto leading-relaxed">
+                  When households submit requests for your care services, they will appear here for you to accept or decline.
+                </p>
+              </div>
+            )}
           </>
         )}
 
@@ -512,6 +375,15 @@ export default function RequestsTab({
                 </div>
               );
             })}
+            {paginatedItems.length === 0 && (
+              <div className="text-center py-16 bg-white border border-[#E2D9CF] rounded-3xl p-8 space-y-3">
+                <Send size={36} className="mx-auto text-[#8A7E74]/40 rotate-45 mb-2" />
+                <h3 className="font-bold text-base text-[#1C1A17]">No outgoing requests yet</h3>
+                <p className="text-xs text-[#8A7E74] max-w-sm mx-auto leading-relaxed">
+                  Care requests you send to other service providers will be tracked here.
+                </p>
+              </div>
+            )}
           </>
         )}
       </div>
@@ -565,144 +437,209 @@ export default function RequestsTab({
       </div>
 
       {/* ─── Exact Client-Style Request Details Modal Popup (Image 2) ─── */}
-      {selectedDetailsItem && (
-        <div className="fixed inset-0 z-[99999] flex items-center justify-center p-4 bg-black/50 backdrop-blur-xs animate-fadeIn">
-          <div className="bg-white rounded-3xl shadow-2xl border border-[#E2D9CF] w-full max-w-lg overflow-hidden flex flex-col max-h-[90vh]">
-            {/* Dark Green Header */}
-            <div className="bg-[#1E4030] text-white px-6 py-5 flex items-center justify-between">
-              <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-xl bg-white/10 flex items-center justify-center">
-                  <ClipboardList size={20} className="text-white" />
-                </div>
-                <div>
-                  <h3 className="font-bold text-base text-white">Request Details</h3>
-                  <p className="text-xs text-white/70">
-                    ID: {selectedDetailsItem.id || 'R1'} &middot; {selectedDetailsItem.sentTime || selectedDetailsItem.time || 'Sent 2h ago'}
-                  </p>
-                </div>
-              </div>
-              <button
-                onClick={() => setSelectedDetailsItem(null)}
-                className="w-8 h-8 rounded-full bg-white/15 flex items-center justify-center text-white hover:bg-white/25 transition-colors cursor-pointer"
-              >
-                <X size={16} />
-              </button>
-            </div>
+      {selectedDetailsItem && (() => {
+        const fee = Number(selectedDetailsItem.serviceFee) || 5;
+        const rawTotal = typeof selectedDetailsItem.totalPrice === 'number'
+          ? selectedDetailsItem.totalPrice
+          : parseInt(String(selectedDetailsItem.price || selectedDetailsItem.totalPrice || '').replace(/[^0-9]/g, ''), 10) || 0;
+        const hourlyRate = Number(selectedDetailsItem.pricePerHour) || 50;
+        const sessions = Number(selectedDetailsItem.totalSessions) || 1;
+        const subtotal = Number(selectedDetailsItem.subtotal) || (rawTotal > fee ? rawTotal - fee : rawTotal);
+        const total = rawTotal || (subtotal + fee);
 
-            {/* Modal Scrollable Body */}
-            <div className="p-6 overflow-y-auto space-y-5">
-              {/* Caregiver Summary Card */}
-              <div className="bg-[#FAF8F5] border border-[#E2D9CF] rounded-2xl p-4 flex items-center gap-4">
-                <div className="w-16 h-16 rounded-2xl overflow-hidden bg-white border border-[#E2D9CF] shrink-0 shadow-sm">
-                  {selectedDetailsItem.photo ? (
-                    <img
-                      src={selectedDetailsItem.photo}
-                      alt={selectedDetailsItem.name || selectedDetailsItem.clientName}
-                      className="w-full h-full object-cover"
-                    />
-                  ) : (
-                    <div className="w-full h-full bg-[#D6EBE0] text-[#1E4030] font-bold text-lg flex items-center justify-center">
-                      {selectedDetailsItem.initials || 'CR'}
-                    </div>
-                  )}
+        let hours = 1;
+        if (selectedDetailsItem.startTime && selectedDetailsItem.endTime) {
+          const [sh, sm] = selectedDetailsItem.startTime.split(':').map(Number);
+          const [eh, em] = selectedDetailsItem.endTime.split(':').map(Number);
+          const diffMin = (eh * 60 + em) - (sh * 60 + sm);
+          if (diffMin > 0) hours = Math.round((diffMin / 60) * 10) / 10;
+        } else if (subtotal > 0 && hourlyRate > 0) {
+          hours = Math.round((subtotal / (hourlyRate * sessions)) * 10) / 10;
+        }
+        if (hours <= 0) hours = 1;
+
+        return (
+          <div className="fixed inset-0 z-[99999] flex items-center justify-center p-4 bg-black/50 backdrop-blur-xs animate-fadeIn">
+            <div className="bg-white rounded-3xl shadow-2xl border border-[#E2D9CF] w-full max-w-lg overflow-hidden flex flex-col max-h-[90vh]">
+              {/* Dark Green Header */}
+              <div className="bg-[#1E4030] text-white px-6 py-5 flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-xl bg-white/10 flex items-center justify-center">
+                    <ClipboardList size={20} className="text-white" />
+                  </div>
+                  <div>
+                    <h3 className="font-bold text-base text-white">Request Details</h3>
+                    <p className="text-xs text-white/70">
+                      ID: {selectedDetailsItem.id || 'R1'} &middot; {selectedDetailsItem.sentTime || selectedDetailsItem.time || 'Recently'}
+                    </p>
+                  </div>
                 </div>
-                <div className="flex-1 min-w-0 space-y-1">
-                  <div className="flex items-center gap-2 flex-wrap">
-                    <h4 className="font-bold text-base text-[#1C1A17]">
-                      {selectedDetailsItem.name || selectedDetailsItem.clientName}
-                    </h4>
-                    <span className="text-[11px] bg-[#EDF7F2] text-[#1E4030] border border-green-200 px-2.5 py-0.5 rounded-full font-bold">
-                      {selectedDetailsItem.specialty}
+                <button
+                  onClick={() => setSelectedDetailsItem(null)}
+                  className="w-8 h-8 rounded-full bg-white/15 flex items-center justify-center text-white hover:bg-white/25 transition-colors cursor-pointer"
+                >
+                  <X size={16} />
+                </button>
+              </div>
+
+              {/* Modal Scrollable Body */}
+              <div className="p-6 overflow-y-auto space-y-5">
+                {/* Caregiver Summary Card */}
+                <div className="bg-[#FAF8F5] border border-[#E2D9CF] rounded-2xl p-4 flex items-center gap-4">
+                  <div className="w-16 h-16 rounded-2xl overflow-hidden bg-white border border-[#E2D9CF] shrink-0 shadow-sm">
+                    {selectedDetailsItem.photo ? (
+                      <img
+                        src={selectedDetailsItem.photo}
+                        alt={selectedDetailsItem.name || selectedDetailsItem.clientName}
+                        className="w-full h-full object-cover"
+                      />
+                    ) : (
+                      <div className="w-full h-full bg-[#D6EBE0] text-[#1E4030] font-bold text-lg flex items-center justify-center">
+                        {selectedDetailsItem.initials || 'CR'}
+                      </div>
+                    )}
+                  </div>
+                  <div className="flex-1 min-w-0 space-y-1">
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <h4 className="font-bold text-base text-[#1C1A17]">
+                        {selectedDetailsItem.name || selectedDetailsItem.clientName}
+                      </h4>
+                      <span className="text-[11px] bg-[#EDF7F2] text-[#1E4030] border border-green-200 px-2.5 py-0.5 rounded-full font-bold">
+                        {selectedDetailsItem.specialty}
+                      </span>
+                    </div>
+                    <p className="text-xs text-[#8A7E74] flex items-center gap-1.5">
+                      <MapPin size={13} className="text-[#8A7E74]" />
+                      {selectedDetailsItem.location}
+                    </p>
+                  </div>
+                </div>
+
+                {/* 2x2 Details Grid */}
+                <div className="grid grid-cols-2 gap-3">
+                  {/* STATUS */}
+                  <div className="bg-[#FAF8F5] border border-[#E2D9CF] rounded-xl p-3.5 space-y-1">
+                    <span className="text-[10px] font-bold text-[#8A7E74] uppercase tracking-wider block">Status</span>
+                    <span className={`inline-flex items-center gap-1.5 text-xs font-bold px-2.5 py-1 rounded-full ${
+                      selectedDetailsItem.status === 'Accepted'
+                        ? 'bg-[#EDF7F2] text-[#1E4030] border border-green-200'
+                        : selectedDetailsItem.status === 'Declined'
+                        ? 'bg-red-50 text-red-700 border border-red-200'
+                        : 'bg-amber-50 text-amber-800 border border-amber-200'
+                    }`}>
+                      <span className={`w-1.5 h-1.5 rounded-full ${
+                        selectedDetailsItem.status === 'Accepted'
+                          ? 'bg-green-500'
+                          : selectedDetailsItem.status === 'Declined'
+                          ? 'bg-red-500'
+                          : 'bg-amber-500'
+                      }`} />
+                      {selectedDetailsItem.status || 'Pending'}
                     </span>
                   </div>
-                  <p className="text-xs text-[#8A7E74] flex items-center gap-1.5">
-                    <MapPin size={13} className="text-[#8A7E74]" />
-                    {selectedDetailsItem.location}
+
+                  {/* SCHEDULE */}
+                  <div className="bg-[#FAF8F5] border border-[#E2D9CF] rounded-xl p-3.5 space-y-1">
+                    <span className="text-[10px] font-bold text-[#8A7E74] uppercase tracking-wider block">Schedule</span>
+                    <span className="text-xs font-bold text-[#1C1A17] flex items-center gap-1.5">
+                      <Calendar size={13} className="text-[#1E4030]" />
+                      {selectedDetailsItem.schedule || selectedDetailsItem.date || 'Scheduled'} {selectedDetailsItem.time ? `(${selectedDetailsItem.time})` : ''}
+                    </span>
+                  </div>
+                </div>
+
+                {/* Exact Price Breakdown Card */}
+                <div className="bg-[#FAF8F5] border border-[#E2D9CF] rounded-2xl p-4 space-y-3">
+                  <div className="flex items-center justify-between border-b border-[#E2D9CF] pb-2">
+                    <span className="text-[11px] font-bold text-[#1C1A17] uppercase tracking-wider flex items-center gap-1.5">
+                      <DollarSign size={14} className="text-[#1E4030]" />
+                      Price Breakdown
+                    </span>
+                    <span className="text-[10px] font-bold px-2.5 py-0.5 rounded-full bg-[#EDF7F2] text-[#1E4030] border border-green-200">
+                      {selectedDetailsItem.escrowStatus || (selectedDetailsItem.status === 'Accepted' ? 'Awaiting Payment' : 'Unpaid')}
+                    </span>
+                  </div>
+
+                  <div className="space-y-2 text-xs text-[#78716C]">
+                    <div className="flex justify-between items-center">
+                      <span>Care Rate</span>
+                      <span className="font-semibold text-[#1C1A17]">
+                        {hourlyRate.toLocaleString()} XAF / hr
+                      </span>
+                    </div>
+
+                    <div className="flex justify-between items-center">
+                      <span>Session Duration</span>
+                      <span className="font-semibold text-[#1C1A17]">
+                        {hours} hr{hours > 1 ? 's' : ''} {selectedDetailsItem.time ? `(${selectedDetailsItem.time})` : ''}
+                      </span>
+                    </div>
+
+                    {sessions > 1 && (
+                      <div className="flex justify-between items-center">
+                        <span>Total Sessions</span>
+                        <span className="font-semibold text-[#1C1A17]">
+                          {sessions} sessions ({selectedDetailsItem.sessionType || 'recurring'})
+                        </span>
+                      </div>
+                    )}
+
+                    <div className="flex justify-between items-center">
+                      <span>Care Subtotal</span>
+                      <span className="font-semibold text-[#1C1A17]">
+                        {subtotal.toLocaleString()} XAF
+                      </span>
+                    </div>
+
+                    <div className="flex justify-between items-center">
+                      <span>Platform & Escrow Fee</span>
+                      <span className="font-semibold text-[#1E4030]">
+                        {fee.toLocaleString()} XAF
+                      </span>
+                    </div>
+
+                    <div className="pt-2 border-t border-[#E2D9CF] flex justify-between items-center font-bold text-sm">
+                      <span className="text-[#1C1A17]">Total Amount</span>
+                      <span className="text-[#1E4030] text-base">
+                        {total.toLocaleString()} XAF
+                      </span>
+                    </div>
+                  </div>
+                </div>
+
+                {/* CARE REQUEST SUMMARY */}
+                <div className="bg-[#FAF8F5] border border-[#E2D9CF] rounded-2xl p-4 space-y-1.5">
+                  <span className="text-[10px] font-bold text-[#8A7E74] uppercase tracking-wider block">Care Request Summary</span>
+                  <p className="text-xs text-[#1C1A17] leading-relaxed">
+                    {selectedDetailsItem.summary || 'Verified booking request submitted via Carely.'}
                   </p>
                 </div>
               </div>
 
-              {/* 2x2 Details Grid */}
-              <div className="grid grid-cols-2 gap-3">
-                {/* STATUS */}
-                <div className="bg-[#FAF8F5] border border-[#E2D9CF] rounded-xl p-3.5 space-y-1">
-                  <span className="text-[10px] font-bold text-[#8A7E74] uppercase tracking-wider block">Status</span>
-                  <span className={`inline-flex items-center gap-1.5 text-xs font-bold px-2.5 py-1 rounded-full ${
-                    selectedDetailsItem.status === 'Accepted'
-                      ? 'bg-[#EDF7F2] text-[#1E4030] border border-green-200'
-                      : selectedDetailsItem.status === 'Declined'
-                      ? 'bg-red-50 text-red-700 border border-red-200'
-                      : 'bg-amber-50 text-amber-800 border border-amber-200'
-                  }`}>
-                    <span className={`w-1.5 h-1.5 rounded-full ${
-                      selectedDetailsItem.status === 'Accepted'
-                        ? 'bg-green-500'
-                        : selectedDetailsItem.status === 'Declined'
-                        ? 'bg-red-500'
-                        : 'bg-amber-500'
-                    }`} />
-                    {selectedDetailsItem.status || 'Pending'}
-                  </span>
-                </div>
+              {/* Modal Actions Footer */}
+              <div className="p-4 bg-[#FAF8F5] border-t border-[#E2D9CF] flex items-center justify-end gap-2.5">
+                <button
+                  onClick={() => {
+                    setSelectedDetailsItem(null);
+                    if (onNavigate) onNavigate('discussions');
+                  }}
+                  className="px-4 py-2.5 rounded-xl border border-[#BFDBFE] bg-[#EFF6FF] text-[#1D4ED8] hover:bg-blue-100 text-xs font-bold transition-all cursor-pointer flex items-center gap-1.5"
+                >
+                  <MessageSquare size={13} className="text-[#1D4ED8]" />
+                  Chat in Discussions
+                </button>
 
-                {/* SCHEDULE */}
-                <div className="bg-[#FAF8F5] border border-[#E2D9CF] rounded-xl p-3.5 space-y-1">
-                  <span className="text-[10px] font-bold text-[#8A7E74] uppercase tracking-wider block">Schedule</span>
-                  <span className="text-xs font-bold text-[#1C1A17] flex items-center gap-1.5">
-                    <Calendar size={13} className="text-[#1E4030]" />
-                    {selectedDetailsItem.schedule || selectedDetailsItem.date || 'Mon Aug 4 (09:00 – 12:00)'}
-                  </span>
-                </div>
-
-                {/* HOURLY RATE */}
-                <div className="bg-[#FAF8F5] border border-[#E2D9CF] rounded-xl p-3.5 space-y-1">
-                  <span className="text-[10px] font-bold text-[#8A7E74] uppercase tracking-wider block">Hourly Rate</span>
-                  <span className="text-xs font-bold text-[#1C1A17]">
-                    {selectedDetailsItem.pricePerHour ? `${selectedDetailsItem.pricePerHour.toLocaleString()} XAF / hr` : '3,500 XAF / hr'}
-                  </span>
-                </div>
-
-                {/* TOTAL ESTIMATED FEE */}
-                <div className="bg-[#FAF8F5] border border-[#E2D9CF] rounded-xl p-3.5 space-y-1">
-                  <span className="text-[10px] font-bold text-[#8A7E74] uppercase tracking-wider block">Total Estimated Fee</span>
-                  <span className="text-xs font-extrabold text-[#1E4030]">
-                    {selectedDetailsItem.price || '10,500 XAF'}
-                  </span>
-                </div>
+                <button
+                  onClick={() => setSelectedDetailsItem(null)}
+                  className="px-6 py-2.5 rounded-xl bg-[#1E4030] hover:bg-[#152e22] text-white text-xs font-bold transition-all cursor-pointer shadow-sm"
+                >
+                  Close
+                </button>
               </div>
-
-              {/* CARE REQUEST SUMMARY */}
-              <div className="bg-[#FAF8F5] border border-[#E2D9CF] rounded-2xl p-4 space-y-1.5">
-                <span className="text-[10px] font-bold text-[#8A7E74] uppercase tracking-wider block">Care Request Summary</span>
-                <p className="text-xs text-[#1C1A17] leading-relaxed">
-                  {selectedDetailsItem.summary || 'Elderly patient recovery assistance following knee surgery. Morning medication administration and light physical support.'}
-                </p>
-              </div>
-            </div>
-
-            {/* Modal Actions Footer */}
-            <div className="p-4 bg-[#FAF8F5] border-t border-[#E2D9CF] flex items-center justify-end gap-2.5">
-              <button
-                onClick={() => {
-                  setSelectedDetailsItem(null);
-                  if (onNavigate) onNavigate('discussions');
-                }}
-                className="px-4 py-2.5 rounded-xl border border-[#BFDBFE] bg-[#EFF6FF] text-[#1D4ED8] hover:bg-blue-100 text-xs font-bold transition-all cursor-pointer flex items-center gap-1.5"
-              >
-                <MessageSquare size={13} className="text-[#1D4ED8]" />
-                Chat in Discussions
-              </button>
-
-              <button
-                onClick={() => setSelectedDetailsItem(null)}
-                className="px-6 py-2.5 rounded-xl bg-[#1E4030] hover:bg-[#152e22] text-white text-xs font-bold transition-all cursor-pointer shadow-sm"
-              >
-                Close
-              </button>
             </div>
           </div>
-        </div>
-      )}
+        );
+      })()}
     </div>
   );
 }

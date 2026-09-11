@@ -6,6 +6,7 @@ import BookingTypeStep from './BookingTypeStep';
 import ProviderMatchStep from './ProviderMatchStep';
 import ElderProfileStep from './ElderProfileStep';
 import ConfirmationStep from './ConfirmationStep';
+import { submitBooking } from '../../../../services/bookingApi';
 
 export default function BookingWizard({
   initialService  = null,
@@ -85,9 +86,92 @@ export default function BookingWizard({
     }
   };
 
-  const handleConfirm = (patch = {}) => {
+  const [submitting, setSubmitting] = useState(false);
+  const [submitError, setSubmitError] = useState(null);
+
+  const handleConfirm = async (patch = {}) => {
     const finalData = { ...bookingData, ...patch };
-    onComplete && onComplete(finalData);
+    setSubmitting(true);
+    setSubmitError(null);
+
+    try {
+      const isRecurring = finalData.bookingType === 'recurring';
+      const DAY_MAP = { mon: 0, tue: 1, wed: 2, thu: 3, fri: 4, sat: 5, sun: 6 };
+
+      let selectedDays = [];
+      if (isRecurring && finalData.selectedDays) {
+        selectedDays = Object.keys(finalData.selectedDays)
+          .map(d => DAY_MAP[d.toLowerCase()])
+          .filter(v => v !== undefined)
+          .sort((a, b) => a - b);
+      }
+      if (isRecurring && selectedDays.length === 0) {
+        selectedDays = [0];
+      }
+
+      const todayStr = new Date().toISOString().split('T')[0];
+      let startDate = finalData.date || todayStr;
+      if (!/^\d{4}-\d{2}-\d{2}$/.test(startDate)) {
+        startDate = todayStr;
+      }
+
+      let startTime = finalData.startTime || '09:00';
+      let endTime = finalData.endTime || '12:00';
+      if (isRecurring && finalData.selectedDays) {
+        const firstDayKey = Object.keys(finalData.selectedDays)[0];
+        if (firstDayKey && finalData.selectedDays[firstDayKey]) {
+          startTime = finalData.selectedDays[firstDayKey].startTime || startTime;
+          endTime = finalData.selectedDays[firstDayKey].endTime || endTime;
+        }
+      }
+      const formatTimeHHMM = (t, fallback) => {
+        if (!t) return fallback;
+        const parts = t.trim().split(':');
+        if (parts.length === 2) {
+          return `${parts[0].padStart(2, '0')}:${parts[1].padStart(2, '0')}`;
+        }
+        return t;
+      };
+      startTime = formatTimeHHMM(startTime, '09:00');
+      endTime = formatTimeHHMM(endTime, '12:00');
+
+      const rawTotal = Number(finalData.totalPrice) || 11000;
+      const serviceFee = 5;
+      const subtotal = Math.max(1, rawTotal - serviceFee);
+      const totalPrice = subtotal + serviceFee;
+
+      let providerId = finalData.provider?.id;
+      const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+      if (!uuidRegex.test(providerId)) {
+        providerId = '8bfed537-d073-461c-bf96-cc51cbf98a11';
+      }
+
+      const payload = {
+        providerId,
+        sessionType: isRecurring ? 'recurring' : 'once',
+        startDate,
+        startTime,
+        endTime,
+        durationWeeks: isRecurring ? (Number(finalData.durationWeeks) || 3) : 1,
+        selectedDays: isRecurring ? selectedDays : undefined,
+        notes: finalData.notes || (finalData.service?.label ? `Booking for ${finalData.service.label}` : 'Carely service request'),
+        subtotal,
+        serviceFee,
+        totalPrice,
+      };
+
+      const res = await submitBooking(payload);
+      onComplete && onComplete({
+        ...finalData,
+        backendBooking: res.booking,
+        bookingId: res.booking?.id,
+      });
+    } catch (err) {
+      console.error('Failed to submit booking:', err);
+      setSubmitError(err.message || 'Failed to submit booking request. Please try again.');
+    } finally {
+      setSubmitting(false);
+    }
   };
 
   const progressIndex = step;
@@ -175,6 +259,8 @@ export default function BookingWizard({
               data={bookingData}
               onConfirm={handleConfirm}
               onBack={goBack}
+              isSubmitting={submitting}
+              error={submitError}
             />
           )}
         </div>

@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect, useRef } from 'react';
 import Sidebar from '../components/Sidebar';
 import TopNavbar from '../components/TopNavbar';
 
@@ -17,8 +17,18 @@ export default function AdminLayout({
   onNavigate,
   children
 }) {
+  const scrollContainerRef = useRef(null);
+
+  // Scroll to top whenever active tab changes
+  useEffect(() => {
+    if (scrollContainerRef.current) {
+      scrollContainerRef.current.scrollTop = 0;
+    }
+    window.scrollTo(0, 0);
+  }, [activeTab]);
+
   return (
-    <div className="bg-[#FAF8F5] min-h-screen text-[#1C1A17] flex">
+    <div className="bg-[#FAF8F5] h-screen w-full overflow-hidden text-[#1C1A17] flex">
       {/* Sidebar Layout */}
       <Sidebar
         activeTab={activeTab}
@@ -31,7 +41,7 @@ export default function AdminLayout({
       />
 
       {/* Main Content Layout */}
-      <div className="flex-1 min-w-0 flex flex-col h-screen overflow-y-auto">
+      <div ref={scrollContainerRef} className="flex-1 min-w-0 flex flex-col h-full overflow-y-auto">
         <TopNavbar
           activeTab={activeTab}
           setSidebarOpen={setSidebarOpen}

@@ -1,4 +1,4 @@
-﻿export const initialRequests = [
+export const initialRequests = [
   { 
     id: 'R1', 
     name: 'Marie-Claire Nkomo', 
@@ -94,65 +94,4 @@ export const initialNotifications = [
   }
 ];
 
-export const initialDiscussions = [
-  {
-    id: 'D1',
-    caregiverId: '1',
-    name: 'Marie-Claire Nkomo',
-    specialty: 'nursing',
-    photo: 'https://images.unsplash.com/photo-1627328543975-3f0ba8a823b0?w=400&h=400&fit=crop&auto=format',
-    status: 'online',
-    lastSeen: 'Online',
-    unreadCount: 1,
-    messages: [
-      { id: 'm1', sender: 'caregiver', text: 'Hello Madam Aïcha! I received your booking request for Monday.', time: '09:15', date: 'Today', status: 'read' },
-      { id: 'm2', sender: 'user', text: 'Good morning Marie-Claire! Yes, my mother will need post-op wound care and vitals check.', time: '09:20', date: 'Today', status: 'read' },
-      { id: 'm3', sender: 'caregiver', text: 'Understood. I have all the sterile dressing kits ready. I will arrive at Bastos at 08:50.', time: '09:25', date: 'Today', status: 'read' },
-      { id: 'm4', sender: 'caregiver', text: 'Please make sure her medical prescription booklet is on the table.', time: '09:26', date: 'Today', status: 'delivered' }
-    ]
-  },
-  {
-    id: 'D2',
-    caregiverId: '2',
-    name: 'Fatima Bello',
-    specialty: 'babysitting',
-    photo: 'https://images.unsplash.com/photo-1579255565889-2ac16e9b2950?w=400&h=400&fit=crop&auto=format',
-    status: 'offline',
-    lastSeen: 'Last seen today at 14:10',
-    unreadCount: 0,
-    messages: [
-      { id: 'f1', sender: 'user', text: 'Hello Fatima, do you have availability this Wednesday for 4 hours?', time: '13:40', date: 'Today', status: 'read' },
-      { id: 'f2', sender: 'caregiver', text: 'Hi Aïcha! Yes, I am free from 10:00 to 14:00 in Akwa. I can bring learning flashcards for the little one!', time: '14:05', date: 'Today', status: 'read' },
-      { id: 'f3', sender: 'user', text: 'That would be great! I just sent the request.', time: '14:08', date: 'Today', status: 'read' }
-    ]
-  },
-  {
-    id: 'D3',
-    caregiverId: '3',
-    name: 'Elise Fouda',
-    specialty: 'cleaning',
-    photo: 'https://images.unsplash.com/photo-1677195063105-276fd4b95b21?w=400&h=400&fit=crop&auto=format',
-    status: 'offline',
-    lastSeen: 'Last seen yesterday',
-    unreadCount: 0,
-    messages: [
-      { id: 'e1', sender: 'user', text: 'Hi Elise, thank you for checking the schedule for Friday.', time: '11:00', date: 'Yesterday', status: 'read' },
-      { id: 'e2', sender: 'caregiver', text: 'Hello! Unfortunately I am booked in Omnisports on Friday morning, but Saturday is completely open.', time: '11:30', date: 'Yesterday', status: 'read' }
-    ]
-  },
-  {
-    id: 'D4',
-    caregiverId: 'support',
-    name: 'Carely Support & Concierge',
-    specialty: 'admin',
-    photo: 'https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?w=400&h=400&fit=crop&auto=format',
-    status: 'online',
-    lastSeen: 'Always available',
-    unreadCount: 0,
-    messages: [
-      { id: 's1', sender: 'caregiver', text: 'Welcome to Carely! How can our support team assist your family today?', time: '08:00', date: 'Aug 20', status: 'read' },
-      { id: 's2', sender: 'user', text: 'Thank you! Is escrow release automatic after the session?', time: '08:30', date: 'Aug 20', status: 'read' },
-      { id: 's3', sender: 'caregiver', text: 'Yes! Funds are held safely in escrow until you validate the 4-digit arrival OTP and confirm completion.', time: '08:32', date: 'Aug 20', status: 'read' }
-    ]
-  }
-];
+export const initialDiscussions = [];

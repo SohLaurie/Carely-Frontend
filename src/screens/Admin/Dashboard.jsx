@@ -41,6 +41,8 @@ export default function AdminDashboard({ onNavigate }) {
     setEditUserModalOpen,
     appSearchQuery,
     setAppSearchQuery,
+    appStatusFilter,
+    setAppStatusFilter,
     appServiceFilter,
     setAppServiceFilter,
     userSearchQuery,
@@ -64,13 +66,15 @@ export default function AdminDashboard({ onNavigate }) {
     editUser
   } = useAdminDashboard();
 
+  const pendingApplications = applications.filter(a => (a.approvalStatus || a.status) === 'pending');
+
   return (
     <AdminLayout
       activeTab={activeTab}
       setActiveTab={setActiveTab}
       sidebarOpen={sidebarOpen}
       setSidebarOpen={setSidebarOpen}
-      pendingApplicationsCount={applications.length}
+      pendingApplicationsCount={pendingApplications.length}
       openDisputesCount={disputes.length}
       notifications={notifications}
       notificationsOpen={notificationsOpen}
@@ -82,7 +86,7 @@ export default function AdminDashboard({ onNavigate }) {
       {/* Overview tab */}
       {activeTab === 'overview' && (
         <OverviewTab
-          applications={applications}
+          applications={pendingApplications}
           disputes={disputes}
           users={users}
           bookings={bookings}
@@ -101,8 +105,10 @@ export default function AdminDashboard({ onNavigate }) {
           setSelectedApplication={setSelectedApplication}
           appSearchQuery={appSearchQuery}
           setAppSearchQuery={setAppSearchQuery}
-          appServiceFilter={appServiceFilter}
-          setAppServiceFilter={setAppServiceFilter}
+          appStatusFilter={appStatusFilter}
+          setAppStatusFilter={setAppStatusFilter}
+          appServiceFilter={appStatusFilter}
+          setAppServiceFilter={setAppStatusFilter}
         />
       )}
 

@@ -1,13 +1,40 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { Heart, Star } from 'lucide-react';
-import { CAREGIVERS, SPECIALTY_META } from '../../../data';
+import { SPECIALTY_META } from '../../../data';
+import { apiGet } from '../../../services/api';
 
 export default function SavedTab({ setSelectedId, setActiveTab }) {
+  const [saved, setSaved] = useState([]);
+
+  useEffect(() => {
+    let isMounted = true;
+    async function loadSaved() {
+      try {
+        const data = await apiGet('/providers');
+        if (isMounted && data?.providers) {
+          const list = data.providers
+            .filter(p => p.approval_status === 'approved' && p.subscription_paid)
+            .map(p => ({
+              id: p.id,
+              name: `${p.first_name || ''} ${p.last_name || ''}`.trim() || 'Verified Provider',
+              specialty: (Array.isArray(p.specialties) ? p.specialties[0] : null) || (p.profession ? p.profession.toLowerCase().replace(/\s+/g, '_') : 'cleaning'),
+              rating: parseFloat(p.rating) > 0 ? parseFloat(p.rating) : 5.0,
+              profession: p.profession || 'Care Provider'
+            }));
+          setSaved(list);
+        }
+      } catch (err) {
+        console.error('Failed to load saved providers:', err);
+      }
+    }
+    loadSaved();
+    return () => { isMounted = false; };
+  }, []);
+
   const getInitials = (name) => {
-    const parts = name.split(' ');
-    return parts.length >= 2 ? parts[0][0] + parts[parts.length - 1][0] : (name[0] || '');
+    const parts = (name || '').trim().split(/\s+/);
+    return parts.length >= 2 ? parts[0][0] + parts[parts.length - 1][0] : (name[0] || 'CP');
   };
-  const saved = CAREGIVERS.slice(0, 2);
 
   return (
     <div className="space-y-6">

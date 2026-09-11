@@ -5,6 +5,7 @@ import {
   AlertTriangle, DollarSign
 } from 'lucide-react';
 import { CAREGIVERS, SPECIALTY_META } from '../../../data';
+import { confirmSession, disputeSession, skipSession } from '../../../services/bookingApi';
 
 export default function Completion({ onNavigate, screenParams }) {
   const booking = screenParams?.booking || {
@@ -30,7 +31,20 @@ export default function Completion({ onNavigate, screenParams }) {
   // 24-Hour Confirmation Window Timer
   const [timeLeft, setTimeLeft] = useState({ hours: 23, minutes: 54, seconds: 12 });
   const [escrowState, setEscrowState] = useState('window_open'); // 'window_open' | 'released' | 'refunded'
-  const [recurringSessions, setRecurringSessions] = useState(booking.scheduleList || []);
+
+  const initialSessions = Array.isArray(booking.sessions) && booking.sessions.length > 0
+    ? booking.sessions.map((s, idx) => ({
+        id: s.id,
+        index: s.session_number || idx + 1,
+        week: s.week_number || 1,
+        date: s.scheduled_date || 'Upcoming',
+        time: `${s.scheduled_start_time?.slice(0, 5) || '09:00'} – ${s.scheduled_end_time?.slice(0, 5) || '12:00'}`,
+        price: Number(s.session_amount) || 10500,
+        status: s.status === 'COMPLETED' ? 'Completed' : (s.status === 'ARRIVED' ? 'In Progress' : 'Scheduled')
+      }))
+    : (booking.scheduleList || []);
+
+  const [recurringSessions, setRecurringSessions] = useState(initialSessions);
   const [disputeModalOpen, setDisputeModalOpen] = useState(false);
   const [disputeSubmitted, setDisputeSubmitted] = useState(false);
   const [notificationMessage, setNotificationMessage] = useState(null);
@@ -48,7 +62,15 @@ export default function Completion({ onNavigate, screenParams }) {
   }, []);
 
   // Household explicitly confirms completion
-  const handleHouseholdConfirm = () => {
+  const handleHouseholdConfirm = async () => {
+    const sessionId = booking.sessions?.[0]?.id;
+    if (sessionId && typeof sessionId === 'string' && sessionId.includes('-')) {
+      try {
+        await confirmSession(sessionId);
+      } catch (err) {
+        console.warn('confirmSession API error:', err.message);
+      }
+    }
     setEscrowState('released');
     setTimeout(() => {
       onNavigate('review', { caregiver, booking });

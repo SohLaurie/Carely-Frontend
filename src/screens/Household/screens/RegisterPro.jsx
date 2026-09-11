@@ -1,8 +1,10 @@
 import { useState, useRef } from 'react'
 import {
   ArrowRight, ArrowLeft, ShieldCheck, Heart, Check,
-  Pencil, Camera, Upload, Eye, EyeOff, FileText, X
+  Pencil, Camera, Upload, Eye, EyeOff, FileText, X, Loader2
 } from 'lucide-react'
+import { registerProvider } from '../../../services/auth.service.js'
+import { uploadDocument } from '../../../services/api.js'
 
 // ── Shared Primitives ──────────────────────────────────────────────────────────
 
@@ -273,12 +275,26 @@ function Step1({ data, set }) {
 
 // ── STEP 2: Services & Skills ──────────────────────────────────────────────────
 
-const SERVICES_OFFERED = [
-  'Childcare / Babysitting', 'Elderly care',
-  'Home assistance', 'Cleaning',
-  'Cooking / Meal preparation', 'Laundry / Ironing',
-  'Companionship', 'Personal assistance',
+const PROFESSION_OPTIONS = [
+  'Cleaner',
+  'Gardener',
+  'Babysitter',
+  'Elderly carer',
+  'Housekeeper',
+  'Laundry worker',
+  'Home nursing',
   'Other',
+]
+
+const EXTRA_SERVICES = [
+  'Indoor cleaning',
+  'Outdoor cleaning',
+  'Laundry / Ironing',
+  'Pet walking',
+  'Moving cleaning',
+  'Child care / Babysitting',
+  'Elder care',
+  'Cooking / Meal preparation',
 ]
 
 const CHILDCARE_SKILLS = [
@@ -299,20 +315,52 @@ const GENERAL_SKILLS = [
 function Step2({ data, set }) {
   return (
     <div className="space-y-7">
+      {/* ── Main Profession Field ── */}
       <div>
-        <h3 className="font-bold text-base text-[#1C1A17] mb-0.5">What services do you provide?</h3>
+        <FieldLabel required>Profession</FieldLabel>
+        <p className="text-xs text-[#8A7E74] mb-2">Select your primary profession or specialty.</p>
+        <DropdownSelect
+          value={data.profession || ''}
+          onChange={e => set('profession', e.target.value)}
+        >
+          <option value="" disabled>Select your profession</option>
+          {PROFESSION_OPTIONS.map(opt => (
+            <option key={opt} value={opt}>{opt}</option>
+          ))}
+        </DropdownSelect>
+
+        {data.profession === 'Other' && (
+          <div className="mt-2.5 animate-fadeIn">
+            <TextInput
+              placeholder="Enter your profession (e.g. Electrician, Painter, Plumber)"
+              value={data.customProfession || ''}
+              onChange={e => set('customProfession', e.target.value)}
+              autoFocus
+            />
+          </div>
+        )}
+      </div>
+
+      {/* ── Extra Services Question ── */}
+      <div>
+        <h3 className="font-bold text-base text-[#1C1A17] mb-0.5">What extra services can you provide?</h3>
         <p className="text-xs text-[#8A7E74]">Select everything you're confident doing — you can refine this later.</p>
       </div>
 
       <div>
         <FieldLabel>Services offered</FieldLabel>
         <div className="grid grid-cols-2 gap-2 mt-1.5">
-          {SERVICES_OFFERED.map(opt => (
+          {EXTRA_SERVICES.map(opt => (
             <OptionBtn
               key={opt}
               label={opt}
-              selected={data.servicesOffered.includes(opt)}
-              onClick={() => set('servicesOffered', toggle(data.servicesOffered, opt))}
+              selected={(data.extraServices || data.servicesOffered || []).includes(opt)}
+              onClick={() => {
+                const current = data.extraServices || data.servicesOffered || []
+                const updated = toggle(current, opt)
+                set('extraServices', updated)
+                set('servicesOffered', updated)
+              }}
             />
           ))}
         </div>
@@ -582,7 +630,26 @@ const QUALIFICATION_OPTIONS = [
 
 function Step6({ data, set }) {
   const idInputRef = useRef(null)
+  const policeInputRef = useRef(null)
   const certInputRef = useRef(null)
+
+  const [idUploading, setIdUploading] = useState(false)
+  const [policeUploading, setPoliceUploading] = useState(false)
+  const [certUploading, setCertUploading] = useState(false)
+
+  const handleUpload = async (file, fieldPrefix, setUploading) => {
+    if (!file) return
+    set(fieldPrefix + 'DocName', file.name)
+    setUploading(true)
+    try {
+      const res = await uploadDocument(file)
+      set(fieldPrefix + 'DocUrl', res.url)
+    } catch (err) {
+      console.error(`${fieldPrefix} upload failed:`, err)
+    } finally {
+      setUploading(false)
+    }
+  }
 
   return (
     <div className="space-y-7">
@@ -606,21 +673,36 @@ function Step6({ data, set }) {
         <div className="border border-dashed border-[#E2D9CF] rounded-xl p-4 bg-[#FAF8F5] flex items-center justify-between gap-4">
           <div className="flex items-center gap-3">
             <div className="w-10 h-10 bg-[#EDF7F2] rounded-full flex items-center justify-center border border-green-200/60 shrink-0">
-              <FileText size={18} className="text-[#1E4030]" />
+              {data.idDocUrl ? (
+                <Check size={18} className="text-[#1D6F42]" />
+              ) : (
+                <FileText size={18} className="text-[#1E4030]" />
+              )}
             </div>
             <div>
-              <p className="text-xs font-semibold text-[#1C1A17]">
+              <p className="text-xs font-semibold text-[#1C1A17] flex items-center gap-1.5">
                 {data.identityDocName ? data.identityDocName : 'Upload your identity document'}
+                {data.idDocUrl && (
+                  <span className="text-[9px] bg-green-100 text-green-800 font-bold px-1.5 py-0.2 rounded">Saved</span>
+                )}
               </p>
-              <p className="text-[10px] text-[#8A7E74]">National ID or passport — JPG, PNG or PDF, max 2 MB</p>
+              <p className="text-[10px] text-[#8A7E74]">National ID or passport — JPG, PNG or PDF, max 5 MB</p>
             </div>
           </div>
           <button
             type="button"
             onClick={() => idInputRef.current?.click()}
-            className="flex items-center gap-1.5 text-xs font-semibold text-[#1C1A17] border border-[#E2D9CF] bg-white px-3.5 py-2 rounded-xl hover:bg-secondary transition-all cursor-pointer whitespace-nowrap"
+            disabled={idUploading}
+            className="flex items-center gap-1.5 text-xs font-semibold text-[#1C1A17] border border-[#E2D9CF] bg-white px-3.5 py-2 rounded-xl hover:bg-secondary transition-all cursor-pointer whitespace-nowrap disabled:opacity-50"
           >
-            Choose file
+            {idUploading ? (
+              <>
+                <Loader2 size={13} className="animate-spin text-[#1E4030]" />
+                <span>Uploading...</span>
+              </>
+            ) : (
+              data.idDocUrl ? 'Change file' : 'Choose file'
+            )}
           </button>
           <input
             ref={idInputRef}
@@ -629,9 +711,57 @@ function Step6({ data, set }) {
             className="hidden"
             onChange={e => {
               const file = e.target.files?.[0]
-              if (file) {
-                set('identityDocName', file.name)
-              }
+              if (file) handleUpload(file, 'identity', setIdUploading)
+            }}
+          />
+        </div>
+      </div>
+
+      {/* Police clearance document upload (Casier Judiciaire) */}
+      <div>
+        <FieldLabel>Police clearance document</FieldLabel>
+        <div className="border border-dashed border-[#E2D9CF] rounded-xl p-4 bg-[#FAF8F5] flex items-center justify-between gap-4">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 bg-[#EDF7F2] rounded-full flex items-center justify-center border border-green-200/60 shrink-0">
+              {data.policeClearanceDocUrl ? (
+                <Check size={18} className="text-[#1D6F42]" />
+              ) : (
+                <FileText size={18} className="text-[#1E4030]" />
+              )}
+            </div>
+            <div>
+              <p className="text-xs font-semibold text-[#1C1A17] flex items-center gap-1.5">
+                {data.policeClearanceDocName ? data.policeClearanceDocName : 'Upload police clearance document'}
+                {data.policeClearanceDocUrl && (
+                  <span className="text-[9px] bg-green-100 text-green-800 font-bold px-1.5 py-0.2 rounded">Saved</span>
+                )}
+              </p>
+              <p className="text-[10px] text-[#8A7E74]">Extract of criminal record / Casier judiciaire (bulletin n°3) — JPG, PNG or PDF, max 5 MB</p>
+            </div>
+          </div>
+          <button
+            type="button"
+            onClick={() => policeInputRef.current?.click()}
+            disabled={policeUploading}
+            className="flex items-center gap-1.5 text-xs font-semibold text-[#1C1A17] border border-[#E2D9CF] bg-white px-3.5 py-2 rounded-xl hover:bg-secondary transition-all cursor-pointer whitespace-nowrap disabled:opacity-50"
+          >
+            {policeUploading ? (
+              <>
+                <Loader2 size={13} className="animate-spin text-[#1E4030]" />
+                <span>Uploading...</span>
+              </>
+            ) : (
+              data.policeClearanceDocUrl ? 'Change file' : 'Choose file'
+            )}
+          </button>
+          <input
+            ref={policeInputRef}
+            type="file"
+            accept="image/*,.pdf"
+            className="hidden"
+            onChange={e => {
+              const file = e.target.files?.[0]
+              if (file) handleUpload(file, 'policeClearance', setPoliceUploading)
             }}
           />
         </div>
@@ -643,11 +773,18 @@ function Step6({ data, set }) {
         <div className="border border-dashed border-[#E2D9CF] rounded-xl p-4 bg-[#FAF8F5] flex items-center justify-between gap-4">
           <div className="flex items-center gap-3">
             <div className="w-10 h-10 bg-[#EDF7F2] rounded-full flex items-center justify-center border border-green-200/60 shrink-0">
-              <FileText size={18} className="text-[#1E4030]" />
+              {data.certDocUrl ? (
+                <Check size={18} className="text-[#1D6F42]" />
+              ) : (
+                <FileText size={18} className="text-[#1E4030]" />
+              )}
             </div>
             <div>
-              <p className="text-xs font-semibold text-[#1C1A17]">
+              <p className="text-xs font-semibold text-[#1C1A17] flex items-center gap-1.5">
                 {data.certDocName ? data.certDocName : 'Upload certificates'}
+                {data.certDocUrl && (
+                  <span className="text-[9px] bg-green-100 text-green-800 font-bold px-1.5 py-0.2 rounded">Saved</span>
+                )}
               </p>
               <p className="text-[10px] text-[#8A7E74]">Add training or first-aid certificates</p>
             </div>
@@ -655,9 +792,17 @@ function Step6({ data, set }) {
           <button
             type="button"
             onClick={() => certInputRef.current?.click()}
-            className="flex items-center gap-1.5 text-xs font-semibold text-[#1C1A17] border border-[#E2D9CF] bg-white px-3.5 py-2 rounded-xl hover:bg-secondary transition-all cursor-pointer whitespace-nowrap"
+            disabled={certUploading}
+            className="flex items-center gap-1.5 text-xs font-semibold text-[#1C1A17] border border-[#E2D9CF] bg-white px-3.5 py-2 rounded-xl hover:bg-secondary transition-all cursor-pointer whitespace-nowrap disabled:opacity-50"
           >
-            Choose file
+            {certUploading ? (
+              <>
+                <Loader2 size={13} className="animate-spin text-[#1E4030]" />
+                <span>Uploading...</span>
+              </>
+            ) : (
+              data.certDocUrl ? 'Change file' : 'Choose file'
+            )}
           </button>
           <input
             ref={certInputRef}
@@ -666,9 +811,7 @@ function Step6({ data, set }) {
             className="hidden"
             onChange={e => {
               const file = e.target.files?.[0]
-              if (file) {
-                set('certDocName', file.name)
-              }
+              if (file) handleUpload(file, 'cert', setCertUploading)
             }}
           />
         </div>
@@ -884,6 +1027,9 @@ const initialData = {
   address: '',
   photoPreview: null,
   // Step 2
+  profession: '',
+  customProfession: '',
+  extraServices: [],
   servicesOffered: [],
   childcareSkills: [],
   generalSkills: [],
@@ -905,7 +1051,11 @@ const initialData = {
   // Step 6
   qualifications: [],
   identityDocName: '',
+  idDocUrl: '',
+  policeClearanceDocName: '',
+  policeClearanceDocUrl: '',
   certDocName: '',
+  certDocUrl: '',
   // Step 7
   bio: '',
   hourlyRate: '',
@@ -925,14 +1075,25 @@ export default function RegisterPro({ onNavigate }) {
   const [step, setStep] = useState(1)
   const [data, setData] = useState(initialData)
   const [submitted, setSubmitted] = useState(false)
+  const [submitting, setSubmitting] = useState(false)
+  const [submitError, setSubmitError] = useState('')
 
   const set = (key, value) => setData(prev => ({ ...prev, [key]: value }))
   const next = () => setStep(s => Math.min(s + 1, 8))
   const back = () => setStep(s => Math.max(s - 1, 1))
 
-  const handleSubmit = () => {
-    setSubmitted(true)
-    setTimeout(() => onNavigate('caregiver'), 2000)
+  const handleSubmit = async () => {
+    if (submitting) return
+    setSubmitting(true)
+    setSubmitError('')
+    try {
+      await registerProvider(data)
+      setSubmitted(true)
+      // Do NOT auto-navigate — provider must wait for admin approval
+    } catch (err) {
+      setSubmitError(err.message || 'Submission failed. Please try again.')
+      setSubmitting(false)
+    }
   }
 
   const isFormValidStep8 = data.email && data.password && data.confirmPassword && data.agreedTerms && data.agreedAccurate && data.agreedChecks
@@ -940,12 +1101,20 @@ export default function RegisterPro({ onNavigate }) {
   if (submitted) {
     return (
       <div className="min-h-screen bg-[#FAF8F5] flex items-center justify-center">
-        <div className="text-center space-y-4 p-8">
+        <div className="text-center space-y-4 p-8 max-w-sm">
           <div className="w-16 h-16 bg-[#EDF7F2] rounded-full flex items-center justify-center mx-auto border border-green-200">
             <Check size={28} className="text-[#1E4030]" strokeWidth={2.5} />
           </div>
-          <h2 className="font-display text-2xl font-bold text-[#1E4030]">Profile created!</h2>
-          <p className="text-sm text-[#8A7E74]">Your provider profile is under review. Redirecting to your dashboard…</p>
+          <h2 className="font-display text-2xl font-bold text-[#1E4030]">Application submitted!</h2>
+          <p className="text-sm text-[#8A7E74] leading-relaxed">
+            Your provider profile is now under review by our team. Once approved, you will receive a payment notification to activate your account with a 25 XAF subscription fee.
+          </p>
+          <button
+            onClick={() => onNavigate('login')}
+            className="mt-4 text-sm font-bold text-[#1E4030] underline cursor-pointer hover:text-[#152e22]"
+          >
+            Back to login
+          </button>
         </div>
       </div>
     )
@@ -956,8 +1125,8 @@ export default function RegisterPro({ onNavigate }) {
       {/* Top header */}
       <header className="bg-[#FAF8F5] border-b border-[#E2D9CF] px-6 lg:px-12 py-3.5 flex items-center justify-between sticky top-0 z-40">
         <div className="flex items-center gap-2.5">
-          <div className="w-9 h-9 bg-[#1E4030] rounded-xl flex items-center justify-center shadow-sm">
-            <Heart size={17} className="fill-white text-[#1E4030]" />
+          <div className="w-10 h-10 bg-white rounded-xl p-1 flex items-center justify-center border border-[#E2D9CF] shadow-xs shrink-0">
+            <img src="/logo.png" alt="Carely Logo" className="w-full h-full object-contain" />
           </div>
           <div className="leading-tight">
             <p className="font-display font-bold text-sm text-[#1E4030]">Carely</p>
@@ -1034,15 +1203,21 @@ export default function RegisterPro({ onNavigate }) {
                 <button
                   type="button"
                   onClick={handleSubmit}
-                  disabled={!isFormValidStep8}
+                  disabled={!isFormValidStep8 || submitting}
                   className={`flex items-center gap-2 text-sm font-semibold text-white px-5 py-2.5 rounded-xl transition-all shadow-sm cursor-pointer ${
-                    isFormValidStep8 ? 'bg-[#1E4030] hover:bg-[#152e22] opacity-100' : 'bg-[#8CA396] opacity-50 cursor-not-allowed'
+                    isFormValidStep8 && !submitting ? 'bg-[#1E4030] hover:bg-[#152e22] opacity-100' : 'bg-[#8CA396] opacity-50 cursor-not-allowed'
                   }`}
                 >
-                  Submit my application
+                  {submitting ? 'Submitting...' : 'Submit my application'}
                 </button>
               )}
             </div>
+            {/* Submission error */}
+            {submitError && (
+              <div className="mt-3 text-xs text-red-600 font-medium text-center bg-red-50 border border-red-200 rounded-xl px-4 py-2">
+                {submitError}
+              </div>
+            )}
           </div>
 
           {/* Sidebar */}

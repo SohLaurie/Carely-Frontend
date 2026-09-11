@@ -35,6 +35,26 @@ body {
   margin: 0;
 }
 
+html, body {
+  height: 100%;
+}
+
 .font-display {
   font-family: 'Playfair Display', serif;
+}
+
+/* Elegant slim scrollbar */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: #D9D2C8;
+  border-radius: 9999px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: #8A7E74;
 }

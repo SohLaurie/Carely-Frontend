@@ -1,8 +1,15 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   Globe, Shield, Mail, Lock, CheckCircle2, History, CreditCard,
   Bot, Sliders, AlertCircle, Save, Check, RefreshCw, Send, Terminal, Sparkles
 } from 'lucide-react';
+import {
+  fetchLockoutPolicy,
+  saveLockoutPolicy,
+  fetchLoginAttempts,
+  fetchTwoFactorPolicy,
+  saveTwoFactorPolicy,
+} from '../../../services/admin.service.js';
 
 export default function SettingsTab() {
   const [activeSettingsTab, setActiveSettingsTab] = useState('general');
@@ -21,17 +28,21 @@ export default function SettingsTab() {
   const [lockDuration, setLockDuration] = useState('15');
   const [lockoutPolicy, setLockoutPolicy] = useState('Incremental Delay (5m, 15m, 1h)');
   const [notifyOnLockout, setNotifyOnLockout] = useState(true);
+  const [policyLoading, setPolicyLoading] = useState(false);
+  const [policySaving, setPolicySaving] = useState(false);
 
   // 2FA & SMTP State
-  const [enable2FA, setEnable2FA] = useState(true);
-  const [enforceForCaregivers, setEnforceForCaregivers] = useState(true);
+  const [enable2FA, setEnable2FA] = useState(false);
+  const [enforceForCaregivers, setEnforceForCaregivers] = useState(false);
   const [smtpHost, setSmtpHost] = useState('smtp.gmail.com');
-  const [smtpPort, setSmtpPort] = useState('587');
-  const [gmailAddress, setGmailAddress] = useState('carely.security@gmail.com');
+  const [smtpPort, setSmtpPort] = useState('465');
+  const [gmailAddress, setGmailAddress] = useState('carelycorp237@gmail.com');
   const [appPassword, setAppPassword] = useState('••••••••••••••••');
-  const [fromAddress, setFromAddress] = useState('Carely Security <security@carely.cm>');
+  const [fromAddress, setFromAddress] = useState('Carely Support <carelycorp237@gmail.com>');
   const [useTLS, setUseTLS] = useState(true);
   const [testEmailStatus, setTestEmailStatus] = useState(null);
+  const [twoFactorLoading, setTwoFactorLoading] = useState(false);
+  const [twoFactorSaving, setTwoFactorSaving] = useState(false);
 
   // Campay Settings State
   const [campayUsername, setCampayUsername] = useState('carely_prod_momo');
@@ -57,6 +68,9 @@ Provide accurate guidance on Cameroon Mobile Money escrow payments (MTN & Orange
   // Audit Logs State
   const [auditFilter, setAuditFilter] = useState('ALL');
   const [auditSearch, setAuditSearch] = useState('');
+  const [auditLogs, setAuditLogs] = useState([]);
+  const [loadingAuditLogs, setLoadingAuditLogs] = useState(false);
+
   const initialAuditLogs = [
     { id: 'LOG-891', timestamp: '2026-03-16 14:22:05', actor: 'Samuel Ntamack (Admin)', action: 'UPDATE', resource: 'Escrow BK-20468', ip: '154.72.168.42', status: 'SUCCESS', details: 'Updated dispute hold status to manual review' },
     { id: 'LOG-890', timestamp: '2026-03-16 13:10:19', actor: 'System (Campay Webhook)', action: 'WRITE', resource: 'Payment TX-9024', ip: '52.47.19.120', status: 'SUCCESS', details: 'Escrow funded 14,000 XAF via MTN MoMo' },
@@ -68,13 +82,149 @@ Provide accurate guidance on Cameroon Mobile Money escrow payments (MTN & Orange
 
   // Success Notification state
   const [showToast, setShowToast] = useState(false);
+  const [toastMessage, setToastMessage] = useState('Configuration updated and saved successfully!');
+  const [toastType, setToastType] = useState('success');
+
+  // Load lockout policy from backend
+  const loadLockoutPolicy = async () => {
+    try {
+      setPolicyLoading(true);
+      const policy = await fetchLockoutPolicy();
+      if (policy) {
+        if (policy.logFailedAttempts !== undefined) setLogFailedAttempts(Boolean(policy.logFailedAttempts));
+        if (policy.maxFailedAttempts !== undefined) setMaxFailedAttempts(String(policy.maxFailedAttempts));
+        if (policy.lockDuration !== undefined) setLockDuration(String(policy.lockDuration));
+        if (policy.lockoutPolicy !== undefined) setLockoutPolicy(policy.lockoutPolicy);
+        if (policy.notifyOnLockout !== undefined) setNotifyOnLockout(Boolean(policy.notifyOnLockout));
+      }
+    } catch (err) {
+      console.warn('Could not load lockout policy from API:', err.message);
+    } finally {
+      setPolicyLoading(false);
+    }
+  };
+
+  // Load real audit & login attempt logs from backend
+  const loadAuditLogs = async () => {
+    try {
+      setLoadingAuditLogs(true);
+      const realLogs = await fetchLoginAttempts({ limit: 50 });
+      if (realLogs && realLogs.length > 0) {
+        setAuditLogs([...realLogs, ...initialAuditLogs]);
+      } else {
+        setAuditLogs(initialAuditLogs);
+      }
+    } catch (err) {
+      console.warn('Could not load audit logs:', err.message);
+      setAuditLogs(initialAuditLogs);
+    } finally {
+      setLoadingAuditLogs(false);
+    }
+  };
+
+  // Load 2FA & SMTP configuration from backend
+  const loadTwoFactorPolicy = async () => {
+    try {
+      setTwoFactorLoading(true);
+      const policy = await fetchTwoFactorPolicy();
+      if (policy) {
+        if (policy.master2FA !== undefined) setEnable2FA(Boolean(policy.master2FA));
+        if (policy.mandatoryProvider2FA !== undefined) setEnforceForCaregivers(Boolean(policy.mandatoryProvider2FA));
+        if (policy.smtpSettings) {
+          if (policy.smtpSettings.host) setSmtpHost(policy.smtpSettings.host);
+          if (policy.smtpSettings.port) setSmtpPort(String(policy.smtpSettings.port));
+          if (policy.smtpSettings.user) setGmailAddress(policy.smtpSettings.user);
+          if (policy.smtpSettings.from) setFromAddress(policy.smtpSettings.from);
+        }
+      }
+    } catch (err) {
+      console.warn('Could not load 2FA policy from API:', err.message);
+    } finally {
+      setTwoFactorLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    loadLockoutPolicy();
+    loadAuditLogs();
+    loadTwoFactorPolicy();
+  }, []);
+
+  useEffect(() => {
+    if (activeSettingsTab === 'loginAttempts') {
+      loadLockoutPolicy();
+    } else if (activeSettingsTab === 'auditLogs') {
+      loadAuditLogs();
+    } else if (activeSettingsTab === 'twoFactor') {
+      loadTwoFactorPolicy();
+    }
+  }, [activeSettingsTab]);
 
   const handleSave = (e) => {
     e.preventDefault();
+    setToastMessage('Configuration updated and saved successfully!');
+    setToastType('success');
     setShowToast(true);
     setTimeout(() => {
       setShowToast(false);
     }, 3000);
+  };
+
+  const handleSaveTwoFactorPolicy = async (e) => {
+    if (e) e.preventDefault();
+    setTwoFactorSaving(true);
+    try {
+      await saveTwoFactorPolicy({
+        master2FA: enable2FA,
+        mandatoryProvider2FA: enforceForCaregivers,
+        smtpHost,
+        smtpPort: parseInt(smtpPort, 10) || 465,
+        gmailAddress,
+        appPassword,
+        fromAddress,
+      });
+      setToastMessage('2FA & SMTP Settings saved successfully!');
+      setToastType('success');
+      setShowToast(true);
+      setTimeout(() => setShowToast(false), 3500);
+    } catch (err) {
+      console.error('Failed to save 2FA policy:', err);
+      setToastMessage(err.message || 'Failed to save 2FA settings.');
+      setToastType('error');
+      setShowToast(true);
+      setTimeout(() => setShowToast(false), 3500);
+    } finally {
+      setTwoFactorSaving(false);
+    }
+  };
+
+
+  const handleSaveLockoutPolicy = async (e) => {
+    if (e) e.preventDefault();
+    setPolicySaving(true);
+    try {
+      const parsedMax = parseInt(maxFailedAttempts, 10) || 5;
+      const parsedDuration = parseInt(lockDuration, 10) || 15;
+      await saveLockoutPolicy({
+        logFailedAttempts,
+        notifyOnLockout,
+        maxFailedAttempts: parsedMax,
+        lockDuration: parsedDuration,
+        lockoutPolicy,
+      });
+      setToastMessage('Lockout policy configuration saved successfully!');
+      setToastType('success');
+      setShowToast(true);
+      setTimeout(() => setShowToast(false), 3500);
+    } catch (err) {
+      console.error('Failed to save lockout policy:', err);
+      setToastMessage(err.message || 'Failed to save lockout policy.');
+      setToastType('error');
+      setShowToast(true);
+      setTimeout(() => setShowToast(false), 4000);
+    } finally {
+      setPolicySaving(false);
+    }
   };
 
   const handleTestEmail = () => {
@@ -93,12 +243,14 @@ Provide accurate guidance on Cameroon Mobile Money escrow payments (MTN & Orange
     }, 1200);
   };
 
-  const filteredLogs = initialAuditLogs.filter(log => {
-    const matchesType = auditFilter === 'ALL' || log.action === auditFilter;
-    const matchesSearch = log.resource.toLowerCase().includes(auditSearch.toLowerCase()) ||
-                          log.actor.toLowerCase().includes(auditSearch.toLowerCase()) ||
-                          log.details.toLowerCase().includes(auditSearch.toLowerCase()) ||
-                          log.id.toLowerCase().includes(auditSearch.toLowerCase());
+  const logsToFilter = auditLogs && auditLogs.length > 0 ? auditLogs : initialAuditLogs;
+  const filteredLogs = logsToFilter.filter(log => {
+    const matchesType = auditFilter === 'ALL' || log.action === auditFilter || (auditFilter === 'FAILED' && (log.action === 'AUTH_FAILED' || log.status === 'FAILED'));
+    const matchesSearch = (log.resource && log.resource.toLowerCase().includes(auditSearch.toLowerCase())) ||
+                          (log.actor && log.actor.toLowerCase().includes(auditSearch.toLowerCase())) ||
+                          (log.details && log.details.toLowerCase().includes(auditSearch.toLowerCase())) ||
+                          (log.id && log.id.toLowerCase().includes(auditSearch.toLowerCase())) ||
+                          (log.ip && log.ip.toLowerCase().includes(auditSearch.toLowerCase()));
     return matchesType && matchesSearch;
   });
 
@@ -115,9 +267,11 @@ Provide accurate guidance on Cameroon Mobile Money escrow payments (MTN & Orange
     <div className="space-y-6 w-full animate-fadeIn">
       {/* Toast Notification */}
       {showToast && (
-        <div className="fixed bottom-6 right-6 z-[99999] bg-[#1E4030] text-white px-5 py-3 rounded-2xl shadow-xl flex items-center gap-2.5 border border-white/10 animate-fadeIn">
-          <CheckCircle2 size={16} className="text-green-400" />
-          <span className="text-xs font-bold">Configuration updated and saved successfully!</span>
+        <div className={`fixed bottom-6 right-6 z-[99999] text-white px-5 py-3 rounded-2xl shadow-xl flex items-center gap-2.5 border border-white/10 animate-fadeIn ${
+          toastType === 'error' ? 'bg-red-700' : 'bg-[#1E4030]'
+        }`}>
+          {toastType === 'error' ? <AlertCircle size={16} className="text-red-200" /> : <CheckCircle2 size={16} className="text-green-400" />}
+          <span className="text-xs font-bold">{toastMessage}</span>
         </div>
       )}
 
@@ -262,14 +416,22 @@ Provide accurate guidance on Cameroon Mobile Money escrow payments (MTN & Orange
 
       {/* TAB 2: LOGIN ATTEMPTS & LOCKOUT CONFIGURATION */}
       {activeSettingsTab === 'loginAttempts' && (
-        <form onSubmit={handleSave} className="space-y-6 w-full">
+        <form onSubmit={handleSaveLockoutPolicy} className="space-y-6 w-full">
           <div className="bg-white border border-[#E2D9CF] rounded-3xl p-6 sm:p-8 shadow-sm space-y-6">
-            <div className="border-b border-[#F0EBE4] pb-3">
-              <h3 className="font-display text-lg font-bold text-[#1C1A17] flex items-center gap-2">
-                <Lock size={18} className="text-[#1E4030]" />
-                Login Attempts & Account Lockout Policy
-              </h3>
-              <p className="text-xs text-[#8A7E74]">Protect accounts from brute-force authentication attempts and credential stuffing.</p>
+            <div className="border-b border-[#F0EBE4] pb-3 flex items-center justify-between">
+              <div>
+                <h3 className="font-display text-lg font-bold text-[#1C1A17] flex items-center gap-2">
+                  <Lock size={18} className="text-[#1E4030]" />
+                  Login Attempts & Account Lockout Policy
+                </h3>
+                <p className="text-xs text-[#8A7E74]">Protect accounts from brute-force authentication attempts and credential stuffing.</p>
+              </div>
+              {policyLoading && (
+                <div className="flex items-center gap-1.5 text-xs text-[#8A7E74]">
+                  <RefreshCw size={12} className="animate-spin text-[#1E4030]" />
+                  <span>Loading policy...</span>
+                </div>
+              )}
             </div>
 
             <div className="space-y-4">
@@ -322,8 +484,8 @@ Provide accurate guidance on Cameroon Mobile Money escrow payments (MTN & Orange
                   <div className="relative">
                     <input
                       type="number"
-                      min="3"
-                      max="10"
+                      min="1"
+                      max="20"
                       value={maxFailedAttempts}
                       onChange={e => setMaxFailedAttempts(e.target.value)}
                       className="w-full pl-4 pr-24 py-3 border border-[#E2D9CF] rounded-xl outline-none text-xs bg-[#FAF8F5] text-[#1C1A17] font-bold focus:ring-1 focus:ring-[#1E4030]"
@@ -338,7 +500,7 @@ Provide accurate guidance on Cameroon Mobile Money escrow payments (MTN & Orange
                   <div className="relative">
                     <input
                       type="number"
-                      min="5"
+                      min="1"
                       max="1440"
                       value={lockDuration}
                       onChange={e => setLockDuration(e.target.value)}
@@ -367,10 +529,11 @@ Provide accurate guidance on Cameroon Mobile Money escrow payments (MTN & Orange
             <div className="pt-4 border-t border-[#E2D9CF] flex justify-end">
               <button
                 type="submit"
-                className="bg-[#1E4030] hover:bg-[#152e22] text-white font-bold text-xs px-8 py-3 rounded-xl transition-all shadow-sm cursor-pointer flex items-center gap-2 active:scale-95"
+                disabled={policySaving}
+                className="bg-[#1E4030] hover:bg-[#152e22] text-white font-bold text-xs px-8 py-3 rounded-xl transition-all shadow-sm cursor-pointer flex items-center gap-2 active:scale-95 disabled:opacity-60"
               >
-                <Save size={14} />
-                Save Lockout Policy
+                {policySaving ? <RefreshCw size={14} className="animate-spin" /> : <Save size={14} />}
+                {policySaving ? 'Saving Policy...' : 'Save Lockout Policy'}
               </button>
             </div>
           </div>
@@ -385,10 +548,19 @@ Provide accurate guidance on Cameroon Mobile Money escrow payments (MTN & Orange
               <div>
                 <h3 className="font-display text-lg font-bold text-[#1C1A17] flex items-center gap-2">
                   <History size={18} className="text-[#1E4030]" />
-                  System Audit Logs (CRUD Stream)
+                  System Audit Logs (CRUD & Authentication Stream)
                 </h3>
-                <p className="text-xs text-[#8A7E74]">Immutable record of Read, Write, Update, and Delete operations on platform resources.</p>
+                <p className="text-xs text-[#8A7E74]">Real-time record of authentication attempts, lockouts, and resource operations.</p>
               </div>
+              <button
+                type="button"
+                onClick={loadAuditLogs}
+                disabled={loadingAuditLogs}
+                className="inline-flex items-center gap-1.5 px-3.5 py-2 bg-[#FAF8F5] hover:bg-[#EFECE6] border border-[#E2D9CF] rounded-xl text-xs font-bold text-[#1E4030] transition-all cursor-pointer disabled:opacity-60 shrink-0"
+              >
+                <RefreshCw size={13} className={loadingAuditLogs ? 'animate-spin' : ''} />
+                <span>{loadingAuditLogs ? 'Refreshing...' : 'Refresh Logs'}</span>
+              </button>
             </div>
 
             {/* Filter and Search row */}
@@ -396,7 +568,7 @@ Provide accurate guidance on Cameroon Mobile Money escrow payments (MTN & Orange
               <div className="relative w-full sm:max-w-md">
                 <input
                   type="text"
-                  placeholder="Filter logs by actor, resource or keyword..."
+                  placeholder="Filter logs by actor, IP, resource or keyword..."
                   value={auditSearch}
                   onChange={e => setAuditSearch(e.target.value)}
                   className="w-full px-4 py-2.5 border border-[#E2D9CF] rounded-xl text-xs outline-none bg-[#FAF8F5] focus:ring-1 focus:ring-[#1E4030] text-[#1C1A17] font-medium"
@@ -405,7 +577,7 @@ Provide accurate guidance on Cameroon Mobile Money escrow payments (MTN & Orange
 
               {/* Action Type Filter Pills */}
               <div className="flex flex-wrap items-center gap-1.5 w-full sm:w-auto">
-                {['ALL', 'READ', 'WRITE', 'UPDATE', 'DELETE'].map(action => (
+                {['ALL', 'AUTH_FAILED', 'LOCKOUT', 'AUTH_SUCCESS', 'READ', 'WRITE', 'UPDATE', 'DELETE'].map(action => (
                   <button
                     key={action}
                     type="button"
@@ -416,7 +588,7 @@ Provide accurate guidance on Cameroon Mobile Money escrow payments (MTN & Orange
                         : 'bg-[#FAF8F5] text-[#8A7E74] hover:text-[#1C1A17] border border-[#E2D9CF]'
                     }`}
                   >
-                    {action}
+                    {action === 'AUTH_FAILED' ? 'Failed Logins' : action === 'AUTH_SUCCESS' ? 'Successful Logins' : action === 'LOCKOUT' ? 'Lockouts' : action}
                   </button>
                 ))}
               </div>
@@ -430,49 +602,77 @@ Provide accurate guidance on Cameroon Mobile Money escrow payments (MTN & Orange
                     <tr className="bg-[#FAF8F5] border-b border-[#E2D9CF] text-[10px] font-bold text-[#8A7E74] uppercase tracking-wider">
                       <th className="px-5 py-3.5">Log ID & Time</th>
                       <th className="px-5 py-3.5">Action</th>
-                      <th className="px-5 py-3.5">Actor</th>
+                      <th className="px-5 py-3.5">Actor / User</th>
                       <th className="px-5 py-3.5">Resource & Details</th>
                       <th className="px-5 py-3.5">IP Address</th>
                       <th className="px-5 py-3.5 text-center">Status</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-[#EFECE6] text-xs">
-                    {filteredLogs.map(log => {
-                      let actionColor = 'bg-gray-100 text-gray-800 border-gray-200';
-                      if (log.action === 'READ') actionColor = 'bg-blue-50 text-blue-700 border-blue-200';
-                      if (log.action === 'WRITE') actionColor = 'bg-green-50 text-green-700 border-green-200';
-                      if (log.action === 'UPDATE') actionColor = 'bg-amber-50 text-amber-700 border-amber-200';
-                      if (log.action === 'DELETE') actionColor = 'bg-red-50 text-red-700 border-red-200';
+                    {filteredLogs.length === 0 ? (
+                      <tr>
+                        <td colSpan={6} className="px-5 py-8 text-center text-xs text-[#8A7E74]">
+                          No audit or login attempt logs found matching your filters.
+                        </td>
+                      </tr>
+                    ) : (
+                      filteredLogs.map(log => {
+                        let actionColor = 'bg-gray-100 text-gray-800 border-gray-200';
+                        if (log.action === 'READ') actionColor = 'bg-blue-50 text-blue-700 border-blue-200';
+                        if (log.action === 'WRITE') actionColor = 'bg-green-50 text-green-700 border-green-200';
+                        if (log.action === 'UPDATE') actionColor = 'bg-amber-50 text-amber-700 border-amber-200';
+                        if (log.action === 'DELETE') actionColor = 'bg-red-50 text-red-700 border-red-200';
+                        if (log.action === 'AUTH_SUCCESS') actionColor = 'bg-emerald-50 text-emerald-700 border-emerald-200';
+                        if (log.action === 'AUTH_FAILED') actionColor = 'bg-rose-50 text-rose-700 border-rose-200';
+                        if (log.action === 'LOCKOUT') actionColor = 'bg-red-100 text-red-800 border-red-300';
 
-                      return (
-                        <tr key={log.id} className="hover:bg-[#FAF8F5]/60 transition-colors">
-                          <td className="px-5 py-3.5 whitespace-nowrap">
-                            <div className="font-mono text-[11px] font-bold text-[#1E4030]">{log.id}</div>
-                            <div className="text-[10px] text-[#8A7E74]">{log.timestamp}</div>
-                          </td>
-                          <td className="px-5 py-3.5 whitespace-nowrap">
-                            <span className={`inline-flex items-center text-[10px] font-bold px-2.5 py-0.5 rounded-full border ${actionColor}`}>
-                              {log.action}
+                        let statusBadge = (
+                          <span className="bg-[#EDF7F2] text-[#1D6F42] border border-green-200 text-[10px] font-bold px-2 py-0.5 rounded-full">
+                            {log.status}
+                          </span>
+                        );
+                        if (log.status === 'FAILED') {
+                          statusBadge = (
+                            <span className="bg-rose-50 text-rose-700 border border-rose-200 text-[10px] font-bold px-2 py-0.5 rounded-full">
+                              FAILED
                             </span>
-                          </td>
-                          <td className="px-5 py-3.5 whitespace-nowrap font-medium text-[#1C1A17]">
-                            {log.actor}
-                          </td>
-                          <td className="px-5 py-3.5">
-                            <div className="font-semibold text-xs text-[#1C1A17]">{log.resource}</div>
-                            <div className="text-[11px] text-[#8A7E74]">{log.details}</div>
-                          </td>
-                          <td className="px-5 py-3.5 whitespace-nowrap font-mono text-[11px] text-[#8A7E74]">
-                            {log.ip}
-                          </td>
-                          <td className="px-5 py-3.5 whitespace-nowrap text-center">
-                            <span className="bg-[#EDF7F2] text-[#1D6F42] border border-green-200 text-[10px] font-bold px-2 py-0.5 rounded-full">
-                              {log.status}
+                          );
+                        } else if (log.status === 'BLOCKED' || log.status === 'LOCKED') {
+                          statusBadge = (
+                            <span className="bg-red-100 text-red-800 border border-red-300 text-[10px] font-bold px-2 py-0.5 rounded-full">
+                              LOCKED
                             </span>
-                          </td>
-                        </tr>
-                      );
-                    })}
+                          );
+                        }
+
+                        return (
+                          <tr key={log.id} className="hover:bg-[#FAF8F5]/60 transition-colors">
+                            <td className="px-5 py-3.5 whitespace-nowrap">
+                              <div className="font-mono text-[11px] font-bold text-[#1E4030]">{log.id}</div>
+                              <div className="text-[10px] text-[#8A7E74]">{log.timestamp}</div>
+                            </td>
+                            <td className="px-5 py-3.5 whitespace-nowrap">
+                              <span className={`inline-flex items-center text-[10px] font-bold px-2.5 py-0.5 rounded-full border ${actionColor}`}>
+                                {log.action}
+                              </span>
+                            </td>
+                            <td className="px-5 py-3.5 whitespace-nowrap font-medium text-[#1C1A17]">
+                              {log.actor}
+                            </td>
+                            <td className="px-5 py-3.5">
+                              <div className="font-semibold text-xs text-[#1C1A17]">{log.resource}</div>
+                              <div className="text-[11px] text-[#8A7E74]">{log.details}</div>
+                            </td>
+                            <td className="px-5 py-3.5 whitespace-nowrap font-mono text-[11px] text-[#8A7E74]">
+                              {log.ip}
+                            </td>
+                            <td className="px-5 py-3.5 whitespace-nowrap text-center">
+                              {statusBadge}
+                            </td>
+                          </tr>
+                        );
+                      })
+                    )}
                   </tbody>
                 </table>
               </div>
@@ -483,7 +683,7 @@ Provide accurate guidance on Cameroon Mobile Money escrow payments (MTN & Orange
 
       {/* TAB 4: 2FA & SMTP CONFIGURATION */}
       {activeSettingsTab === 'twoFactor' && (
-        <form onSubmit={handleSave} className="space-y-6 w-full">
+        <form onSubmit={handleSaveTwoFactorPolicy} className="space-y-6 w-full">
           <div className="bg-white border border-[#E2D9CF] rounded-3xl p-6 sm:p-8 shadow-sm space-y-6">
             <div className="border-b border-[#F0EBE4] pb-3">
               <h3 className="font-display text-lg font-bold text-[#1C1A17] flex items-center gap-2">
@@ -518,9 +718,9 @@ Provide accurate guidance on Cameroon Mobile Money escrow payments (MTN & Orange
               {/* Provider mandatory 2FA toggle */}
               <div className="p-4 bg-[#FAF8F5] border border-[#E2D9CF] rounded-2xl flex items-center justify-between gap-4">
                 <div className="space-y-1">
-                  <h4 className="font-bold text-xs text-[#1C1A17]">Mandatory 2FA for Providers (Payout Security)</h4>
+                  <h4 className="font-bold text-xs text-[#1C1A17]">Mandatory 2FA for Providers</h4>
                   <p className="text-[11px] text-[#8A7E74] leading-relaxed">
-                    Require OTP verification before providers can initiate Mobile Money withdrawals or modify payment accounts.
+                    Require OTP verification on login for all provider and caregiver accounts across Carely.
                   </p>
                 </div>
                 <button
@@ -628,10 +828,11 @@ Provide accurate guidance on Cameroon Mobile Money escrow payments (MTN & Orange
             <div className="pt-4 border-t border-[#E2D9CF] flex justify-end">
               <button
                 type="submit"
-                className="bg-[#1E4030] hover:bg-[#152e22] text-white font-bold text-xs px-8 py-3 rounded-xl transition-all shadow-sm cursor-pointer flex items-center gap-2 active:scale-95"
+                disabled={twoFactorSaving}
+                className="bg-[#1E4030] hover:bg-[#152e22] text-white font-bold text-xs px-8 py-3 rounded-xl transition-all shadow-sm cursor-pointer flex items-center gap-2 active:scale-95 disabled:opacity-60"
               >
-                <Save size={14} />
-                Save 2FA & SMTP Settings
+                {twoFactorSaving ? <RefreshCw size={14} className="animate-spin" /> : <Save size={14} />}
+                {twoFactorSaving ? 'Saving 2FA Settings...' : 'Save 2FA & SMTP Settings'}
               </button>
             </div>
           </div>

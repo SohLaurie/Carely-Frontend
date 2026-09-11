@@ -1,5 +1,6 @@
 import React from 'react';
 import { Menu, Bell, Shield, X, Check } from 'lucide-react';
+import { getStoredUser, getUserDisplayName, getUserInitials } from '../../../services/api.js';
 
 export default function TopNavbar({
   activeTab,
@@ -10,13 +11,18 @@ export default function TopNavbar({
   setNotifications,
   unreadCount
 }) {
+  const user = getStoredUser();
+  const displayName = getUserDisplayName(user, 'Admin');
+  const initials = getUserInitials(user, 'AD');
+
   const getHeaderInfo = () => {
     switch (activeTab) {
       case 'overview':
         return {
           title: 'Overview',
-          subtitle: "Welcome back, Samuel. Platform health and items needing your attention."
+          subtitle: `Welcome back, ${displayName}. Platform health and items needing your attention.`
         };
+
       case 'applications':
         return {
           title: 'Provider Verification',
@@ -174,13 +180,22 @@ export default function TopNavbar({
           )}
         </div>
 
-        {/* Profile Avatar (SN - Samuel) */}
+        {/* Profile Avatar */}
         <div className="flex items-center gap-2">
-          <div className="w-8 h-8 rounded-full bg-[#1E4030] flex items-center justify-center text-white text-xs font-bold shadow-sm">
-            SN
-          </div>
-          <span className="hidden sm:inline text-xs font-semibold text-[#1C1A17]">Samuel</span>
+          {user?.photoUrl ? (
+            <img
+              src={user.photoUrl}
+              alt={displayName}
+              className="w-8 h-8 rounded-full object-cover border border-[#E2D9CF] shrink-0 shadow-sm"
+            />
+          ) : (
+            <div className="w-8 h-8 rounded-full bg-[#1E4030] flex items-center justify-center text-white text-xs font-bold shadow-sm">
+              {initials}
+            </div>
+          )}
+          <span className="hidden sm:inline text-xs font-semibold text-[#1C1A17]">{displayName}</span>
         </div>
+
       </div>
     </header>
   );

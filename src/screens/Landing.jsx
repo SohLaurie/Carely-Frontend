@@ -1,3 +1,4 @@
+import React, { useState } from "react";
 import {
   Globe,
   ChevronRight,
@@ -23,6 +24,7 @@ import {
   AtSign,
   Mail,
   LogIn,
+  X,
 } from "lucide-react";
 import { SPECIALTY_META } from "../data";
 import girlImg from "../assets/man.jpg";
@@ -116,6 +118,8 @@ const STATS = [
 ];
 
 export default function Landing({ onNavigate }) {
+  const [showAppBanner, setShowAppBanner] = useState(true);
+
   const handleScrollTo = (e, id) => {
     e.preventDefault();
     if (id === "top") {
@@ -149,8 +153,8 @@ export default function Landing({ onNavigate }) {
             className="flex items-center gap-2 cursor-pointer"
             onClick={(e) => handleScrollTo(e, "top")}
           >
-            <div className="w-8 h-8 bg-primary/10 rounded-lg flex items-center justify-center">
-              <Leaf size={18} className="text-primary" />
+            <div className="w-9 h-9 bg-white rounded-xl p-0.5 flex items-center justify-center border border-border shadow-xs shrink-0">
+              <img src="/logo.png" alt="Carely Logo" className="w-full h-full object-contain" />
             </div>
             <span className="font-display text-lg font-semibold text-primary">
               Carely
@@ -206,6 +210,52 @@ export default function Landing({ onNavigate }) {
           </div>
         </div>
       </header>
+
+      {/* App Install Banner (PWA Teaser) */}
+      {showAppBanner && (
+        <aside
+          aria-label="Get the Carely App"
+          className="bg-[#FAF8F5] border-b border-[#EAE4DC] transition-all duration-300 shadow-2xs"
+        >
+          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-12 py-2.5 flex items-center justify-between gap-3">
+            <div className="flex items-center gap-3 sm:gap-4 min-w-0">
+              {/* Close Button (removes banner) */}
+              <button
+                type="button"
+                onClick={() => setShowAppBanner(false)}
+                aria-label="Close banner"
+                title="Dismiss banner"
+                className="text-[#8A7E74] hover:text-[#1C1A17] p-1 rounded-lg hover:bg-black/5 transition-colors cursor-pointer shrink-0"
+              >
+                <X size={18} />
+              </button>
+
+              {/* Carely App Logo Icon */}
+              <div className="w-10 h-10 sm:w-11 sm:h-11 bg-white rounded-2xl p-1.5 flex items-center justify-center border border-[#E2D9CF] shadow-xs shrink-0">
+                <img src="/logo.png" alt="Carely App Logo" className="w-full h-full object-contain" />
+              </div>
+
+              {/* Banner Text */}
+              <p className="text-xs sm:text-sm font-medium text-[#1C1A17] truncate sm:whitespace-normal">
+                Get the Carely app on your smartphone, tablet or desktop computer{" "}
+                <span className="inline-block text-base leading-none">👌</span>
+              </p>
+            </div>
+
+            {/* Inactive Install Button */}
+            <div className="shrink-0">
+              <button
+                type="button"
+                disabled
+                title="Carely PWA app installation coming soon"
+                className="bg-[#1E4030] text-white font-semibold text-xs sm:text-sm px-6 sm:px-7 py-2 rounded-full cursor-not-allowed opacity-85 shadow-xs transition-all select-none"
+              >
+                Install
+              </button>
+            </div>
+          </div>
+        </aside>
+      )}
 
       {/* Hero */}
       <section className="bg-background pt-10 pb-20 lg:pt-16 lg:pb-28">
@@ -667,8 +717,8 @@ export default function Landing({ onNavigate }) {
             {/* Logo, About, Socials, & Newsletter */}
             <div className="col-span-1 md:col-span-3 lg:col-span-2 space-y-6">
               <div className="flex items-center gap-2">
-                <div className="w-9 h-9 bg-[#1E4030] text-white rounded-xl flex items-center justify-center shadow-sm">
-                  <Heart size={16} className="fill-white text-[#1E4030]" />
+                <div className="w-9 h-9 bg-white rounded-xl p-1 flex items-center justify-center border border-[#E2D9CF] shadow-xs shrink-0">
+                  <img src="/logo.png" alt="Carely Logo" className="w-full h-full object-contain" />
                 </div>
                 <span className="font-display text-lg font-semibold text-[#1E4030]">
                   Carely

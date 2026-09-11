@@ -1,30 +1,84 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
-  User, Mail, Phone, MapPin, ShieldCheck, Check, Save, Camera, Globe, Shield, Lock, Award
+  User, Mail, Phone, MapPin, ShieldCheck, Check, Save, Camera, Globe, Shield, Lock, Award, Loader2
 } from 'lucide-react';
+import { getStoredUser, getUserInitials } from '../../../services/api.js';
+import { fetchCurrentProfile, updateCurrentProfile } from '../../../services/auth.service.js';
 
 export default function AdminProfileTab({ onNavigate }) {
   const [savedSuccess, setSavedSuccess] = useState(false);
+  const [saveLoading, setSaveLoading] = useState(false);
+
+  const storedUser = getStoredUser();
+  const [user, setUser] = useState(storedUser);
+
+  const getInitialName = (u) => u?.name || `${u?.firstName || ''} ${u?.lastName || ''}`.trim() || 'Carely Admin';
+  const getInitialEmail = (u) => u?.email || 'carelycorp237@gmail.com';
+  const getInitialPhone = (u) => u?.phone || '+237 6 99 00 00 00';
+  const getInitialLocation = (u) => u?.city ? `${u.city}, Cameroon` : 'Yaoundé, Cameroon';
 
   const [formData, setFormData] = useState({
-    fullName: 'Samuel Ntamack',
-    email: 'samuel.ntamack@carely.cm',
-    phone: '+237 6 99 00 11 22',
-    secondaryPhone: '+237 6 77 00 11 22',
-    location: 'Bastos, Yaoundé, Cameroon',
-    emergencyContact: 'Dr. Anne Ntamack (+237 6 55 11 22 33)',
-    preferredLanguage: 'French & English',
+    fullName: getInitialName(storedUser),
+    email: getInitialEmail(storedUser),
+    phone: getInitialPhone(storedUser),
+    secondaryPhone: storedUser?.secondaryPhone || '+237 6 77 00 11 22',
+    location: getInitialLocation(storedUser),
+    emergencyContact: storedUser?.emergencyContact || 'Dr. Anne Ntamack (+237 6 55 11 22 33)',
+    preferredLanguage: storedUser?.preferredLanguage || 'French & English',
     role: 'Super Administrator & Security Lead',
     clearanceTier: 'Level 4 (Full Platform Clearance)',
     authMethod: 'MFA Hardware Key + Authenticator App',
-    certifications: 'Certified Information Systems Auditor (CISA), Cameroon Data Protection Officer',
-    bio: 'Lead System Administrator at Carely Cameroon. Responsible for platform infrastructure, mobile money escrow security, provider compliance verification, and dispute resolution governance.'
+    certifications: storedUser?.certifications || 'Certified Information Systems Auditor (CISA), Cameroon Data Protection Officer',
+    bio: storedUser?.bio || 'Lead System Administrator at Carely Cameroon. Responsible for platform infrastructure, mobile money escrow security, provider compliance verification, and dispute resolution governance.'
   });
 
-  const handleSave = (e) => {
+  useEffect(() => {
+    let isMounted = true;
+    async function loadProfile() {
+      const freshUser = await fetchCurrentProfile();
+      if (freshUser && isMounted) {
+        setUser(freshUser);
+        setFormData(prev => ({
+          ...prev,
+          fullName: getInitialName(freshUser),
+          email: getInitialEmail(freshUser),
+          phone: getInitialPhone(freshUser),
+          location: getInitialLocation(freshUser),
+          bio: freshUser.bio || prev.bio,
+        }));
+      }
+    }
+    loadProfile();
+    return () => { isMounted = false; };
+  }, []);
+
+  const adminSinceYear = user?.createdAt ? new Date(user.createdAt).getFullYear() : 2024;
+  const initials = getUserInitials(user, 'CA');
+
+  const handleSave = async (e) => {
     e.preventDefault();
-    setSavedSuccess(true);
-    setTimeout(() => setSavedSuccess(false), 3000);
+    setSaveLoading(true);
+    try {
+      const nameParts = formData.fullName.trim().split(/\s+/);
+      const firstName = nameParts[0] || 'Carely';
+      const lastName = nameParts.slice(1).join(' ') || 'Admin';
+
+      const updated = await updateCurrentProfile({
+        firstName,
+        lastName,
+        phone: formData.phone,
+        city: formData.location.replace(/,\s*Cameroon$/i, '').trim(),
+        bio: formData.bio,
+      });
+
+      setUser(updated);
+      setSavedSuccess(true);
+      setTimeout(() => setSavedSuccess(false), 3000);
+    } catch (err) {
+      console.error('Failed to update admin profile:', err);
+    } finally {
+      setSaveLoading(false);
+    }
   };
 
   return (
@@ -54,9 +108,17 @@ export default function AdminProfileTab({ onNavigate }) {
         <div className="flex flex-col sm:flex-row items-center sm:items-start gap-6">
           {/* Avatar with edit badge */}
           <div className="relative">
-            <div className="w-24 h-24 rounded-2xl bg-[#1E4030] text-white flex items-center justify-center text-3xl font-bold font-display shadow-md border-2 border-white">
-              SN
-            </div>
+            {user?.photoUrl ? (
+              <img
+                src={user.photoUrl}
+                alt={formData.fullName}
+                className="w-24 h-24 rounded-2xl object-cover shadow-md border-2 border-white"
+              />
+            ) : (
+              <div className="w-24 h-24 rounded-2xl bg-[#1E4030] text-white flex items-center justify-center text-3xl font-bold font-display shadow-md border-2 border-white">
+                {initials}
+              </div>
+            )}
             <button
               type="button"
               className="absolute -bottom-2 -right-2 w-8 h-8 rounded-full bg-white border border-[#E2D9CF] text-[#1E4030] flex items-center justify-center shadow-md hover:bg-[#FAF8F5] transition-colors cursor-pointer"
@@ -92,7 +154,7 @@ export default function AdminProfileTab({ onNavigate }) {
                 <div className="text-[10px] text-[#8A7E74]">Bookings Overseen</div>
               </div>
               <div className="bg-[#FAF8F5] border border-[#E2D9CF] rounded-2xl p-3 text-center">
-                <div className="text-base font-bold text-[#1E4030]">2024</div>
+                <div className="text-base font-bold text-[#1E4030]">{adminSinceYear}</div>
                 <div className="text-[10px] text-[#8A7E74]">Admin Since</div>
               </div>
             </div>

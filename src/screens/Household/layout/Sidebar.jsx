@@ -6,10 +6,10 @@ export default function Sidebar({
   setActiveTab,
   sidebarOpen,
   setSidebarOpen,
-  pendingRequestsCount = 2,
-  pendingBookingsCount = 1,
-  unreadNotificationsCount = 4,
-  unreadMessagesCount = 1,
+  pendingRequestsCount = 0,
+  pendingBookingsCount = 0,
+  unreadNotificationsCount = 0,
+  unreadMessagesCount = 0,
   onNavigate
 }) {
   const menuItems = [
@@ -26,12 +26,12 @@ export default function Sidebar({
   return (
     <>
       <aside
-        className={`fixed inset-y-0 left-0 z-50 w-64 bg-[#0F1A14] text-white flex flex-col justify-between transition-transform duration-300 lg:static lg:translate-x-0 ${
+        className={`fixed inset-y-0 left-0 z-50 w-64 h-screen bg-[#0F1A14] text-white flex flex-col justify-between transition-transform duration-300 lg:static lg:translate-x-0 lg:h-screen lg:shrink-0 ${
           sidebarOpen ? 'translate-x-0' : '-translate-x-full'
         }`}
       >
         {/* Header Branding */}
-        <div className="p-6 border-b border-white/10 flex items-center justify-between">
+        <div className="p-6 border-b border-white/10 flex items-center justify-between shrink-0">
           <div
             className="flex items-center gap-3 cursor-pointer"
             onClick={() => {
@@ -39,8 +39,8 @@ export default function Sidebar({
               setSidebarOpen(false);
             }}
           >
-            <div className="w-10 h-10 bg-[#1E4030] rounded-xl flex items-center justify-center border border-white/10 shadow-sm">
-              <Heart size={18} className="fill-white text-[#1E4030]" />
+            <div className="w-10 h-10 bg-white rounded-xl p-1 flex items-center justify-center border border-white/20 shadow-sm shrink-0">
+              <img src="/logo.png" alt="Carely Logo" className="w-full h-full object-contain" />
             </div>
             <div>
               <h2 className="font-display text-base font-bold text-white tracking-wide">Carely</h2>
@@ -56,7 +56,7 @@ export default function Sidebar({
         </div>
 
         {/* Navigation Items */}
-        <nav className="flex-1 px-4 py-6 space-y-1.5">
+        <nav className="flex-1 px-4 py-4 space-y-1.5 overflow-y-auto">
           {menuItems.map(({ id, label, Icon, badge }) => {
             const active = activeTab === id;
             return (
@@ -87,7 +87,7 @@ export default function Sidebar({
         </nav>
 
         {/* Footer Configuration: Profile stays inside dashboard layout! */}
-        <div className="p-4 border-t border-white/10 space-y-1">
+        <div className="p-4 border-t border-white/10 space-y-1 shrink-0">
           <button
             onClick={() => {
               setActiveTab('profile');

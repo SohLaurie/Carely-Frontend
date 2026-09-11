@@ -7,8 +7,8 @@ export default function Pack({ onNavigate }) {
       {/* Top Header */}
       <header className="bg-[#FAF8F5] border-b border-[#E2D9CF] px-6 lg:px-12 py-3.5 flex items-center justify-between sticky top-0 z-40">
         <div className="flex items-center gap-2.5 cursor-pointer" onClick={() => onNavigate('landing')}>
-          <div className="w-9 h-9 bg-[#1E4030] rounded-xl flex items-center justify-center shadow-sm">
-            <Heart size={17} className="fill-white text-[#1E4030]" />
+          <div className="w-10 h-10 bg-white rounded-xl p-1 flex items-center justify-center border border-[#E2D9CF] shadow-xs shrink-0">
+            <img src="/logo.png" alt="Carely Logo" className="w-full h-full object-contain" />
           </div>
           <div className="leading-tight">
             <p className="font-display font-bold text-sm text-[#1E4030]">Carely</p>

@@ -21,6 +21,7 @@ import Completion from './screens/Completion';
 import RateReview from './screens/RateReview';
 
 import { useHouseholdDashboard } from './hooks/useHouseholdDashboard';
+import { getStoredUser } from '../../services/api';
 
 export default function HouseholdDashboard({ onNavigate: topNavigate, screenParams }) {
   // Booking wizard overlay state
@@ -57,23 +58,50 @@ export default function HouseholdDashboard({ onNavigate: topNavigate, screenPara
       ? (bookingData.totalPrice.toLocaleString() + ' XAF')
       : '11,000 XAF';
 
+    const realBookingId = bookingData.bookingId || bookingData.backendBooking?.id || ('R_' + Date.now());
+
+    const providerProfession = bookingData.provider?.profession || bookingData.provider?.professionOther || (Array.isArray(bookingData.provider?.specialties) ? bookingData.provider?.specialties[0] : bookingData.provider?.specialties) || 'Cleaner';
+    const providerInitials = bookingData.provider?.name
+      ? bookingData.provider.name.split(' ').map(n => n[0]).join('').slice(0, 2).toUpperCase()
+      : 'NZ';
+    const providerPhoto = bookingData.provider?.photo || bookingData.provider?.photoUrl || null;
+
     const newRequest = {
-      id: 'R_' + Date.now(),
-      name: bookingData.provider?.name || 'Marie-Claire Nkomo',
-      specialty: bookingData.service?.specialty || 'cleaning',
+      id: realBookingId,
+      bookingId: realBookingId,
+      name: bookingData.provider?.name || 'Verified Provider',
+      profession: providerProfession,
+      specialty: providerProfession,
+      initials: providerInitials,
       date: formattedDate,
       time: formattedTime,
       status: 'Pending',
       timeSent: 'Sent Just Now',
-      location: bookingData.addressText || bookingData.address?.full || 'Douala, Cameroon',
-      pricePerHour: bookingData.provider?.pricePerHour || 3500,
+      location: bookingData.addressText || bookingData.address?.full || 'Yaoundé / Douala',
+      pricePerHour: bookingData.provider?.pricePerHour || 50,
       totalPrice: formattedPrice,
       patientNotes: bookingData.notes || 'No specific instructions provided.',
-      photo: bookingData.provider?.photo || 'https://images.unsplash.com/photo-1627328543975-3f0ba8a823b0?w=400&h=400&fit=crop&auto=format'
+      photo: providerPhoto,
+      caregiver: {
+        id: bookingData.provider?.id,
+        name: bookingData.provider?.name || 'Verified Provider',
+        profession: providerProfession,
+        specialty: providerProfession,
+        initials: providerInitials,
+        pricePerHour: bookingData.provider?.pricePerHour || 50,
+        photo: providerPhoto,
+        rating: bookingData.provider?.rating || 5.0,
+      },
+      rawBooking: bookingData.backendBooking || null,
     };
 
-    setRequests(prev => [newRequest, ...prev]);
-    setActiveTab('requests');
+    setRequests(prev => [newRequest, ...prev.filter(x => x.id !== realBookingId)]);
+    setWorkflowParams({
+      activeBookingId: realBookingId,
+      booking: newRequest,
+      activeRequest: newRequest,
+    });
+    setActiveTab('pending');
   };
 
   const {
@@ -182,7 +210,7 @@ export default function HouseholdDashboard({ onNavigate: topNavigate, screenPara
         <HomeTab
           onNavigate={handleInternalNavigate}
           openBookingWizard={openBookingWizard}
-          userFirstName="there"
+          userFirstName={getStoredUser()?.firstName || getStoredUser()?.first_name || 'there'}
         />
       )}
 
@@ -229,6 +257,7 @@ export default function HouseholdDashboard({ onNavigate: topNavigate, screenPara
           clearDiscussionChat={clearDiscussionChat}
           deleteMessage={deleteMessage}
           onNavigate={handleInternalNavigate}
+          openDiscussionWithCaregiver={openDiscussionWithCaregiver}
         />
       )}
 
@@ -315,6 +344,7 @@ export default function HouseholdDashboard({ onNavigate: topNavigate, screenPara
         <Payment
           onNavigate={handleInternalNavigate}
           screenParams={workflowParams}
+          loadBookings={loadBookings}
         />
       )}
 
@@ -323,6 +353,7 @@ export default function HouseholdDashboard({ onNavigate: topNavigate, screenPara
         <BookingConfirmed
           onNavigate={handleInternalNavigate}
           screenParams={workflowParams}
+          loadBookings={loadBookings}
         />
       )}
 

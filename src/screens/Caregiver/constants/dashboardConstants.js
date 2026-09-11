@@ -20,6 +20,5 @@ export const NAVIGATION_ITEMS = [
   { id: 'earnings', label: 'Earnings', badge: null },
   { id: 'reviews', label: 'Reviews', badge: null },
   { id: 'notifications', label: 'Notifications', badge: 5 },
-  { id: 'refer', label: 'Refer & Earn', badge: null },
-  { id: 'profile', label: 'My Profile', badge: null }
+  { id: 'refer', label: 'Refer & Earn', badge: null }
 ];

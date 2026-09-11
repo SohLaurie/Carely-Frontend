@@ -1,9 +1,10 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   Key, ShieldCheck, Clock, CheckCircle2, AlertTriangle,
-  ArrowLeft, ChevronRight, User, RefreshCw, X, RotateCcw, AlertCircle
+  ArrowLeft, ChevronRight, ArrowRight, User, X, RotateCcw, AlertCircle
 } from 'lucide-react';
 import { CAREGIVERS, SPECIALTY_META } from '../../../data';
+import { verifySessionOtp, fetchBooking } from '../../../services/bookingApi';
 
 export default function OTPArrival({ onNavigate, screenParams }) {
   const booking = screenParams?.booking || {
@@ -19,19 +20,45 @@ export default function OTPArrival({ onNavigate, screenParams }) {
   const caregiver = booking.caregiver || CAREGIVERS[0];
   const meta = SPECIALTY_META[caregiver.specialty] || { label: 'Provider' };
 
-  const [otp] = useState(booking.arrivalOtp || '4829');
-  const [caregiverInputOtp, setCaregiverInputOtp] = useState('');
-  const [sessionState, setSessionState] = useState('waiting_arrival'); // 'waiting_arrival' | 'in_progress' | 'no_show'
+  const [otp] = useState(String(booking.arrivalOtp || booking.sessions?.[0]?.otp_code || '4829'));
+  const [sessionState, setSessionState] = useState(
+    booking.status === 'in_progress' || booking.rawStatus === 'in_progress' ? 'in_progress' : 'waiting_arrival'
+  );
   const [noShowModalOpen, setNoShowModalOpen] = useState(false);
 
-  const handleVerifyOtp = (e) => {
-    e.preventDefault();
-    if (caregiverInputOtp === otp) {
-      setSessionState('in_progress');
-    } else {
-      alert('Invalid OTP code. Please check the 4 digits displayed on the household screen.');
-    }
-  };
+  const bookingId = booking.id || screenParams?.activeBookingId;
+
+  // Poll backend booking to detect when provider enters OTP in provider dashboard
+  useEffect(() => {
+    if (!bookingId || typeof bookingId !== 'string' || !bookingId.includes('-')) return;
+
+    let isMounted = true;
+    const checkStatus = async () => {
+      try {
+        const live = await fetchBooking(bookingId);
+        if (!isMounted || !live) return;
+        const liveSession = live.sessions?.[0];
+        if (
+          live.status === 'in_progress' ||
+          live.status === 'completed' ||
+          liveSession?.status === 'ARRIVED' ||
+          liveSession?.status === 'COMPLETED' ||
+          liveSession?.status === 'AWAITING_CONFIRMATION'
+        ) {
+          setSessionState('in_progress');
+        }
+      } catch (err) {
+        console.warn('Check arrival status error:', err.message);
+      }
+    };
+
+    checkStatus();
+    const interval = setInterval(checkStatus, 3000);
+    return () => {
+      isMounted = false;
+      clearInterval(interval);
+    };
+  }, [bookingId]);
 
   const handleNoShowConfirm = () => {
     setNoShowModalOpen(false);
@@ -39,16 +66,6 @@ export default function OTPArrival({ onNavigate, screenParams }) {
     setTimeout(() => {
       onNavigate('search');
     }, 2500);
-  };
-
-  const handleEndSessionTimePassed = () => {
-    onNavigate('completion', {
-      booking: {
-        ...booking,
-        otpVerified: sessionState === 'in_progress',
-        status: 'Awaiting Confirmation'
-      }
-    });
   };
 
   return (
@@ -74,118 +91,71 @@ export default function OTPArrival({ onNavigate, screenParams }) {
         </p>
       </div>
 
-        {/* OTP Code Display Box */}
-        <div className="bg-white rounded-3xl border border-[#E2D9CF] p-8 shadow-sm text-center space-y-6">
-          <div className="space-y-2">
-            <span className="text-xs font-bold text-[#8A7E74] uppercase tracking-widest">
-              Your 4-Digit Arrival OTP Code
-            </span>
-            <div className="flex justify-center items-center gap-3">
-              {otp.split('').map((digit, idx) => (
-                <span
-                  key={idx}
-                  className="w-14 h-16 sm:w-16 sm:h-20 bg-[#FAF8F5] border-2 border-[#1E4030] rounded-2xl flex items-center justify-center font-mono font-extrabold text-3xl sm:text-4xl text-[#1E4030] shadow-sm"
-                >
-                  {digit}
-                </span>
-              ))}
-            </div>
-            <p className="text-xs text-[#8A7E74] pt-2">
-              Keep this screen open. Share this code with {caregiver.name.split(' ')[0]} when they arrive at your door.
-            </p>
+      {/* OTP Code Display Box */}
+      <div className="bg-white rounded-3xl border border-[#E2D9CF] p-8 shadow-sm text-center space-y-6">
+        <div className="space-y-2">
+          <span className="text-xs font-bold text-[#8A7E74] uppercase tracking-widest">
+            Your 4-Digit Arrival OTP Code
+          </span>
+          <div className="flex justify-center items-center gap-3">
+            {otp.split('').map((digit, idx) => (
+              <span
+                key={idx}
+                className="w-14 h-16 sm:w-16 sm:h-20 bg-[#FAF8F5] border-2 border-[#1E4030] rounded-2xl flex items-center justify-center font-mono font-extrabold text-3xl sm:text-4xl text-[#1E4030] shadow-sm"
+              >
+                {digit}
+              </span>
+            ))}
           </div>
+          <p className="text-xs text-[#8A7E74] pt-2">
+            Keep this screen open. Share this code with {caregiver.name.split(' ')[0]} when they arrive at your door.
+          </p>
+        </div>
 
-          {/* Current Session Status Badge */}
-          <div className="pt-4 border-t border-[#E2D9CF] flex justify-center">
-            {sessionState === 'waiting_arrival' && (
+        {/* Current Session Status Badge & Completion Link */}
+        <div className="pt-4 border-t border-[#E2D9CF] flex flex-col items-center justify-center gap-3">
+          {sessionState === 'waiting_arrival' && (
+            <div className="space-y-3">
               <div className="inline-flex items-center gap-2 bg-amber-50 text-amber-800 text-xs font-bold px-4 py-2 rounded-full border border-amber-200">
                 <span className="w-2.5 h-2.5 rounded-full bg-amber-500 animate-ping"></span>
                 Waiting for Provider Arrival on Site ({booking.time})
               </div>
-            )}
-
-            {sessionState === 'in_progress' && (
-              <div className="inline-flex items-center gap-2 bg-[#EDF7F2] text-[#1E4030] text-xs font-bold px-4 py-2 rounded-full border border-green-200">
-                <span className="w-2.5 h-2.5 rounded-full bg-green-500 animate-pulse"></span>
-                OTP Verified &middot; Session In Progress (Active Service)
-              </div>
-            )}
-
-            {sessionState === 'no_show' && (
-              <div className="inline-flex items-center gap-2 bg-red-50 text-red-700 text-xs font-bold px-4 py-2 rounded-full border border-red-200">
-                <AlertTriangle size={14} />
-                No-Show Flagged &middot; Full Escrow Refund Returned
-              </div>
-            )}
-          </div>
-        </div>
-
-        {/* ─── INTERACTIVE MVP SIMULATION: Provider Terminal (Entering OTP / Triggering No-Show) ─── */}
-        <div className="bg-gradient-to-r from-[#1E4030] to-[#152e22] text-white rounded-3xl p-6 sm:p-8 shadow-md space-y-5">
-          <div className="flex items-center gap-2 text-xs font-bold text-green-300 uppercase tracking-wider">
-            <RefreshCw size={14} className="animate-spin" />
-            <span>Provider Terminal Simulation (On-Site Action)</span>
-          </div>
-
-          {sessionState === 'waiting_arrival' && (
-            <div className="space-y-4">
-              <p className="text-xs text-white/80 leading-relaxed">
-                When {caregiver.name.split(' ')[0]} reaches your home, they enter the 4-digit OTP to lock in arrival presence. Test below:
-              </p>
-
-              <form onSubmit={handleVerifyOtp} className="flex flex-col sm:flex-row gap-3">
-                <input
-                  type="text"
-                  maxLength={4}
-                  placeholder="Enter OTP (e.g. 4829)"
-                  value={caregiverInputOtp}
-                  onChange={e => setCaregiverInputOtp(e.target.value)}
-                  className="px-4 py-3 bg-white/10 border border-white/20 rounded-xl text-white placeholder-white/50 text-xs focus:outline-none focus:bg-white/20 flex-1"
-                />
+              <div>
                 <button
-                  type="submit"
-                  className="bg-green-500 hover:bg-green-600 text-white font-bold py-3 px-6 rounded-xl text-xs transition-all shadow-sm flex items-center justify-center gap-2 cursor-pointer"
+                  onClick={() => onNavigate('completion', { booking: { ...booking, otpVerified: false } })}
+                  className="text-xs text-[#8A7E74] hover:text-[#1E4030] font-medium inline-flex items-center gap-1 hover:underline cursor-pointer"
                 >
-                  <CheckCircle2 size={16} />
-                  <span>Simulate Provider Entering OTP ({otp})</span>
-                </button>
-              </form>
-
-              <div className="pt-3 border-t border-white/10 flex justify-between items-center text-xs">
-                <span className="text-white/60">Provider never arrived?</span>
-                <button
-                  type="button"
-                  onClick={() => setNoShowModalOpen(true)}
-                  className="text-red-300 font-bold hover:text-red-200 hover:underline cursor-pointer"
-                >
-                  Report No-Show & Auto-Refund
+                  <span>Already completed? Confirm session completion directly</span>
+                  <ArrowRight size={13} />
                 </button>
               </div>
             </div>
           )}
 
           {sessionState === 'in_progress' && (
-            <div className="space-y-4 animate-fadeIn">
-              <div className="p-4 bg-white/10 border border-white/20 rounded-2xl space-y-2">
-                <div className="flex items-center gap-2 font-bold text-green-300 text-sm">
-                  <Check size={16} />
-                  <span>On-Site Presence Confirmed</span>
-                </div>
-                <p className="text-xs text-white/80 leading-relaxed">
-                  The service is underway. Cancellations are now locked. When the scheduled end time passes, the 24-hour confirmation window opens automatically.
-                </p>
+            <div className="space-y-4 animate-fadeIn flex flex-col items-center">
+              <div className="inline-flex items-center gap-2 bg-[#EDF7F2] text-[#1E4030] text-xs sm:text-sm font-bold px-5 py-2.5 rounded-full border border-green-200 shadow-xs">
+                <CheckCircle2 size={16} className="text-green-600" />
+                <span>Provider has reached &middot; Session in progress</span>
               </div>
-
               <button
-                onClick={handleEndSessionTimePassed}
-                className="w-full bg-white hover:bg-white/90 text-[#1E4030] font-bold py-3.5 px-6 rounded-2xl text-xs transition-all shadow-md flex items-center justify-center gap-2 cursor-pointer"
+                onClick={() => onNavigate('completion', { booking: { ...booking, otpVerified: true } })}
+                className="inline-flex items-center gap-2 bg-[#1E4030] hover:bg-[#152e22] text-white text-xs sm:text-sm font-bold px-6 py-3 rounded-2xl shadow-sm transition-all cursor-pointer group"
               >
-                <span>Simulate End of Session &rarr; Open Step 5: 24h Confirmation Window</span>
-                <ChevronRight size={16} />
+                <span>Confirm Session Completion</span>
+                <ChevronRight size={16} className="group-hover:translate-x-1 transition-transform" />
               </button>
             </div>
           )}
+
+          {sessionState === 'no_show' && (
+            <div className="inline-flex items-center gap-2 bg-red-50 text-red-700 text-xs font-bold px-4 py-2 rounded-full border border-red-200">
+              <AlertTriangle size={14} />
+              No-Show Flagged &middot; Full Escrow Refund Returned
+            </div>
+          )}
         </div>
+      </div>
 
         {/* No-Show Confirmation Modal */}
         {noShowModalOpen && (

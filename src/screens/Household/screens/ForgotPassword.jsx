@@ -1,6 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
 import {
-  Heart,
   ShieldCheck,
   Lock,
   CheckCircle,
@@ -12,32 +11,36 @@ import {
   RotateCw,
   CheckCircle2,
   AlertCircle,
-  Sparkles,
   Users,
   Star,
   TrendingUp,
 } from 'lucide-react';
+import {
+  requestPasswordReset,
+  verifyRecoveryCode,
+  resetPasswordWithToken,
+} from '../../../services/auth.service';
 
 const FEATURES = [
-  { Icon: ShieldCheck, text: 'Identity verified providers' },
-  { Icon: Lock, text: 'Secure password encryption' },
-  { Icon: CheckCircle, text: 'Instant email OTP verification' },
+  { Icon: ShieldCheck, text: 'Identity verified providers across Cameroon' },
+  { Icon: Lock, text: 'End-to-end encrypted password security' },
+  { Icon: CheckCircle, text: 'Real-time 6-digit email verification code' },
 ];
 
 const STATS = [
-  { Icon: Users, num: '847+', label: 'Verified providers' },
-  { Icon: Star, num: '4.8★', label: 'Average rating' },
-  { Icon: TrendingUp, num: '2,400+', label: 'Families served' },
+  { Icon: Users, num: '840+', label: 'Verified providers' },
+  { Icon: Star, num: '4.9★', label: 'Average rating' },
+  { Icon: TrendingUp, num: '2,500+', label: 'Families served' },
 ];
 
 export default function ForgotPassword({ onNavigate }) {
   // Steps: 'email' | 'otp' | 'reset' | 'success'
   const [step, setStep] = useState('email');
   const [email, setEmail] = useState('');
-  const [generatedOtp, setGeneratedOtp] = useState('8426');
-  const [otpDigits, setOtpDigits] = useState(['', '', '', '']);
+  const [otpDigits, setOtpDigits] = useState(['', '', '', '', '', '']);
+  const [activeCode, setActiveCode] = useState('');
   const [otpError, setOtpError] = useState('');
-  const [resendTimer, setResendTimer] = useState(45);
+  const [resendTimer, setResendTimer] = useState(60);
   const [canResend, setCanResend] = useState(false);
 
   const [password, setPassword] = useState('');
@@ -46,18 +49,48 @@ export default function ForgotPassword({ onNavigate }) {
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [passwordError, setPasswordError] = useState('');
   const [loading, setLoading] = useState(false);
-  const [autoRedirectTimer, setAutoRedirectTimer] = useState(4);
+  const [generalError, setGeneralError] = useState('');
+  const [statusMessage, setStatusMessage] = useState('');
+  const [autoRedirectTimer, setAutoRedirectTimer] = useState(5);
 
-  const digitInputRefs = [useRef(null), useRef(null), useRef(null), useRef(null)];
+  const digitInputRefs = [
+    useRef(null),
+    useRef(null),
+    useRef(null),
+    useRef(null),
+    useRef(null),
+    useRef(null),
+  ];
 
-  // Resend Countdown Timer
+  // Inspect URL query parameters on mount for direct link from email (?token=...&email=...)
+  useEffect(() => {
+    try {
+      const searchParams = new URLSearchParams(window.location.search);
+      const urlToken = searchParams.get('token') || searchParams.get('code');
+      const urlEmail = searchParams.get('email');
+
+      if (urlEmail) {
+        setEmail(decodeURIComponent(urlEmail));
+      }
+
+      if (urlToken) {
+        setActiveCode(urlToken);
+        setStep('reset');
+        setStatusMessage('Recovery token detected. Please enter your new password below.');
+      }
+    } catch {
+      // Ignore URL parsing errors
+    }
+  }, []);
+
+  // Resend countdown timer for step 2
   useEffect(() => {
     let interval = null;
     if (step === 'otp' && resendTimer > 0) {
       interval = setInterval(() => {
         setResendTimer((prev) => prev - 1);
       }, 1000);
-    } else if (resendTimer === 0) {
+    } else if (step === 'otp' && resendTimer === 0) {
       setCanResend(true);
       if (interval) clearInterval(interval);
     }
@@ -86,47 +119,59 @@ export default function ForgotPassword({ onNavigate }) {
     };
   }, [step, onNavigate]);
 
-  // Handle Step 1: Send OTP to Email
-  const handleRequestOtp = (e) => {
-    e.preventDefault();
-    if (!email || !email.includes('@')) return;
+  // ── Step 1: Request Password Reset via Real Backend API ──
+  const handleRequestReset = async (e) => {
+    if (e) e.preventDefault();
+    const cleanEmail = email.trim().toLowerCase();
+    if (!cleanEmail || !cleanEmail.includes('@')) {
+      setGeneralError('Please enter a valid email address.');
+      return;
+    }
+
     setLoading(true);
+    setGeneralError('');
 
-    // Generate random 4-digit code or fallback to 8426
-    const randomCode = Math.floor(1000 + Math.random() * 9000).toString();
-    setGeneratedOtp(randomCode);
-
-    setTimeout(() => {
+    try {
+      const result = await requestPasswordReset(cleanEmail);
       setLoading(false);
       setStep('otp');
-      setResendTimer(45);
+      setResendTimer(60);
       setCanResend(false);
-      setOtpDigits(['', '', '', '']);
+      setOtpDigits(['', '', '', '', '', '']);
       setOtpError('');
+      setStatusMessage(result.message || 'Verification code sent to your email.');
+
       setTimeout(() => {
         digitInputRefs[0]?.current?.focus();
-      }, 100);
-    }, 800);
+      }, 150);
+    } catch (err) {
+      setLoading(false);
+      setGeneralError(err.message || 'Failed to send recovery email. Please check your connection and try again.');
+    }
   };
 
-  // Handle digit input change
+  // Handle digit input change & paste
   const handleDigitChange = (index, value) => {
-    // Only accept numbers
     const cleanVal = value.replace(/\D/g, '');
     if (!cleanVal && value !== '') return;
 
     const newDigits = [...otpDigits];
-    
-    // Handle paste of 4 digits
+
+    // Handle multi-digit paste (e.g., pasting 6-digit code)
     if (cleanVal.length > 1) {
-      const pasted = cleanVal.slice(0, 4).split('');
+      const pasted = cleanVal.slice(0, 6).split('');
       pasted.forEach((d, i) => {
-        if (i < 4) newDigits[i] = d;
+        if (i < 6) newDigits[i] = d;
       });
       setOtpDigits(newDigits);
       setOtpError('');
-      const nextFocus = Math.min(pasted.length, 3);
+      const nextFocus = Math.min(pasted.length, 5);
       digitInputRefs[nextFocus]?.current?.focus();
+
+      // If full 6 digits pasted, verify automatically
+      if (pasted.length === 6) {
+        verifyCodeDirect(newDigits.join(''));
+      }
       return;
     }
 
@@ -135,12 +180,12 @@ export default function ForgotPassword({ onNavigate }) {
     setOtpError('');
 
     // Advance to next box if filled
-    if (cleanVal && index < 3) {
+    if (cleanVal && index < 5) {
       digitInputRefs[index + 1]?.current?.focus();
     }
   };
 
-  // Handle backspace navigation
+  // Handle Backspace navigation across digit boxes
   const handleKeyDown = (index, e) => {
     if (e.key === 'Backspace') {
       if (!otpDigits[index] && index > 0) {
@@ -149,42 +194,61 @@ export default function ForgotPassword({ onNavigate }) {
     }
   };
 
-  // Handle Step 2: Verify 4-Digit Code
-  const handleVerifyOtp = (e) => {
-    e.preventDefault();
-    const enteredCode = otpDigits.join('');
-    if (enteredCode.length < 4) {
-      setOtpError('Please enter all 4 digits sent to your email.');
-      return;
-    }
-
+  // Helper to verify code with API
+  const verifyCodeDirect = async (codeToVerify) => {
     setLoading(true);
-    setTimeout(() => {
+    setOtpError('');
+    try {
+      const res = await verifyRecoveryCode(codeToVerify);
       setLoading(false);
-      if (enteredCode === generatedOtp || enteredCode === '8426') {
+      if (res.valid) {
+        setActiveCode(codeToVerify);
         setStep('reset');
         setPasswordError('');
       } else {
-        setOtpError('Incorrect 4-digit code. Please check your email or resend code.');
+        setOtpError(res.message || 'Invalid or expired 6-digit code. Please try again.');
       }
-    }, 600);
+    } catch (err) {
+      setLoading(false);
+      setOtpError(err.message || 'Invalid or expired 6-digit code. Please check your email.');
+    }
   };
 
-  // Handle Resend OTP
-  const handleResendCode = () => {
-    if (!canResend) return;
-    const newCode = Math.floor(1000 + Math.random() * 9000).toString();
-    setGeneratedOtp(newCode);
-    setResendTimer(45);
-    setCanResend(false);
-    setOtpDigits(['', '', '', '']);
-    setOtpError('');
-    digitInputRefs[0]?.current?.focus();
-  };
-
-  // Handle Step 3: Save New Password
-  const handleSavePassword = (e) => {
+  // ── Step 2: Verify 6-Digit Code via Real Backend API ──
+  const handleVerifyOtp = async (e) => {
     e.preventDefault();
+    const enteredCode = otpDigits.join('');
+    if (enteredCode.length < 6) {
+      setOtpError('Please enter all 6 digits sent to your email.');
+      return;
+    }
+    await verifyCodeDirect(enteredCode);
+  };
+
+  // Handle Resend Code
+  const handleResendCode = async () => {
+    if (!canResend || loading) return;
+    setLoading(true);
+    setOtpError('');
+    try {
+      const res = await requestPasswordReset(email);
+      setLoading(false);
+      setResendTimer(60);
+      setCanResend(false);
+      setOtpDigits(['', '', '', '', '', '']);
+      setStatusMessage('A fresh 6-digit recovery code has been sent to your email.');
+      digitInputRefs[0]?.current?.focus();
+    } catch (err) {
+      setLoading(false);
+      setOtpError(err.message || 'Failed to resend code. Please try again in a moment.');
+    }
+  };
+
+  // ── Step 3: Save New Password via Real Backend API ──
+  const handleSavePassword = async (e) => {
+    e.preventDefault();
+    setPasswordError('');
+
     if (!password) {
       setPasswordError('Please enter a new password.');
       return;
@@ -194,15 +258,23 @@ export default function ForgotPassword({ onNavigate }) {
       return;
     }
     if (password !== confirmPassword) {
-      setPasswordError('Passwords do not match. Please ensure both fields match.');
+      setPasswordError('Passwords do not match. Please ensure both fields are identical.');
+      return;
+    }
+    if (!activeCode) {
+      setPasswordError('Recovery session expired or missing code. Please restart the recovery flow.');
       return;
     }
 
     setLoading(true);
-    setTimeout(() => {
+    try {
+      await resetPasswordWithToken(activeCode, password);
       setLoading(false);
       setStep('success');
-    }, 800);
+    } catch (err) {
+      setLoading(false);
+      setPasswordError(err.message || 'Failed to update password. Your recovery session may have expired.');
+    }
   };
 
   return (
@@ -213,17 +285,17 @@ export default function ForgotPassword({ onNavigate }) {
         <div className="absolute bottom-0 left-0 w-80 h-80 bg-white/5 rounded-full translate-y-1/3 -translate-x-1/3 pointer-events-none" />
         <div className="absolute top-1/2 right-12 w-36 h-36 bg-[#E29578]/10 rounded-full -translate-y-1/2 pointer-events-none" />
 
-        {/* Logo */}
+        {/* Authentic Carely Logo & Header */}
         <div
           className="flex items-center gap-3 cursor-pointer relative z-10"
           onClick={() => onNavigate('landing')}
         >
-          <div className="w-9 h-9 bg-white/15 rounded-xl flex items-center justify-center border border-white/20">
-            <Heart size={18} className="fill-white text-white" />
+          <div className="w-10 h-10 bg-white rounded-xl p-1 flex items-center justify-center border border-white/20 shadow-sm shrink-0">
+            <img src="/logo.png" alt="Carely Logo" className="w-full h-full object-contain" />
           </div>
           <div>
             <p className="font-display font-bold text-base text-white leading-none">Carely</p>
-            <p className="text-[10px] text-white/50 mt-0.5">Trusted care</p>
+            <p className="text-[10px] text-white/50 mt-0.5">Trusted care &bull; Cameroon</p>
           </div>
         </div>
 
@@ -269,7 +341,7 @@ export default function ForgotPassword({ onNavigate }) {
           <p className="text-white/80 text-xs leading-relaxed flex items-start gap-2.5">
             <ShieldCheck size={15} className="text-[#E29578] shrink-0 mt-0.5" />
             <span>
-              Never share your 4-digit verification code with anyone. Carely support will never ask for your password or OTP.
+              Never share your 6-digit verification code with anyone. Carely support will never ask for your password or recovery OTP.
             </span>
           </p>
         </div>
@@ -279,9 +351,9 @@ export default function ForgotPassword({ onNavigate }) {
       <div className="flex-1 flex flex-col bg-white overflow-y-auto">
         {/* Mobile Header */}
         <header className="lg:hidden bg-white border-b border-[#E2D9CF] px-6 py-3.5 flex items-center justify-between">
-          <div className="flex items-center gap-2 cursor-pointer" onClick={() => onNavigate('landing')}>
-            <div className="w-8 h-8 bg-[#1E4030] rounded-xl flex items-center justify-center">
-              <Heart size={15} className="fill-white text-white" />
+          <div className="flex items-center gap-2.5 cursor-pointer" onClick={() => onNavigate('landing')}>
+            <div className="w-8 h-8 bg-white rounded-xl p-0.5 flex items-center justify-center border border-[#E2D9CF] shrink-0">
+              <img src="/logo.png" alt="Carely Logo" className="w-full h-full object-contain" />
             </div>
             <p className="font-display font-bold text-sm text-[#1E4030]">Carely</p>
           </div>
@@ -296,7 +368,8 @@ export default function ForgotPassword({ onNavigate }) {
 
         {/* Form Container */}
         <div className="flex-1 flex flex-col items-center justify-center px-6 sm:px-12 py-8 lg:py-6">
-          <div className="w-full max-w-[390px] space-y-6 animate-fadeIn">
+          <div className="w-full max-w-[420px] space-y-6">
+
             {/* ─── STEP 1: EMAIL ENTRY ─── */}
             {step === 'email' && (
               <div className="space-y-5">
@@ -308,11 +381,18 @@ export default function ForgotPassword({ onNavigate }) {
                     Forgot Password?
                   </h2>
                   <p className="text-xs sm:text-sm text-[#8A7E74] leading-relaxed">
-                    Enter your Carely account email. We will send you a 4-digit verification code to reset your password.
+                    Enter your Carely account email address. We will send you a secure 6-digit recovery code and link to reset your password.
                   </p>
                 </div>
 
-                <form onSubmit={handleRequestOtp} className="space-y-5">
+                {generalError && (
+                  <div className="bg-red-50 border border-red-200 rounded-xl p-3.5 flex items-center gap-2.5 text-xs text-red-700">
+                    <AlertCircle size={16} className="shrink-0 text-red-600" />
+                    <span>{generalError}</span>
+                  </div>
+                )}
+
+                <form onSubmit={handleRequestReset} className="space-y-5">
                   <div className="space-y-1.5">
                     <label className="block text-[11px] font-bold text-[#8A7E74] tracking-widest uppercase">
                       Email address <span className="text-[#E29578] normal-case tracking-normal font-medium">*</span>
@@ -322,7 +402,10 @@ export default function ForgotPassword({ onNavigate }) {
                         type="email"
                         required
                         value={email}
-                        onChange={(e) => setEmail(e.target.value)}
+                        onChange={(e) => {
+                          setEmail(e.target.value);
+                          setGeneralError('');
+                        }}
                         placeholder="you@example.com"
                         className="w-full pl-11 pr-4 py-3.5 border-2 border-[#E2D9CF] rounded-xl text-sm text-[#1C1A17] bg-[#FAFAF9] focus:outline-none focus:border-[#1E4030] transition-colors placeholder:text-[#C5BCBA]"
                       />
@@ -332,7 +415,7 @@ export default function ForgotPassword({ onNavigate }) {
 
                   <button
                     type="submit"
-                    disabled={loading || !email}
+                    disabled={loading || !email.trim()}
                     className="w-full bg-[#1E4030] hover:bg-[#152e22] disabled:opacity-60 text-white text-sm font-bold py-4 px-6 rounded-xl transition-all shadow-md hover:shadow-lg cursor-pointer flex items-center justify-center gap-2 mt-2"
                   >
                     {loading ? (
@@ -341,10 +424,10 @@ export default function ForgotPassword({ onNavigate }) {
                           <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
                           <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
                         </svg>
-                        <span>Sending 4-digit code...</span>
+                        <span>Sending Recovery Email...</span>
                       </>
                     ) : (
-                      <span>Send Verification Code</span>
+                      <span>Send Recovery Code &rarr;</span>
                     )}
                   </button>
                 </form>
@@ -362,7 +445,7 @@ export default function ForgotPassword({ onNavigate }) {
               </div>
             )}
 
-            {/* ─── STEP 2: 4-DIGIT OTP VERIFICATION ─── */}
+            {/* ─── STEP 2: 6-DIGIT OTP VERIFICATION ─── */}
             {step === 'otp' && (
               <div className="space-y-5">
                 <div className="space-y-1.5">
@@ -370,29 +453,28 @@ export default function ForgotPassword({ onNavigate }) {
                     <KeyRound size={19} />
                   </div>
                   <h2 className="font-display text-2xl sm:text-3xl font-extrabold text-[#1C1A17] tracking-tight">
-                    Enter 4-Digit Code
+                    Enter 6-Digit Code
                   </h2>
                   <p className="text-xs sm:text-sm text-[#8A7E74] leading-relaxed">
-                    We sent a 4-digit verification code to <strong className="text-[#1C1A17]">{email}</strong>.
+                    We sent a 6-digit recovery code to <strong className="text-[#1C1A17]">{email}</strong>. Please check your inbox or spam folder.
                   </p>
                 </div>
 
-                {/* Demo Helper / Test Notice */}
-                <div className="bg-[#EDF7F2] border border-green-200/80 rounded-xl p-3 flex items-center justify-between text-xs text-[#1E4030]">
-                  <div className="flex items-center gap-2">
-                    <Sparkles size={14} className="text-[#1E4030] shrink-0" />
-                    <span>Demo test code sent to email: <strong className="font-mono text-sm tracking-widest bg-white px-2 py-0.5 rounded border border-green-300">{generatedOtp}</strong></span>
+                {statusMessage && (
+                  <div className="bg-[#EDF7F2] border border-green-200 rounded-xl p-3 flex items-center gap-2 text-xs text-[#1E4030]">
+                    <CheckCircle size={14} className="shrink-0 text-[#1E4030]" />
+                    <span>{statusMessage}</span>
                   </div>
-                </div>
+                )}
 
                 <form onSubmit={handleVerifyOtp} className="space-y-4">
                   <div className="space-y-2">
                     <label className="block text-[11px] font-bold text-[#8A7E74] tracking-widest uppercase text-center">
-                      4-Digit Verification Code
+                      6-Digit Recovery Code
                     </label>
 
-                    {/* 4 Digit Boxes */}
-                    <div className="flex justify-center gap-2.5 sm:gap-3 pt-0.5">
+                    {/* 6 Digit Input Boxes */}
+                    <div className="flex justify-center gap-2 sm:gap-2.5 pt-0.5">
                       {otpDigits.map((digit, idx) => (
                         <input
                           key={idx}
@@ -403,7 +485,7 @@ export default function ForgotPassword({ onNavigate }) {
                           value={digit}
                           onChange={(e) => handleDigitChange(idx, e.target.value)}
                           onKeyDown={(e) => handleKeyDown(idx, e)}
-                          className={`w-12 h-14 sm:w-14 sm:h-15 text-center text-2xl font-mono font-extrabold rounded-xl border-2 transition-all outline-none ${
+                          className={`w-11 h-13 sm:w-12 sm:h-14 text-center text-xl sm:text-2xl font-mono font-extrabold rounded-xl border-2 transition-all outline-none ${
                             otpError
                               ? 'border-red-400 bg-red-50/40 text-red-700 focus:border-red-500'
                               : digit
@@ -415,8 +497,8 @@ export default function ForgotPassword({ onNavigate }) {
                     </div>
 
                     {otpError && (
-                      <p className="text-xs text-red-600 font-medium flex items-center justify-center gap-1.5 pt-1 text-center animate-fadeIn">
-                        <AlertCircle size={14} />
+                      <p className="text-xs text-red-600 font-medium flex items-center justify-center gap-1.5 pt-1 text-center">
+                        <AlertCircle size={14} className="shrink-0" />
                         <span>{otpError}</span>
                       </p>
                     )}
@@ -424,7 +506,7 @@ export default function ForgotPassword({ onNavigate }) {
 
                   <button
                     type="submit"
-                    disabled={loading || otpDigits.join('').length < 4}
+                    disabled={loading || otpDigits.join('').length < 6}
                     className="w-full bg-[#1E4030] hover:bg-[#152e22] disabled:opacity-60 text-white text-sm font-bold py-3.5 px-6 rounded-xl transition-all shadow-md hover:shadow-lg cursor-pointer flex items-center justify-center gap-2 mt-1"
                   >
                     {loading ? (
@@ -442,12 +524,13 @@ export default function ForgotPassword({ onNavigate }) {
                 </form>
 
                 {/* Resend Code / Change Email Options */}
-                <div className="flex flex-col sm:flex-row items-center justify-between gap-2.5 pt-1 text-xs border-t border-[#EFECE6] pt-3">
+                <div className="flex flex-col sm:flex-row items-center justify-between gap-2.5 border-t border-[#EFECE6] pt-3 text-xs">
                   <button
                     type="button"
                     onClick={() => {
                       setStep('email');
                       setOtpError('');
+                      setStatusMessage('');
                     }}
                     className="text-[#8A7E74] hover:text-[#1C1A17] font-semibold transition-colors cursor-pointer"
                   >
@@ -459,10 +542,11 @@ export default function ForgotPassword({ onNavigate }) {
                       <button
                         type="button"
                         onClick={handleResendCode}
+                        disabled={loading}
                         className="text-[#1E4030] font-bold hover:underline flex items-center gap-1 cursor-pointer"
                       >
                         <RotateCw size={12} />
-                        <span>Resend 4-digit code</span>
+                        <span>Resend 6-digit code</span>
                       </button>
                     ) : (
                       <span className="text-[#8A7E74]">
@@ -485,12 +569,12 @@ export default function ForgotPassword({ onNavigate }) {
                     Create New Password
                   </h2>
                   <p className="text-xs sm:text-sm text-[#8A7E74] leading-relaxed">
-                    Your code was verified successfully. Choose a strong new password for your account.
+                    Choose a strong new password for your account.
                   </p>
                 </div>
 
                 {passwordError && (
-                  <div className="bg-red-50 border border-red-200 rounded-xl p-3 flex items-center gap-2 text-xs text-red-700 animate-fadeIn">
+                  <div className="bg-red-50 border border-red-200 rounded-xl p-3 flex items-center gap-2 text-xs text-red-700">
                     <AlertCircle size={14} className="shrink-0 text-red-600" />
                     <span>{passwordError}</span>
                   </div>
@@ -580,7 +664,7 @@ export default function ForgotPassword({ onNavigate }) {
                           <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
                           <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
                         </svg>
-                        <span>Saving Password...</span>
+                        <span>Saving New Password...</span>
                       </>
                     ) : (
                       <span>Save & Update Password</span>
@@ -593,7 +677,7 @@ export default function ForgotPassword({ onNavigate }) {
             {/* ─── STEP 4: SUCCESS CONFIRMATION ─── */}
             {step === 'success' && (
               <div className="text-center space-y-6 py-4">
-                <div className="w-18 h-18 bg-[#EDF7F2] text-[#1D6F42] rounded-3xl flex items-center justify-center mx-auto border-2 border-green-200 shadow-sm animate-scaleIn">
+                <div className="w-18 h-18 bg-[#EDF7F2] text-[#1D6F42] rounded-3xl flex items-center justify-center mx-auto border-2 border-green-200 shadow-sm">
                   <CheckCircle2 size={38} className="text-[#1D6F42]" />
                 </div>
 

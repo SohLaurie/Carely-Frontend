@@ -77,10 +77,29 @@ export default function DayScheduleSelector({ data, onChange, onSubmit, onBack }
     ? `${activeDaysCount} sessions/week (Ongoing)`
     : Math.max(0, (activeDaysCount * activeWeeksCount) - skippedDates.length);
 
+  const normalizeTime = (t) => {
+    if (!t) return '09:00';
+    const parts = t.trim().split(':');
+    if (parts.length === 2) {
+      return `${parts[0].padStart(2, '0')}:${parts[1].padStart(2, '0')}`;
+    }
+    return t;
+  };
+
   const handleSubmit = () => {
     if (!canSubmit) return;
+
+    const cleanedDays = {};
+    Object.keys(selectedDays).forEach(dayId => {
+      cleanedDays[dayId] = {
+        ...selectedDays[dayId],
+        startTime: normalizeTime(selectedDays[dayId].startTime),
+        endTime: normalizeTime(selectedDays[dayId].endTime),
+      };
+    });
+
     onChange({
-      selectedDays,
+      selectedDays: cleanedDays,
       skippedDates,
       frequency,
       durationWeeks,
@@ -218,24 +237,34 @@ export default function DayScheduleSelector({ data, onChange, onSubmit, onBack }
                   <div className="dss-times-row">
                     <div className="dss-field">
                       <label className="dss-label">Start time</label>
-                      <select
+                      <input
+                        type="time"
                         className="dss-select"
+                        list="dss-start-slots"
                         value={config.startTime}
-                        onChange={e => { updateDayField(day.id, 'startTime', e.target.value); updateDayField(day.id, 'endTime', ''); }}
-                      >
-                        {TIME_SLOTS.map(t => <option key={t} value={t}>{t}</option>)}
-                      </select>
+                        placeholder="e.g. 05:10"
+                        onChange={e => {
+                          updateDayField(day.id, 'startTime', e.target.value);
+                        }}
+                      />
+                      <datalist id="dss-start-slots">
+                        {TIME_SLOTS.map(t => <option key={t} value={t} />)}
+                      </datalist>
                     </div>
                     <div className="dss-field">
                       <label className="dss-label">End time</label>
-                      <select
+                      <input
+                        type="time"
                         className="dss-select"
+                        list="dss-end-slots"
                         value={config.endTime}
+                        min={config.startTime || undefined}
+                        placeholder="e.g. 05:40"
                         onChange={e => updateDayField(day.id, 'endTime', e.target.value)}
-                      >
-                        <option value="">-- Select --</option>
-                        {endSlots.map(t => <option key={t} value={t}>{t}</option>)}
-                      </select>
+                      />
+                      <datalist id="dss-end-slots">
+                        {TIME_SLOTS.map(t => <option key={t} value={t} />)}
+                      </datalist>
                     </div>
                   </div>
 

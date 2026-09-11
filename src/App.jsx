@@ -64,7 +64,7 @@ export default function App() {
       setScreen('pack')
     } else if (path === 'login') {
       setScreen('login')
-    } else if (path === 'forgot-password' || path === 'forgot') {
+    } else if (path === 'forgot-password' || path === 'forgot' || path === 'reset-password') {
       setScreen('forgot-password')
     } else if (path === 'landing' || path === '') {
       setScreen('landing')
@@ -72,16 +72,18 @@ export default function App() {
   }, [location.pathname])
 
   const handleNavigate = (targetScreen, params = {}) => {
-    setScreen(targetScreen)
+    const s = (targetScreen === 'household') ? 'search' : targetScreen
+    setScreen(s)
     setScreenParams(params)
     if (targetScreen === 'landing') {
       navigate('/')
-    } else if (targetScreen === 'search') {
+    } else if (targetScreen === 'search' || targetScreen === 'household') {
       navigate('/household')
     } else {
       navigate(`/${targetScreen}`)
     }
   }
+
 
   const nav = { onNavigate: handleNavigate, currentScreen: screen, screenParams }
 
@@ -135,7 +137,7 @@ export default function App() {
         {screen === 'pack'       && <Pack {...nav} />}
         {screen === 'login'      && <Login {...nav} />}
         {screen === 'forgot-password' && <ForgotPassword {...nav} />}
-        {screen === 'search'     && <HouseholdDashboard {...nav} />}
+        {(screen === 'search' || screen === 'household') && <HouseholdDashboard {...nav} />}
         {screen === 'profile'    && <Profile {...nav} />}
         {screen === 'booking'    && <BookingForm {...nav} />}
         {screen === 'pending'    && <RequestPending {...nav} />}

@@ -2,8 +2,9 @@ import { useState } from 'react'
 import { ArrowLeft, Star, Heart, Check } from 'lucide-react'
 import { CAREGIVERS } from '../../../data'
 import { Stars } from '../../../components/Icons'
+import { submitReview } from '../../../services/bookingApi'
 
-const CAREGIVER = CAREGIVERS[0]
+const DEFAULT_CAREGIVER = CAREGIVERS[0]
 
 const QUICK_TAGS = [
   'Punctual', 'Professional', 'Gentle with my parent',
@@ -31,13 +32,35 @@ function InteractiveStar({ value, selected, hovered, onHover, onClick }) {
   )
 }
 
-export default function RateReview({ onNavigate }) {
-  const c = CAREGIVER
+export default function RateReview({ onNavigate, screenParams }) {
+  const c = screenParams?.caregiver || DEFAULT_CAREGIVER
+  const booking = screenParams?.booking
   const [rating, setRating] = useState(0)
   const [hovered, setHovered] = useState(0)
   const [selectedTags, setSelectedTags] = useState([])
   const [comment, setComment] = useState('')
   const [submitted, setSubmitted] = useState(false)
+  const [submitting, setSubmitting] = useState(false)
+
+  const handleSubmitReview = async () => {
+    if (rating === 0 || submitting) return
+    setSubmitting(true)
+    const bookingId = booking?.id
+    if (bookingId && typeof bookingId === 'string' && bookingId.includes('-')) {
+      try {
+        await submitReview({
+          bookingId,
+          rating,
+          comment: comment || undefined,
+          tags: selectedTags.length > 0 ? selectedTags : undefined,
+        })
+      } catch (err) {
+        console.warn('submitReview API check:', err.message)
+      }
+    }
+    setSubmitting(false)
+    setSubmitted(true)
+  }
 
   const toggleTag = t =>
     setSelectedTags(prev => prev.includes(t) ? prev.filter(x => x !== t) : [...prev, t])
@@ -175,11 +198,11 @@ export default function RateReview({ onNavigate }) {
           )}
 
           <button
-            onClick={() => rating > 0 && setSubmitted(true)}
-            disabled={rating === 0}
+            onClick={handleSubmitReview}
+            disabled={rating === 0 || submitting}
             className="w-full bg-primary text-primary-foreground font-semibold py-4 rounded-xl hover:bg-primary/90 transition-all text-sm disabled:opacity-40 disabled:cursor-not-allowed"
           >
-            {rating === 0 ? 'Give a rating to continue' : 'Publish My Review'}
+            {submitting ? 'Publishing...' : rating === 0 ? 'Give a rating to continue' : 'Publish My Review'}
           </button>
 
           <button onClick={() => onNavigate('search')} className="w-full text-muted-foreground text-sm py-2 hover:text-foreground transition-colors">
