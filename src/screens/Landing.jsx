@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import {
   Globe,
   ChevronRight,
@@ -25,6 +25,11 @@ import {
   Mail,
   LogIn,
   X,
+  Share,
+  ChevronDown,
+  PlusSquare,
+  MoreVertical,
+  Download,
 } from "lucide-react";
 import { SPECIALTY_META } from "../data";
 import girlImg from "../assets/man.jpg";
@@ -117,8 +122,83 @@ const STATS = [
   { Icon: TrendingUp, num: "1,200+", label: "Families served" },
 ];
 
+function isIosDevice() {
+  if (typeof window === "undefined" || !window.navigator) return false;
+  const ua = window.navigator.userAgent || "";
+  const isIos = /iPad|iPhone|iPod/.test(ua);
+  const isMacTouch = window.navigator.maxTouchPoints > 1 && /Macintosh/.test(ua);
+  return isIos || isMacTouch;
+}
+
+function isStandalone() {
+  if (typeof window === "undefined") return false;
+  return (
+    window.matchMedia("(display-mode: standalone)").matches ||
+    window.navigator.standalone === true
+  );
+}
+
 export default function Landing({ onNavigate }) {
   const [showAppBanner, setShowAppBanner] = useState(true);
+  const [deferredPrompt, setDeferredPrompt] = useState(null);
+  const [showIosModal, setShowIosModal] = useState(false);
+  const [showAndroidModal, setShowAndroidModal] = useState(false);
+  const [isInstalled, setIsInstalled] = useState(false);
+
+  useEffect(() => {
+    if (isStandalone()) {
+      setIsInstalled(true);
+    }
+
+    const handleBeforeInstallPrompt = (e) => {
+      e.preventDefault();
+      setDeferredPrompt(e);
+    };
+
+    const handleAppInstalled = () => {
+      setIsInstalled(true);
+      setDeferredPrompt(null);
+      setShowAppBanner(false);
+    };
+
+    window.addEventListener("beforeinstallprompt", handleBeforeInstallPrompt);
+    window.addEventListener("appinstalled", handleAppInstalled);
+
+    return () => {
+      window.removeEventListener("beforeinstallprompt", handleBeforeInstallPrompt);
+      window.removeEventListener("appinstalled", handleAppInstalled);
+    };
+  }, []);
+
+  const handleInstallClick = async () => {
+    if (isStandalone() || isInstalled) {
+      alert("Carely is already installed on your device!");
+      return;
+    }
+
+    if (isIosDevice()) {
+      // iOS Safari cannot trigger programmatic install; display the custom guide popup
+      setShowIosModal(true);
+      return;
+    }
+
+    // Android / Desktop Chrome PWA:
+    if (deferredPrompt) {
+      try {
+        deferredPrompt.prompt();
+        const { outcome } = await deferredPrompt.userChoice;
+        if (outcome === "accepted") {
+          setShowAppBanner(false);
+        }
+        setDeferredPrompt(null);
+      } catch (err) {
+        console.error("Install prompt error:", err);
+      }
+    } else {
+      // Fallback for Android browsers where beforeinstallprompt didn't fire
+      setShowAndroidModal(true);
+    }
+  };
 
   const handleScrollTo = (e, id) => {
     e.preventDefault();
@@ -242,19 +322,163 @@ export default function Landing({ onNavigate }) {
               </p>
             </div>
 
-            {/* Inactive Install Button */}
+            {/* Enabled Install Button */}
             <div className="shrink-0">
               <button
                 type="button"
-                disabled
-                title="Carely PWA app installation coming soon"
-                className="bg-[#1E4030] text-white font-semibold text-xs sm:text-sm px-6 sm:px-7 py-2 rounded-full cursor-not-allowed opacity-85 shadow-xs transition-all select-none"
+                onClick={handleInstallClick}
+                title="Install Carely App"
+                className="bg-[#1E4030] text-white font-semibold text-xs sm:text-sm px-6 sm:px-7 py-2 rounded-full hover:bg-[#152e22] active:scale-95 shadow-sm transition-all cursor-pointer inline-flex items-center gap-1.5"
               >
-                Install
+                <Download size={14} className="sm:hidden" />
+                <span>Install</span>
               </button>
             </div>
           </div>
         </aside>
+      )}
+
+      {/* iOS PWA Installation Modal (matches user's uploaded mockup) */}
+      {showIosModal && (
+        <div 
+          className="fixed inset-0 z-50 bg-black/70 backdrop-blur-xs flex items-end sm:items-center justify-center p-3 sm:p-4"
+          onClick={() => setShowIosModal(false)}
+        >
+          <div 
+            className="bg-[#21262A] text-white rounded-3xl p-5 sm:p-6 max-w-md w-full shadow-2xl border border-white/10 animate-in fade-in slide-in-from-bottom-6 duration-200"
+            onClick={(e) => e.stopPropagation()}
+          >
+            {/* Header */}
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-lg sm:text-xl font-bold text-white tracking-tight">
+                Install the app
+              </h3>
+              <button
+                type="button"
+                onClick={() => setShowIosModal(false)}
+                className="text-[#9BA3A9] hover:text-white p-1.5 rounded-full hover:bg-white/10 transition-colors cursor-pointer"
+                aria-label="Close"
+              >
+                <X size={18} />
+              </button>
+            </div>
+
+            {/* App Card */}
+            <div className="bg-[#2B3136] border border-white/10 rounded-2xl p-3.5 sm:p-4 flex items-center gap-3.5 mb-5 shadow-inner">
+              <div className="w-12 h-12 sm:w-14 sm:h-14 rounded-2xl bg-[#1E4030] p-2 flex items-center justify-center border border-[#2D5A44] shadow-md shrink-0">
+                <img src="/logo.png" alt="Carely Logo" className="w-full h-full object-contain" />
+              </div>
+              <div className="min-w-0">
+                <h4 className="text-base sm:text-lg font-bold text-white leading-tight">Carely</h4>
+                <p className="text-xs sm:text-sm text-[#9BA3A9] font-medium truncate mt-0.5">
+                  {typeof window !== "undefined" ? window.location.hostname : "carely.app"}
+                </p>
+              </div>
+            </div>
+
+            {/* Step Instructions */}
+            <ol className="space-y-3.5 text-xs sm:text-sm text-gray-200 font-medium">
+              <li className="flex items-center gap-2.5">
+                <span className="font-bold text-white shrink-0 text-sm">1.</span>
+                <span className="flex items-center gap-1.5 flex-wrap">
+                  Press 
+                  <span className="inline-flex items-center justify-center w-6 h-6 bg-white/15 rounded-md text-white border border-white/10 shrink-0">
+                    <Share size={13} />
+                  </span>
+                  in the URL bar
+                </span>
+              </li>
+              <li className="flex items-center gap-2.5">
+                <span className="font-bold text-white shrink-0 text-sm">2.</span>
+                <span className="flex items-center gap-1.5 flex-wrap">
+                  Tap 
+                  <span className="inline-flex items-center gap-1 px-2 py-0.5 bg-white/15 rounded-md text-xs font-semibold text-white border border-white/10 shrink-0">
+                    <ChevronDown size={13} /> View more
+                  </span>
+                  to see all available actions
+                </span>
+              </li>
+              <li className="flex items-center gap-2.5">
+                <span className="font-bold text-white shrink-0 text-sm">3.</span>
+                <span className="flex items-center gap-1.5 flex-wrap">
+                  Select 
+                  <span className="inline-flex items-center gap-1.5 px-2 py-0.5 bg-white/15 rounded-md text-xs font-semibold text-white border border-white/10 shrink-0">
+                    <PlusSquare size={13} /> Add to Home Screen
+                  </span>
+                </span>
+              </li>
+            </ol>
+          </div>
+        </div>
+      )}
+
+      {/* Android / Desktop Fallback Modal */}
+      {showAndroidModal && (
+        <div 
+          className="fixed inset-0 z-50 bg-black/70 backdrop-blur-xs flex items-end sm:items-center justify-center p-3 sm:p-4"
+          onClick={() => setShowAndroidModal(false)}
+        >
+          <div 
+            className="bg-[#21262A] text-white rounded-3xl p-5 sm:p-6 max-w-md w-full shadow-2xl border border-white/10 animate-in fade-in slide-in-from-bottom-6 duration-200"
+            onClick={(e) => e.stopPropagation()}
+          >
+            {/* Header */}
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-lg sm:text-xl font-bold text-white tracking-tight">
+                Install Carely
+              </h3>
+              <button
+                type="button"
+                onClick={() => setShowAndroidModal(false)}
+                className="text-[#9BA3A9] hover:text-white p-1.5 rounded-full hover:bg-white/10 transition-colors cursor-pointer"
+                aria-label="Close"
+              >
+                <X size={18} />
+              </button>
+            </div>
+
+            {/* App Card */}
+            <div className="bg-[#2B3136] border border-white/10 rounded-2xl p-3.5 sm:p-4 flex items-center gap-3.5 mb-5 shadow-inner">
+              <div className="w-12 h-12 sm:w-14 sm:h-14 rounded-2xl bg-[#1E4030] p-2 flex items-center justify-center border border-[#2D5A44] shadow-md shrink-0">
+                <img src="/logo.png" alt="Carely Logo" className="w-full h-full object-contain" />
+              </div>
+              <div className="min-w-0">
+                <h4 className="text-base sm:text-lg font-bold text-white leading-tight">Carely</h4>
+                <p className="text-xs sm:text-sm text-[#9BA3A9] font-medium truncate mt-0.5">
+                  Fast, reliable home care in Cameroon
+                </p>
+              </div>
+            </div>
+
+            {/* Step Instructions */}
+            <ol className="space-y-3.5 text-xs sm:text-sm text-gray-200 font-medium">
+              <li className="flex items-center gap-2.5">
+                <span className="font-bold text-white shrink-0 text-sm">1.</span>
+                <span className="flex items-center gap-1.5 flex-wrap">
+                  Tap your browser menu 
+                  <span className="inline-flex items-center justify-center w-6 h-6 bg-white/15 rounded-md text-white border border-white/10 shrink-0">
+                    <MoreVertical size={13} />
+                  </span>
+                  (three dots in corner)
+                </span>
+              </li>
+              <li className="flex items-center gap-2.5">
+                <span className="font-bold text-white shrink-0 text-sm">2.</span>
+                <span className="flex items-center gap-1.5 flex-wrap">
+                  Tap 
+                  <span className="inline-flex items-center gap-1 px-2 py-0.5 bg-white/15 rounded-md text-xs font-semibold text-white border border-white/10 shrink-0">
+                    <Download size={13} /> Install app
+                  </span>
+                  or <strong>Add to Home screen</strong>
+                </span>
+              </li>
+              <li className="flex items-center gap-2.5">
+                <span className="font-bold text-white shrink-0 text-sm">3.</span>
+                <span>Confirm <strong>Install</strong> to install the Carely app</span>
+              </li>
+            </ol>
+          </div>
+        </div>
       )}
 
       {/* Hero */}
