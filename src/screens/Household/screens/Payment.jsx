@@ -4,7 +4,7 @@ import {
   AlertCircle, ChevronRight, Check, RefreshCw, X, RotateCcw
 } from 'lucide-react';
 import { CAREGIVERS, SPECIALTY_META } from '../../../data';
-import { initiateEscrowPayment, fetchBooking, cancelBooking } from '../../../services/bookingApi';
+import { initiateEscrowPayment, verifyPayment, fetchBooking, cancelBooking } from '../../../services/bookingApi';
 
 export default function Payment({ onNavigate, screenParams, loadBookings }) {
   const booking = screenParams?.booking || {
@@ -42,16 +42,47 @@ export default function Payment({ onNavigate, screenParams, loadBookings }) {
     if (isRealBooking) {
       try {
         const cleanPhone = phoneNumber.replace(/\s+/g, '');
-        await initiateEscrowPayment(bookingId, provider, cleanPhone);
+        const initRes = await initiateEscrowPayment(bookingId, provider, cleanPhone);
 
-        // Poll payment status until confirmed or max timeout
+        // If sandbox test payment was immediately confirmed by backend:
+        if (initRes?.confirmed) {
+          setLoading(false);
+          setShowPinModal(false);
+          setPaymentSuccess(true);
+          if (typeof loadBookings === 'function') loadBookings();
+
+          const updatedBooking = await fetchBooking(bookingId);
+          const realOtp = updatedBooking?.sessions?.[0]?.otp_code || '4829';
+
+          setTimeout(() => {
+            onNavigate('confirmed', {
+              booking: {
+                ...booking,
+                ...updatedBooking,
+                id: bookingId,
+                paymentStatus: 'Escrow Secured',
+                arrivalOtp: realOtp,
+                status: 'Confirmed',
+                sessions: updatedBooking?.sessions || [],
+              }
+            });
+          }, 1200);
+          return;
+        }
+
+        // REAL PAYMENT: Wait for user to approve USSD prompt on their phone!
+        // Poll payment status until confirmed on phone or max timeout
         let attempts = 0;
-        const maxAttempts = 15; // 15 * 3s = 45s
+        const maxAttempts = 30; // 30 * 3s = 90s
         const pollTimer = setInterval(async () => {
           attempts++;
           try {
+            if (initRes?.campayRef) {
+              await verifyPayment(initRes.campayRef).catch(() => {});
+            }
+
             const updatedBooking = await fetchBooking(bookingId);
-            if (updatedBooking?.payment_status === 'paid' || updatedBooking?.status === 'confirmed' || attempts >= maxAttempts) {
+            if (updatedBooking?.payment_status === 'paid' || updatedBooking?.status === 'confirmed') {
               clearInterval(pollTimer);
               setLoading(false);
               setShowPinModal(false);
@@ -73,48 +104,21 @@ export default function Payment({ onNavigate, screenParams, loadBookings }) {
                   }
                 });
               }, 1200);
+            } else if (attempts >= maxAttempts) {
+              clearInterval(pollTimer);
+              setLoading(false);
+              setShowPinModal(false);
+              alert('Payment authorization timed out. If you already authorized the prompt on your phone, your booking will be confirmed shortly.');
             }
           } catch (pollErr) {
             console.warn('Payment poll status check:', pollErr.message);
           }
         }, 3000);
       } catch (err) {
-        console.warn('Campay payment initiation warning (fallback simulation):', err.message);
-        setTimeout(() => {
-          setLoading(false);
-          setShowPinModal(false);
-          setPaymentSuccess(true);
-
-          setTimeout(() => {
-            onNavigate('confirmed', {
-              booking: {
-                ...booking,
-                paymentStatus: 'Escrow Secured',
-                arrivalOtp: booking.arrivalOtp || '4829',
-                status: 'Confirmed'
-              }
-            });
-          }, 1500);
-        }, 3500);
-      }
-    } else {
-      // Local demo fallback
-      setTimeout(() => {
         setLoading(false);
         setShowPinModal(false);
-        setPaymentSuccess(true);
-
-        setTimeout(() => {
-          onNavigate('confirmed', {
-            booking: {
-              ...booking,
-              paymentStatus: 'Escrow Secured',
-              arrivalOtp: '4829',
-              status: 'Confirmed'
-            }
-          });
-        }, 1500);
-      }, 4000);
+        alert(err.message || 'Unable to initiate payment. Please verify your phone number and try again.');
+      }
     }
   };
 
