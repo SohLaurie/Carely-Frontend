@@ -49,6 +49,11 @@ export default function TopNavbar({
   const displayName = getUserDisplayName(user, 'Aïcha');
   const initials = getUserInitials(user, 'AK');
   const avatarUrl = getAvatarUrl(user?.photoUrl);
+  const [imgError, setImgError] = useState(false);
+
+  useEffect(() => {
+    setImgError(false);
+  }, [avatarUrl]);
 
   useEffect(() => {
     const update = () => {
@@ -222,11 +227,11 @@ export default function TopNavbar({
             className="flex items-center gap-2 bg-[#FAF8F5] border border-[#E2D9CF] pl-1.5 pr-3 py-1.5 rounded-full cursor-pointer hover:border-[#1E4030]/40 transition-colors shadow-2xs"
             title="Open Profile Settings"
           >
-            {avatarUrl ? (
+            {avatarUrl && !imgError ? (
               <img
                 src={avatarUrl}
                 alt={displayName}
-                onError={(e) => { e.currentTarget.style.display = 'none'; }}
+                onError={() => setImgError(true)}
                 className="w-8 h-8 rounded-full object-cover border border-[#E2D9CF] shrink-0"
               />
             ) : (

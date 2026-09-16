@@ -24,6 +24,11 @@ export default function TopNavbar({
   const displayName = getUserDisplayName(user, 'Admin');
   const initials = getUserInitials(user, 'AD');
   const avatarUrl = getAvatarUrl(user?.photoUrl);
+  const [imgError, setImgError] = useState(false);
+
+  useEffect(() => {
+    setImgError(false);
+  }, [avatarUrl]);
 
   const getHeaderInfo = () => {
     switch (activeTab) {
@@ -192,11 +197,11 @@ export default function TopNavbar({
 
         {/* Profile Avatar */}
         <div className="flex items-center gap-2">
-          {avatarUrl ? (
+          {avatarUrl && !imgError ? (
             <img
               src={avatarUrl}
               alt={displayName}
-              onError={(e) => { e.currentTarget.style.display = 'none'; }}
+              onError={() => setImgError(true)}
               className="w-8 h-8 rounded-full object-cover border border-[#E2D9CF] shrink-0 shadow-sm"
             />
           ) : (

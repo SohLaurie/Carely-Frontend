@@ -4,6 +4,7 @@ import { getStoredUser, getUserDisplayName, getUserInitials, getAvatarUrl } from
 
 export default function ProfileDropdown({ onClick }) {
   const [user, setUser] = useState(getStoredUser())
+  const [imgError, setImgError] = useState(false)
 
   useEffect(() => {
     const handleUpdate = (e) => {
@@ -17,6 +18,10 @@ export default function ProfileDropdown({ onClick }) {
   const initials = getUserInitials(user, 'CG')
   const avatarUrl = getAvatarUrl(user?.photoUrl)
 
+  useEffect(() => {
+    setImgError(false)
+  }, [avatarUrl])
+
   return (
     <button
       type="button"
@@ -24,11 +29,11 @@ export default function ProfileDropdown({ onClick }) {
       className="flex items-center gap-2 bg-[#FAF8F5] border border-[#E2D9CF] pl-1.5 pr-3.5 py-1 rounded-full cursor-pointer hover:border-[#1E4030] transition-colors"
       title="Open Profile Settings"
     >
-      {avatarUrl ? (
+      {avatarUrl && !imgError ? (
         <img
           src={avatarUrl}
           alt={displayName}
-          onError={(e) => { e.currentTarget.style.display = 'none' }}
+          onError={() => setImgError(true)}
           className="w-8 h-8 rounded-full object-cover border border-[#E2D9CF] shrink-0"
         />
       ) : user ? (

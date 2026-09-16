@@ -156,48 +156,62 @@ export default function AdminProfileTab({ onNavigate }) {
       <div className="bg-white border border-[#E2D9CF] rounded-3xl p-6 sm:p-8 shadow-sm">
         <div className="flex flex-col sm:flex-row items-center sm:items-start gap-6">
           {/* Avatar with edit badge */}
-          <div
-            onClick={() => fileInputRef.current?.click()}
-            className="relative cursor-pointer group select-none shrink-0"
-            title="Click to change profile picture"
-          >
-            <input
-              type="file"
-              ref={fileInputRef}
-              accept="image/*"
-              onChange={handlePhotoSelect}
-              className="hidden"
-            />
-            {currentAvatar ? (
-              <img
-                src={currentAvatar}
-                alt={formData.fullName}
-                className="w-24 h-24 rounded-2xl object-cover shadow-md border-2 border-white group-hover:opacity-90 group-hover:ring-4 group-hover:ring-[#1E4030]/20 transition-all"
-              />
-            ) : (
-              <div className="w-24 h-24 rounded-2xl bg-[#1E4030] text-white flex items-center justify-center text-3xl font-bold font-display shadow-md border-2 border-white group-hover:ring-4 group-hover:ring-[#1E4030]/20 transition-all">
-                {initials}
-              </div>
-            )}
-
-            {/* Hover overlay hint */}
-            <div className="absolute inset-0 bg-black/35 rounded-2xl opacity-0 group-hover:opacity-100 flex flex-col items-center justify-center text-white transition-opacity">
-              <Camera size={20} className="mb-0.5 drop-shadow-sm" />
-              <span className="text-[10px] font-bold drop-shadow-sm">Change</span>
-            </div>
-
-            {uploadingPhoto && (
-              <div className="absolute inset-0 bg-black/55 rounded-2xl flex flex-col items-center justify-center z-10">
-                <Loader2 size={24} className="text-white animate-spin mb-1" />
-                <span className="text-[9px] text-white font-semibold">Updating...</span>
-              </div>
-            )}
-            <div
-              className="absolute -bottom-2 -right-2 w-8 h-8 rounded-full bg-white border border-[#E2D9CF] text-[#1E4030] flex items-center justify-center shadow-md group-hover:bg-[#FAF8F5] group-hover:scale-110 transition-all"
+          <div className="flex flex-col items-center sm:items-start shrink-0">
+            <label
+              htmlFor="admin-avatar-upload"
+              className="relative cursor-pointer group select-none shrink-0 block rounded-2xl focus-within:ring-2 focus-within:ring-[#1E4030]"
               title="Click to change profile picture"
             >
-              <Camera size={14} />
-            </div>
+              <input
+                id="admin-avatar-upload"
+                type="file"
+                ref={fileInputRef}
+                accept="image/*"
+                onChange={handlePhotoSelect}
+                onClick={(e) => e.stopPropagation()}
+                className="sr-only"
+              />
+              {currentAvatar ? (
+                <img
+                  src={currentAvatar}
+                  alt={formData.fullName}
+                  className="w-24 h-24 rounded-2xl object-cover shadow-md border-2 border-white group-hover:opacity-90 group-hover:ring-4 group-hover:ring-[#1E4030]/20 transition-all pointer-events-none"
+                />
+              ) : (
+                <div className="w-24 h-24 rounded-2xl bg-[#1E4030] text-white flex items-center justify-center text-3xl font-bold font-display shadow-md border-2 border-white group-hover:ring-4 group-hover:ring-[#1E4030]/20 transition-all pointer-events-none">
+                  {initials}
+                </div>
+              )}
+
+              {/* Hover overlay hint */}
+              <div className="absolute inset-0 bg-black/35 rounded-2xl opacity-0 group-hover:opacity-100 flex flex-col items-center justify-center text-white transition-opacity pointer-events-none">
+                <Camera size={20} className="mb-0.5 drop-shadow-sm" />
+                <span className="text-[10px] font-bold drop-shadow-sm">Change</span>
+              </div>
+
+              {uploadingPhoto && (
+                <div className="absolute inset-0 bg-black/55 rounded-2xl flex flex-col items-center justify-center z-10 pointer-events-none">
+                  <Loader2 size={24} className="text-white animate-spin mb-1" />
+                  <span className="text-[9px] text-white font-semibold">Updating...</span>
+                </div>
+              )}
+              <div
+                className="absolute -bottom-2 -right-2 w-8 h-8 rounded-full bg-white border border-[#E2D9CF] text-[#1E4030] flex items-center justify-center shadow-md group-hover:bg-[#FAF8F5] group-hover:scale-110 transition-all pointer-events-none"
+                title="Click to change profile picture"
+              >
+                <Camera size={14} />
+              </div>
+            </label>
+
+            {/* Explicit secondary button trigger */}
+            <label
+              htmlFor="admin-avatar-upload"
+              className="mt-2.5 inline-flex items-center gap-1.5 px-3 py-1 bg-[#FAF8F5] hover:bg-[#F3EFEA] active:scale-95 border border-[#E2D9CF] rounded-xl text-xs font-semibold text-[#1E4030] cursor-pointer transition-all shadow-2xs select-none"
+              title="Click to select new photo"
+            >
+              <Camera size={13} className="text-[#1E4030]" />
+              <span>Change Photo</span>
+            </label>
           </div>
 
           {/* User Meta */}
