@@ -66,14 +66,21 @@ export default function AdminProfileTab({ onNavigate }) {
   const handlePhotoSelect = async (e) => {
     const file = e.target.files?.[0];
     if (!file) return;
+    e.target.value = '';
     try {
       setUploadingPhoto(true);
       setErrorMessage(null);
       const compressed = await compressAndReadImage(file, 400, 400, 0.85);
       setPhotoPreview(compressed);
+
+      // Auto-save immediately so navbar updates right away
+      const updated = await updateCurrentProfile({ photoUrl: compressed });
+      setUser(updated);
+      setSavedSuccess(true);
+      setTimeout(() => setSavedSuccess(false), 4000);
     } catch (err) {
-      console.error('Image selection error:', err);
-      setErrorMessage(err.message || 'Failed to process image');
+      console.error('Image selection/upload error:', err);
+      setErrorMessage(err.message || 'Failed to update profile picture');
     } finally {
       setUploadingPhoto(false);
     }
@@ -149,7 +156,11 @@ export default function AdminProfileTab({ onNavigate }) {
       <div className="bg-white border border-[#E2D9CF] rounded-3xl p-6 sm:p-8 shadow-sm">
         <div className="flex flex-col sm:flex-row items-center sm:items-start gap-6">
           {/* Avatar with edit badge */}
-          <div className="relative">
+          <div
+            onClick={() => fileInputRef.current?.click()}
+            className="relative cursor-pointer group select-none shrink-0"
+            title="Click to change profile picture"
+          >
             <input
               type="file"
               ref={fileInputRef}
@@ -161,26 +172,32 @@ export default function AdminProfileTab({ onNavigate }) {
               <img
                 src={currentAvatar}
                 alt={formData.fullName}
-                className="w-24 h-24 rounded-2xl object-cover shadow-md border-2 border-white"
+                className="w-24 h-24 rounded-2xl object-cover shadow-md border-2 border-white group-hover:opacity-90 group-hover:ring-4 group-hover:ring-[#1E4030]/20 transition-all"
               />
             ) : (
-              <div className="w-24 h-24 rounded-2xl bg-[#1E4030] text-white flex items-center justify-center text-3xl font-bold font-display shadow-md border-2 border-white">
+              <div className="w-24 h-24 rounded-2xl bg-[#1E4030] text-white flex items-center justify-center text-3xl font-bold font-display shadow-md border-2 border-white group-hover:ring-4 group-hover:ring-[#1E4030]/20 transition-all">
                 {initials}
               </div>
             )}
+
+            {/* Hover overlay hint */}
+            <div className="absolute inset-0 bg-black/35 rounded-2xl opacity-0 group-hover:opacity-100 flex flex-col items-center justify-center text-white transition-opacity">
+              <Camera size={20} className="mb-0.5 drop-shadow-sm" />
+              <span className="text-[10px] font-bold drop-shadow-sm">Change</span>
+            </div>
+
             {uploadingPhoto && (
-              <div className="absolute inset-0 bg-black/40 rounded-2xl flex items-center justify-center">
-                <Loader2 size={24} className="text-white animate-spin" />
+              <div className="absolute inset-0 bg-black/55 rounded-2xl flex flex-col items-center justify-center z-10">
+                <Loader2 size={24} className="text-white animate-spin mb-1" />
+                <span className="text-[9px] text-white font-semibold">Updating...</span>
               </div>
             )}
-            <button
-              type="button"
-              onClick={() => fileInputRef.current?.click()}
-              title="Upload new profile picture"
-              className="absolute -bottom-2 -right-2 w-8 h-8 rounded-full bg-white border border-[#E2D9CF] text-[#1E4030] flex items-center justify-center shadow-md hover:bg-[#FAF8F5] hover:scale-105 transition-all cursor-pointer"
+            <div
+              className="absolute -bottom-2 -right-2 w-8 h-8 rounded-full bg-white border border-[#E2D9CF] text-[#1E4030] flex items-center justify-center shadow-md group-hover:bg-[#FAF8F5] group-hover:scale-110 transition-all"
+              title="Click to change profile picture"
             >
               <Camera size={14} />
-            </button>
+            </div>
           </div>
 
           {/* User Meta */}
