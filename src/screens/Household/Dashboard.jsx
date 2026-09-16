@@ -162,7 +162,8 @@ export default function HouseholdDashboard({ onNavigate: topNavigate, screenPara
     clearDiscussionChat,
     deleteMessage,
     openDiscussionWithCaregiver,
-    unreadMessagesCount
+    unreadMessagesCount,
+    loadBookings
   } = useHouseholdDashboard(screenParams);
 
   // Workflow state parameters (keeps booking data flowing seamlessly inside layout)
