@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Star, MapPin, Clock, ShieldCheck, ArrowRight } from 'lucide-react';
-import { apiGet } from '../../../../services/api';
+import { apiGet, getAvatarUrl } from '../../../../services/api';
 
 function getInitials(name) {
   const parts = (name || '').trim().split(/\s+/);
@@ -97,10 +97,19 @@ export default function ProviderMatchStep({ data, onSelectProvider, onBack }) {
             <div key={p.id} className={`pms-card ${isSelected ? 'pms-card--selected' : ''}`}>
               {/* Avatar */}
               <div
-                className="pms-avatar"
+                className="pms-avatar overflow-hidden relative"
                 style={{ background: `linear-gradient(135deg, ${from}, ${to})` }}
               >
-                {getInitials(p.name)}
+                {p.photo ? (
+                  <img
+                    src={getAvatarUrl(p.photo)}
+                    alt={p.name}
+                    className="w-full h-full object-cover"
+                    onError={(e) => { e.currentTarget.style.display = 'none'; }}
+                  />
+                ) : (
+                  getInitials(p.name)
+                )}
               </div>
 
               {/* Info */}

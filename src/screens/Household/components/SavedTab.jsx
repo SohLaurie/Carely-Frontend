@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Heart, Star } from 'lucide-react';
 import { SPECIALTY_META } from '../../../data';
-import { apiGet } from '../../../services/api';
+import { apiGet, getAvatarUrl } from '../../../services/api';
 
 export default function SavedTab({ setSelectedId, setActiveTab }) {
   const [saved, setSaved] = useState([]);
@@ -19,7 +19,8 @@ export default function SavedTab({ setSelectedId, setActiveTab }) {
               name: `${p.first_name || ''} ${p.last_name || ''}`.trim() || 'Verified Provider',
               specialty: (Array.isArray(p.specialties) ? p.specialties[0] : null) || (p.profession ? p.profession.toLowerCase().replace(/\s+/g, '_') : 'cleaning'),
               rating: parseFloat(p.rating) > 0 ? parseFloat(p.rating) : 5.0,
-              profession: p.profession || 'Care Provider'
+              profession: p.profession || 'Care Provider',
+              photo: p.photo_url || null,
             }));
           setSaved(list);
         }
@@ -58,8 +59,17 @@ export default function SavedTab({ setSelectedId, setActiveTab }) {
             className="bg-white border border-[#E2D9CF] rounded-2xl p-5 sm:p-6 shadow-sm hover:shadow-md hover:border-[#1E4030]/40 transition-all cursor-pointer group"
           >
             <div className="flex items-center gap-4">
-              <div className="w-14 h-14 bg-[#EDF7F2] text-[#1E4030] font-bold text-lg rounded-2xl flex items-center justify-center shrink-0 border border-green-200/60 shadow-sm">
-                {getInitials(c.name)}
+              <div className="w-14 h-14 bg-[#EDF7F2] text-[#1E4030] font-bold text-lg rounded-2xl flex items-center justify-center shrink-0 border border-green-200/60 shadow-sm overflow-hidden relative select-none">
+                {c.photo ? (
+                  <img
+                    src={getAvatarUrl(c.photo)}
+                    alt={c.name}
+                    className="w-full h-full object-cover"
+                    onError={(e) => { e.currentTarget.style.display = 'none'; }}
+                  />
+                ) : (
+                  getInitials(c.name)
+                )}
               </div>
               <div className="flex-1 min-w-0 space-y-1.5">
                 <h4 className="font-bold text-base text-[#1C1A17] group-hover:text-[#1E4030] transition-colors">{c.name}</h4>

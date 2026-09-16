@@ -5,7 +5,7 @@ import {
   UserCheck, Shirt, Star, ShieldCheck, Clock, CheckCircle2, ChevronRight, Phone, X, Loader2, Globe
 } from 'lucide-react';
 import { SPECIALTY_META } from '../../../data';
-import { apiGet } from '../../../services/api';
+import { apiGet, getAvatarUrl } from '../../../services/api';
 
 export default function ExploreTab({
   selectedId,
@@ -467,11 +467,13 @@ export default function ExploreTab({
                       <div className="w-18 h-18 sm:w-20 sm:h-20 rounded-2xl overflow-hidden bg-[#EDF7F2] text-[#1E4030] font-black text-xl border border-[#E2D9CF] shrink-0 shadow-sm relative flex items-center justify-center select-none">
                         {c.photo ? (
                           <img
-                            src={c.photo}
+                            src={getAvatarUrl(c.photo)}
                             alt={c.name}
                             className="w-full h-full object-cover"
                             onError={(e) => {
                               e.currentTarget.style.display = 'none';
+                              const fallback = e.currentTarget.nextElementSibling;
+                              if (fallback) fallback.classList.remove('hidden');
                             }}
                           />
                         ) : null}
@@ -647,11 +649,13 @@ export default function ExploreTab({
               <div className="w-20 h-20 sm:w-24 sm:h-24 rounded-2xl overflow-hidden bg-[#EDF7F2] text-[#1E4030] font-black text-2xl border border-[#E2D9CF] shrink-0 shadow-sm relative flex items-center justify-center select-none">
                 {modalCaregiver.photo ? (
                   <img
-                    src={modalCaregiver.photo}
+                    src={getAvatarUrl(modalCaregiver.photo)}
                     alt={modalCaregiver.name}
                     className="w-full h-full object-cover"
                     onError={(e) => {
                       e.currentTarget.style.display = 'none';
+                      const fallback = e.currentTarget.nextElementSibling;
+                      if (fallback) fallback.classList.remove('hidden');
                     }}
                   />
                 ) : null}

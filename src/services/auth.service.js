@@ -151,6 +151,9 @@ export async function fetchCurrentProfile() {
       const stored = getStoredUser() || {}
       const merged = { ...stored, ...profile }
       localStorage.setItem('carely_user', JSON.stringify(merged))
+      if (typeof window !== 'undefined') {
+        window.dispatchEvent(new CustomEvent('carely_user_updated', { detail: merged }))
+      }
       return merged
     }
   } catch (err) {
@@ -167,6 +170,9 @@ export async function updateCurrentProfile(data) {
   const stored = getStoredUser() || {}
   const merged = { ...stored, ...updated }
   localStorage.setItem('carely_user', JSON.stringify(merged))
+  if (typeof window !== 'undefined') {
+    window.dispatchEvent(new CustomEvent('carely_user_updated', { detail: merged }))
+  }
   return merged
 }
 

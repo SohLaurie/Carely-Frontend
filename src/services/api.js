@@ -29,7 +29,12 @@ export function getStoredUser() {
 export function storeAuth({ accessToken, refreshToken, user }) {
   if (accessToken)  localStorage.setItem('carely_access_token', accessToken)
   if (refreshToken) localStorage.setItem('carely_refresh_token', refreshToken)
-  if (user)         localStorage.setItem('carely_user', JSON.stringify(user))
+  if (user) {
+    localStorage.setItem('carely_user', JSON.stringify(user))
+    if (typeof window !== 'undefined') {
+      window.dispatchEvent(new CustomEvent('carely_user_updated', { detail: user }))
+    }
+  }
 }
 
 export function clearAuth() {
@@ -50,6 +55,16 @@ export function getUserInitials(user, fallback = 'U') {
 export function getUserDisplayName(user, fallback = 'User') {
   if (!user) return fallback
   return user.firstName || (user.name ? user.name.split(' ')[0] : null) || (user.email ? user.email.split('@')[0] : null) || fallback
+}
+
+export function getAvatarUrl(url) {
+  if (!url || typeof url !== 'string') return null
+  const trimmed = url.trim()
+  if (!trimmed) return null
+  if (trimmed.startsWith('data:') || trimmed.startsWith('http://') || trimmed.startsWith('https://') || trimmed.startsWith('blob:')) {
+    return trimmed
+  }
+  return `${API_ORIGIN}${trimmed.startsWith('/') ? '' : '/'}${trimmed}`
 }
 
 

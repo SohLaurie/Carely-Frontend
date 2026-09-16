@@ -1,4 +1,4 @@
-import React from 'react'
+import React, { useState, useEffect } from 'react'
 import { Menu, Bell, ShieldCheck, ClipboardList, Calendar, Clock, Wallet, Star, User } from 'lucide-react'
 import { CAREGIVER_CONSTANTS } from '../constants/dashboardConstants'
 import NotificationBell from '../components/NotificationBell'
@@ -17,7 +17,16 @@ export default function TopNavbar({
   onViewAllNotifications,
   onProfileClick
 }) {
-  const user = getStoredUser()
+  const [user, setUser] = useState(getStoredUser())
+
+  useEffect(() => {
+    const handleUpdate = (e) => {
+      if (e.detail) setUser(e.detail)
+    }
+    window.addEventListener('carely_user_updated', handleUpdate)
+    return () => window.removeEventListener('carely_user_updated', handleUpdate)
+  }, [])
+
   const caregiverName = getUserDisplayName(user, CAREGIVER_CONSTANTS.DEFAULT_CAREGIVER_NAME)
 
   const getHeaderInfo = () => {

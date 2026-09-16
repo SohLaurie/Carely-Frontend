@@ -1,11 +1,21 @@
-import React from 'react'
+import React, { useState, useEffect } from 'react'
 import { CAREGIVER_CONSTANTS } from '../constants/dashboardConstants'
-import { getStoredUser, getUserDisplayName, getUserInitials } from '../../../services/api.js'
+import { getStoredUser, getUserDisplayName, getUserInitials, getAvatarUrl } from '../../../services/api.js'
 
 export default function ProfileDropdown({ onClick }) {
-  const user = getStoredUser()
+  const [user, setUser] = useState(getStoredUser())
+
+  useEffect(() => {
+    const handleUpdate = (e) => {
+      if (e.detail) setUser(e.detail)
+    }
+    window.addEventListener('carely_user_updated', handleUpdate)
+    return () => window.removeEventListener('carely_user_updated', handleUpdate)
+  }, [])
+
   const displayName = getUserDisplayName(user, CAREGIVER_CONSTANTS.DEFAULT_CAREGIVER_NAME)
   const initials = getUserInitials(user, 'CG')
+  const avatarUrl = getAvatarUrl(user?.photoUrl)
 
   return (
     <button
@@ -14,10 +24,11 @@ export default function ProfileDropdown({ onClick }) {
       className="flex items-center gap-2 bg-[#FAF8F5] border border-[#E2D9CF] pl-1.5 pr-3.5 py-1 rounded-full cursor-pointer hover:border-[#1E4030] transition-colors"
       title="Open Profile Settings"
     >
-      {user?.photoUrl ? (
+      {avatarUrl ? (
         <img
-          src={user.photoUrl}
+          src={avatarUrl}
           alt={displayName}
+          onError={(e) => { e.currentTarget.style.display = 'none' }}
           className="w-8 h-8 rounded-full object-cover border border-[#E2D9CF] shrink-0"
         />
       ) : user ? (

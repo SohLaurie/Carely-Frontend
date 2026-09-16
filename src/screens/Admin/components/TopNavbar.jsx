@@ -1,6 +1,6 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { Menu, Bell, Shield, X, Check } from 'lucide-react';
-import { getStoredUser, getUserDisplayName, getUserInitials } from '../../../services/api.js';
+import { getStoredUser, getUserDisplayName, getUserInitials, getAvatarUrl } from '../../../services/api.js';
 
 export default function TopNavbar({
   activeTab,
@@ -11,9 +11,19 @@ export default function TopNavbar({
   setNotifications,
   unreadCount
 }) {
-  const user = getStoredUser();
+  const [user, setUser] = useState(getStoredUser());
+
+  useEffect(() => {
+    const handleUpdate = (e) => {
+      if (e.detail) setUser(e.detail);
+    };
+    window.addEventListener('carely_user_updated', handleUpdate);
+    return () => window.removeEventListener('carely_user_updated', handleUpdate);
+  }, []);
+
   const displayName = getUserDisplayName(user, 'Admin');
   const initials = getUserInitials(user, 'AD');
+  const avatarUrl = getAvatarUrl(user?.photoUrl);
 
   const getHeaderInfo = () => {
     switch (activeTab) {
@@ -182,10 +192,11 @@ export default function TopNavbar({
 
         {/* Profile Avatar */}
         <div className="flex items-center gap-2">
-          {user?.photoUrl ? (
+          {avatarUrl ? (
             <img
-              src={user.photoUrl}
+              src={avatarUrl}
               alt={displayName}
+              onError={(e) => { e.currentTarget.style.display = 'none'; }}
               className="w-8 h-8 rounded-full object-cover border border-[#E2D9CF] shrink-0 shadow-sm"
             />
           ) : (

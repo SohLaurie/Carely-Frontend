@@ -1,13 +1,18 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
-  User, Mail, Phone, MapPin, ShieldCheck, Check, Save, Camera, Globe, Shield, Lock, Award, Loader2
+  User, Mail, Phone, MapPin, ShieldCheck, Check, Save, Camera, Globe, Shield, Lock, Award, Loader2, AlertCircle
 } from 'lucide-react';
-import { getStoredUser, getUserInitials } from '../../../services/api.js';
+import { getStoredUser, getUserInitials, getAvatarUrl } from '../../../services/api.js';
 import { fetchCurrentProfile, updateCurrentProfile } from '../../../services/auth.service.js';
+import { compressAndReadImage } from '../../../utils/imageUtils.js';
 
 export default function AdminProfileTab({ onNavigate }) {
   const [savedSuccess, setSavedSuccess] = useState(false);
   const [saveLoading, setSaveLoading] = useState(false);
+  const [errorMessage, setErrorMessage] = useState(null);
+  const [uploadingPhoto, setUploadingPhoto] = useState(false);
+  const [photoPreview, setPhotoPreview] = useState(null);
+  const fileInputRef = useRef(null);
 
   const storedUser = getStoredUser();
   const [user, setUser] = useState(storedUser);
@@ -43,7 +48,10 @@ export default function AdminProfileTab({ onNavigate }) {
           fullName: getInitialName(freshUser),
           email: getInitialEmail(freshUser),
           phone: getInitialPhone(freshUser),
+          secondaryPhone: freshUser?.secondaryPhone || prev.secondaryPhone,
           location: getInitialLocation(freshUser),
+          emergencyContact: freshUser?.emergencyContact || prev.emergencyContact,
+          preferredLanguage: freshUser?.preferredLanguage || prev.preferredLanguage,
           bio: freshUser.bio || prev.bio,
         }));
       }
@@ -55,31 +63,59 @@ export default function AdminProfileTab({ onNavigate }) {
   const adminSinceYear = user?.createdAt ? new Date(user.createdAt).getFullYear() : 2024;
   const initials = getUserInitials(user, 'CA');
 
+  const handlePhotoSelect = async (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    try {
+      setUploadingPhoto(true);
+      setErrorMessage(null);
+      const compressed = await compressAndReadImage(file, 400, 400, 0.85);
+      setPhotoPreview(compressed);
+    } catch (err) {
+      console.error('Image selection error:', err);
+      setErrorMessage(err.message || 'Failed to process image');
+    } finally {
+      setUploadingPhoto(false);
+    }
+  };
+
   const handleSave = async (e) => {
     e.preventDefault();
     setSaveLoading(true);
+    setErrorMessage(null);
     try {
       const nameParts = formData.fullName.trim().split(/\s+/);
       const firstName = nameParts[0] || 'Carely';
       const lastName = nameParts.slice(1).join(' ') || 'Admin';
 
-      const updated = await updateCurrentProfile({
+      const payload = {
         firstName,
         lastName,
         phone: formData.phone,
+        secondaryPhone: formData.secondaryPhone,
         city: formData.location.replace(/,\s*Cameroon$/i, '').trim(),
+        emergencyContact: formData.emergencyContact,
+        preferredLanguage: formData.preferredLanguage,
         bio: formData.bio,
-      });
+      };
 
+      if (photoPreview) {
+        payload.photoUrl = photoPreview;
+      }
+
+      const updated = await updateCurrentProfile(payload);
       setUser(updated);
       setSavedSuccess(true);
-      setTimeout(() => setSavedSuccess(false), 3000);
+      setTimeout(() => setSavedSuccess(false), 4000);
     } catch (err) {
       console.error('Failed to update admin profile:', err);
+      setErrorMessage(err.message || 'Failed to save admin profile changes');
     } finally {
       setSaveLoading(false);
     }
   };
+
+  const currentAvatar = photoPreview || getAvatarUrl(user?.photoUrl);
 
   return (
     <div className="space-y-6 w-full animate-fadeIn">
@@ -101,6 +137,12 @@ export default function AdminProfileTab({ onNavigate }) {
             Admin profile updated successfully!
           </div>
         )}
+        {errorMessage && (
+          <div className="bg-red-50 border border-red-200 text-red-700 text-xs font-semibold px-4 py-2 rounded-xl flex items-center gap-1.5 animate-fadeIn shadow-xs">
+            <AlertCircle size={14} className="text-red-600 shrink-0" />
+            {errorMessage}
+          </div>
+        )}
       </div>
 
       {/* Profile Overview Card */}
@@ -108,9 +150,16 @@ export default function AdminProfileTab({ onNavigate }) {
         <div className="flex flex-col sm:flex-row items-center sm:items-start gap-6">
           {/* Avatar with edit badge */}
           <div className="relative">
-            {user?.photoUrl ? (
+            <input
+              type="file"
+              ref={fileInputRef}
+              accept="image/*"
+              onChange={handlePhotoSelect}
+              className="hidden"
+            />
+            {currentAvatar ? (
               <img
-                src={user.photoUrl}
+                src={currentAvatar}
                 alt={formData.fullName}
                 className="w-24 h-24 rounded-2xl object-cover shadow-md border-2 border-white"
               />
@@ -119,9 +168,16 @@ export default function AdminProfileTab({ onNavigate }) {
                 {initials}
               </div>
             )}
+            {uploadingPhoto && (
+              <div className="absolute inset-0 bg-black/40 rounded-2xl flex items-center justify-center">
+                <Loader2 size={24} className="text-white animate-spin" />
+              </div>
+            )}
             <button
               type="button"
-              className="absolute -bottom-2 -right-2 w-8 h-8 rounded-full bg-white border border-[#E2D9CF] text-[#1E4030] flex items-center justify-center shadow-md hover:bg-[#FAF8F5] transition-colors cursor-pointer"
+              onClick={() => fileInputRef.current?.click()}
+              title="Upload new profile picture"
+              className="absolute -bottom-2 -right-2 w-8 h-8 rounded-full bg-white border border-[#E2D9CF] text-[#1E4030] flex items-center justify-center shadow-md hover:bg-[#FAF8F5] hover:scale-105 transition-all cursor-pointer"
             >
               <Camera size={14} />
             </button>
@@ -182,13 +238,21 @@ export default function AdminProfileTab({ onNavigate }) {
             </div>
 
             <div className="space-y-1.5">
-              <label className="block text-xs font-bold text-[#8A7E74] uppercase tracking-wide">Admin Email Address</label>
+              <div className="flex items-center justify-between">
+                <label className="block text-xs font-bold text-[#8A7E74] uppercase tracking-wide">Admin Email Address</label>
+                <span className="flex items-center gap-1 text-[10px] text-[#8A7E74] font-semibold bg-[#F3EFEA] px-2 py-0.5 rounded-md border border-[#E2D9CF]">
+                  <Lock size={10} className="text-[#8A7E74]" /> Read-only
+                </span>
+              </div>
               <input
                 type="email"
                 value={formData.email}
-                onChange={e => setFormData({ ...formData, email: e.target.value })}
-                className="w-full px-4 py-3 bg-[#FAF8F5] border border-[#E2D9CF] rounded-xl text-xs text-[#1C1A17] focus:outline-none focus:border-[#1E4030] font-medium"
+                readOnly
+                disabled
+                title="System administrator email cannot be modified directly"
+                className="w-full px-4 py-3 bg-[#F3EFEA] border border-[#E2D9CF] rounded-xl text-xs text-[#8A7E74] cursor-not-allowed font-medium select-none"
               />
+              <p className="text-[10px] text-[#8A7E74]/80">Super administrator account email is permanently bound.</p>
             </div>
 
             <div className="space-y-1.5">
@@ -307,10 +371,20 @@ export default function AdminProfileTab({ onNavigate }) {
         <div className="pt-4 border-t border-[#E2D9CF] flex justify-end">
           <button
             type="submit"
-            className="flex items-center gap-2 bg-[#1E4030] hover:bg-[#152e22] text-white px-8 py-3 rounded-xl text-xs font-bold transition-all shadow-md cursor-pointer hover:shadow-lg active:scale-95"
+            disabled={saveLoading}
+            className="flex items-center gap-2 bg-[#1E4030] hover:bg-[#152e22] disabled:opacity-50 text-white px-8 py-3 rounded-xl text-xs font-bold transition-all shadow-md cursor-pointer hover:shadow-lg active:scale-95"
           >
-            <Save size={14} />
-            Save Profile Information
+            {saveLoading ? (
+              <>
+                <Loader2 size={14} className="animate-spin" />
+                Saving Changes...
+              </>
+            ) : (
+              <>
+                <Save size={14} />
+                Save Profile Information
+              </>
+            )}
           </button>
         </div>
       </form>
