@@ -29,7 +29,7 @@ const FEATURES = [
 
 const STATS = [
   { Icon: Users, num: '840+', label: 'Verified providers' },
-  { Icon: Star, num: '4.9★', label: 'Average rating' },
+  { Icon: Star, num: '4.9', label: 'Average rating' },
   { Icon: TrendingUp, num: '2,500+', label: 'Families served' },
 ];
 
@@ -329,7 +329,12 @@ export default function ForgotPassword({ onNavigate }) {
           <div className="grid grid-cols-3 gap-2.5 pt-1">
             {STATS.map(({ Icon, num, label }) => (
               <div key={label} className="bg-white/8 border border-white/10 rounded-xl p-3 text-center">
-                <div className="font-display text-lg xl:text-xl font-bold text-white">{num}</div>
+                <div className="font-display text-lg xl:text-xl font-bold text-white flex items-center justify-center gap-1">
+                  <span>{num}</span>
+                  {label.includes('rating') && (
+                    <Star size={14} className="fill-amber-400 text-amber-400 shrink-0" />
+                  )}
+                </div>
                 <div className="text-[10px] text-white/55 mt-0.5 leading-tight">{label}</div>
               </div>
             ))}

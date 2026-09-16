@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { User, Mail, Phone, MapPin, ShieldCheck, Check, Save, Camera, Globe } from 'lucide-react';
+import { User, Mail, Phone, MapPin, ShieldCheck, Check, Save, Camera, Globe, Star } from 'lucide-react';
 import { getStoredUser, getUserInitials } from '../../../services/api.js';
 import { fetchCurrentProfile, updateCurrentProfile } from '../../../services/auth.service.js';
 
@@ -137,7 +137,10 @@ export default function ProfileTab({ onNavigate }) {
                 <div className="text-[10px] text-[#8A7E74]">Completed Bookings</div>
               </div>
               <div className="bg-[#FAF8F5] border border-[#E2D9CF] rounded-2xl p-3 text-center">
-                <div className="text-base font-bold text-[#1C1A17]">5.0 ★</div>
+                <div className="text-base font-bold text-[#1C1A17] flex items-center justify-center gap-1">
+                  <span>5.0</span>
+                  <Star size={14} className="fill-amber-400 text-amber-400 shrink-0" />
+                </div>
                 <div className="text-[10px] text-[#8A7E74]">Client Rating</div>
               </div>
               <div className="bg-[#FAF8F5] border border-[#E2D9CF] rounded-2xl p-3 text-center">

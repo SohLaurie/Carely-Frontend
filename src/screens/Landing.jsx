@@ -534,8 +534,9 @@ export default function Landing({ onNavigate }) {
                   </div>
                   <div className="hidden sm:block w-[1px] h-8 bg-[#E2D9CF]"></div>
                   <div>
-                    <div className="font-display text-3xl font-bold text-[#1E4030]">
-                      4.8â˜…
+                    <div className="font-display text-3xl font-bold text-[#1E4030] flex items-center gap-1.5">
+                      <span>4.8</span>
+                      <StarIcon size={24} className="fill-amber-400 text-amber-400 shrink-0" />
                     </div>
                     <div className="text-[#8A7E74] text-xs mt-0.5">
                       Average rating
@@ -578,9 +579,12 @@ export default function Landing({ onNavigate }) {
                     <h4 className="font-semibold text-xs text-[#1C1A17]">
                       Marie-Claire N.
                     </h4>
-                    <p className="text-[#8A7E74] text-[10px] mt-0.5">
-                      Nurse &middot; &star; 4.9
-                    </p>
+                    <div className="flex items-center gap-1 text-[#8A7E74] text-[10px] mt-0.5">
+                      <span>Nurse</span>
+                      <span>&middot;</span>
+                      <StarIcon size={12} className="fill-amber-400 text-amber-400 shrink-0" />
+                      <span className="font-semibold text-[#1C1A17]">4.9</span>
+                    </div>
                   </div>
                 </div>
                 <span className="bg-green-50 text-green-700 text-[9px] font-bold px-2 py-0.5 rounded-full border border-green-200 shrink-0">

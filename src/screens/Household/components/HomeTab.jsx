@@ -189,7 +189,7 @@ const UPCOMING = [
 const STATS = [
   { label: 'Bookings this month', value: '3', Icon: Calendar, accent: '#2D6A4F' },
   { label: 'Hours of care', value: '18h', Icon: Clock, accent: '#1B6CA8' },
-  { label: 'Avg. provider rating', value: '4.9★', Icon: Star, accent: '#C77B2A' },
+  { label: 'Avg. provider rating', value: '4.9', Icon: Star, accent: '#C77B2A' },
 ];
 
 /* ── Component ───────────────────────────────────────────── */
@@ -242,7 +242,12 @@ export default function HomeTab({ onNavigate, openBookingWizard, userFirstName =
                 <Icon size={16} />
               </div>
               <div>
-                <p className="home-stat-value">{value}</p>
+                <p className="home-stat-value flex items-center gap-1">
+                  <span>{value}</span>
+                  {label.includes('rating') && (
+                    <Star size={13} className="fill-amber-400 text-amber-400 shrink-0 inline-block" />
+                  )}
+                </p>
                 <p className="home-stat-label">{label}</p>
               </div>
             </div>
