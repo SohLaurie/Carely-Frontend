@@ -139,7 +139,8 @@ export default function ProfileTab({ onNavigate }) {
     }
   };
 
-  const currentAvatar = photoPreview || getAvatarUrl(user?.photoUrl);
+  const rawPhoto = user?.photoUrl || user?.photo_url || user?.providerProfile?.photoUrl || user?.providerProfile?.photo_url;
+  const currentAvatar = photoPreview || getAvatarUrl(rawPhoto);
 
   return (
     <div className="space-y-6 w-full animate-fadeIn">

@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Menu, Bell, Shield, X, Check } from 'lucide-react';
 import { getStoredUser, getUserDisplayName, getUserInitials, getAvatarUrl } from '../../../services/api.js';
+import { fetchCurrentProfile } from '../../../services/auth.service.js';
 
 export default function TopNavbar({
   activeTab,
@@ -14,6 +15,12 @@ export default function TopNavbar({
   const [user, setUser] = useState(getStoredUser());
 
   useEffect(() => {
+    fetchCurrentProfile().then(fresh => {
+      if (fresh) setUser(fresh);
+    }).catch(() => {});
+  }, []);
+
+  useEffect(() => {
     const handleUpdate = (e) => {
       if (e.detail) setUser(e.detail);
     };
@@ -23,7 +30,8 @@ export default function TopNavbar({
 
   const displayName = getUserDisplayName(user, 'Admin');
   const initials = getUserInitials(user, 'AD');
-  const avatarUrl = getAvatarUrl(user?.photoUrl);
+  const rawPhoto = user?.photoUrl || user?.photo_url;
+  const avatarUrl = getAvatarUrl(rawPhoto);
   const [imgError, setImgError] = useState(false);
 
   useEffect(() => {

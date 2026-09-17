@@ -5,6 +5,7 @@ import NotificationBell from '../components/NotificationBell'
 import ProfileDropdown from '../components/ProfileDropdown'
 
 import { getStoredUser, getUserDisplayName } from '../../../services/api.js'
+import { fetchCurrentProfile } from '../../../services/auth.service.js'
 
 export default function TopNavbar({
   activeTab,
@@ -18,6 +19,12 @@ export default function TopNavbar({
   onProfileClick
 }) {
   const [user, setUser] = useState(getStoredUser())
+
+  useEffect(() => {
+    fetchCurrentProfile().then(fresh => {
+      if (fresh) setUser(fresh)
+    }).catch(() => {})
+  }, [])
 
   useEffect(() => {
     const handleUpdate = (e) => {
@@ -135,7 +142,7 @@ export default function TopNavbar({
         />
 
         {/* Profile Avatar dropdown component */}
-        <ProfileDropdown onClick={onProfileClick} />
+        <ProfileDropdown user={user} onClick={onProfileClick} />
       </div>
     </header>
   )

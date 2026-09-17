@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Menu, ShieldCheck, Bell, Clock, Check, Trash2, Reply, MessageSquare } from 'lucide-react';
 import { getStoredUser, getUserDisplayName, getUserInitials, getAvatarUrl } from '../../../services/api.js';
+import { fetchCurrentProfile } from '../../../services/auth.service.js';
 
 const titleMap = {
   explore:       'Explore Caregivers',
@@ -39,6 +40,12 @@ export default function TopNavbar({
   const [user, setUser]                       = useState(getStoredUser());
 
   useEffect(() => {
+    fetchCurrentProfile().then(fresh => {
+      if (fresh) setUser(fresh);
+    }).catch(() => {});
+  }, []);
+
+  useEffect(() => {
     const handleUpdate = (e) => {
       if (e.detail) setUser(e.detail);
     };
@@ -48,7 +55,8 @@ export default function TopNavbar({
 
   const displayName = getUserDisplayName(user, 'Aïcha');
   const initials = getUserInitials(user, 'AK');
-  const avatarUrl = getAvatarUrl(user?.photoUrl);
+  const rawPhoto = user?.photoUrl || user?.photo_url || user?.providerProfile?.photoUrl || user?.providerProfile?.photo_url;
+  const avatarUrl = getAvatarUrl(rawPhoto);
   const [imgError, setImgError] = useState(false);
 
   useEffect(() => {

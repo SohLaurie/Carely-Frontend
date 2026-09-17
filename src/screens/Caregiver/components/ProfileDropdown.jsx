@@ -2,9 +2,13 @@ import React, { useState, useEffect } from 'react'
 import { CAREGIVER_CONSTANTS } from '../constants/dashboardConstants'
 import { getStoredUser, getUserDisplayName, getUserInitials, getAvatarUrl } from '../../../services/api.js'
 
-export default function ProfileDropdown({ onClick }) {
-  const [user, setUser] = useState(getStoredUser())
+export default function ProfileDropdown({ user: propUser, onClick }) {
+  const [user, setUser] = useState(propUser || getStoredUser())
   const [imgError, setImgError] = useState(false)
+
+  useEffect(() => {
+    if (propUser) setUser(propUser)
+  }, [propUser])
 
   useEffect(() => {
     const handleUpdate = (e) => {
@@ -16,7 +20,8 @@ export default function ProfileDropdown({ onClick }) {
 
   const displayName = getUserDisplayName(user, CAREGIVER_CONSTANTS.DEFAULT_CAREGIVER_NAME)
   const initials = getUserInitials(user, 'CG')
-  const avatarUrl = getAvatarUrl(user?.photoUrl)
+  const rawPhoto = user?.photoUrl || user?.photo_url || user?.providerProfile?.photoUrl || user?.providerProfile?.photo_url
+  const avatarUrl = getAvatarUrl(rawPhoto)
 
   useEffect(() => {
     setImgError(false)
