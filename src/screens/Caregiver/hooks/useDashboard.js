@@ -1,11 +1,31 @@
 import { useState, useEffect, useCallback } from 'react';
 import {
-  initialNotifications,
   initialDayStates,
   initialWorkingHours
 } from '../data/mockDashboardData';
 import { fetchMyBookings, acceptBooking, declineBooking } from '../../../services/bookingApi';
+import { fetchNotifications } from '../../../services/notificationsApi';
 import { getStoredUser } from '../../../services/api';
+
+function formatNotificationTime(dateStr) {
+  if (!dateStr) return 'Recently';
+  try {
+    const d = new Date(dateStr);
+    const now = new Date();
+    const diffMs = now - d;
+    const diffMins = Math.floor(diffMs / 60000);
+    if (diffMins < 1) return 'Just now';
+    if (diffMins < 60) return `${diffMins}m ago`;
+    const diffHours = Math.floor(diffMins / 60);
+    if (diffHours < 24) return `${diffHours}h ago`;
+    const diffDays = Math.floor(diffHours / 24);
+    if (diffDays === 1) return 'Yesterday';
+    if (diffDays < 7) return `${diffDays}d ago`;
+    return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+  } catch {
+    return 'Recently';
+  }
+}
 
 export function useDashboard() {
   const [activeTab, setActiveTab] = useState('overview');
@@ -21,7 +41,7 @@ export function useDashboard() {
 
   // Notifications state
   const [notifFilter, setNotifFilter] = useState('all'); // 'all', 'unread', 'archived'
-  const [notifications, setNotifications] = useState(initialNotifications);
+  const [notifications, setNotifications] = useState([]);
 
   // Requests and Bookings state (No mock data!)
   const [incomingRequests, setIncomingRequests] = useState([]);
@@ -153,11 +173,40 @@ export function useDashboard() {
     }
   }, []);
 
+  const loadNotifications = useCallback(async () => {
+    try {
+      const data = await fetchNotifications();
+      const list = data?.notifications || [];
+      if (Array.isArray(list)) {
+        setNotifications(list.map(n => ({
+          id: n.id,
+          type: n.type || 'system',
+          title: n.title,
+          description: n.body || '',
+          text: n.body || '',
+          metadata: n.metadata || null,
+          unread: !n.is_read,
+          archived: !!n.is_archived,
+          time: formatNotificationTime(n.created_at),
+          createdAt: n.created_at,
+          replied: false,
+          recipient: n.metadata?.recipient || ''
+        })));
+      }
+    } catch (e) {
+      console.warn('Could not load caregiver notifications:', e.message);
+    }
+  }, []);
+
   useEffect(() => {
     loadProviderRequests();
-    const interval = setInterval(loadProviderRequests, 4000);
+    loadNotifications();
+    const interval = setInterval(() => {
+      loadProviderRequests();
+      loadNotifications();
+    }, 4000);
     return () => clearInterval(interval);
-  }, [loadProviderRequests]);
+  }, [loadProviderRequests, loadNotifications]);
 
   const handleRequestAction = async (id, action) => {
     if (typeof id === 'string' && id.includes('-')) {

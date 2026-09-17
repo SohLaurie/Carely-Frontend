@@ -12,9 +12,32 @@ import {
   deleteDiscussionMessage
 } from '../../../services/discussionApi';
 import {
-  initialNotifications,
-  initialDiscussions
-} from '../data/mockHouseholdData';
+  fetchNotifications,
+  markNotificationRead,
+  markAllNotificationsReadApi,
+  toggleArchiveNotification,
+  deleteNotificationApi
+} from '../../../services/notificationsApi';
+
+function formatNotificationTime(dateStr) {
+  if (!dateStr) return 'Recently';
+  try {
+    const d = new Date(dateStr);
+    const now = new Date();
+    const diffMs = now - d;
+    const diffMins = Math.floor(diffMs / 60000);
+    if (diffMins < 1) return 'Just now';
+    if (diffMins < 60) return `${diffMins}m ago`;
+    const diffHours = Math.floor(diffMins / 60);
+    if (diffHours < 24) return `${diffHours}h ago`;
+    const diffDays = Math.floor(diffHours / 24);
+    if (diffDays === 1) return 'Yesterday';
+    if (diffDays < 7) return `${diffDays}d ago`;
+    return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+  } catch {
+    return 'Recently';
+  }
+}
 
 export function useHouseholdDashboard(screenParams) {
   const [activeTab, setActiveTab] = useState(screenParams?.defaultTab || 'home');
@@ -42,7 +65,7 @@ export function useHouseholdDashboard(screenParams) {
   const [activeBookingDropdownId, setActiveBookingDropdownId] = useState(null);
 
   const [notifFilter, setNotifFilter] = useState('all');
-  const [notifications, setNotifications] = useState(initialNotifications);
+  const [notifications, setNotifications] = useState([]);
 
   // Discussions State
   const [discussions, setDiscussions] = useState([]);
@@ -208,12 +231,41 @@ export function useHouseholdDashboard(screenParams) {
     }
   }, []);
 
-  // Fetch real bookings on mount and on poll
+  const loadNotifications = useCallback(async () => {
+    try {
+      const data = await fetchNotifications();
+      const list = data?.notifications || [];
+      if (Array.isArray(list)) {
+        setNotifications(list.map(n => ({
+          id: n.id,
+          type: n.type || 'system',
+          title: n.title,
+          text: n.body || '',
+          description: n.body || '',
+          metadata: n.metadata || null,
+          unread: !n.is_read,
+          archived: !!n.is_archived,
+          time: formatNotificationTime(n.created_at),
+          createdAt: n.created_at,
+          replied: false,
+          recipient: n.metadata?.recipient || ''
+        })));
+      }
+    } catch (e) {
+      console.warn('Could not load notifications:', e.message);
+    }
+  }, []);
+
+  // Fetch real bookings and notifications on mount and on poll
   useEffect(() => {
     loadBookings();
-    const interval = setInterval(loadBookings, 4000);
+    loadNotifications();
+    const interval = setInterval(() => {
+      loadBookings();
+      loadNotifications();
+    }, 4000);
     return () => clearInterval(interval);
-  }, [loadBookings]);
+  }, [loadBookings, loadNotifications]);
 
   const handleAiRecommend = async () => {
     if (!aiPrompt.trim()) return;
@@ -275,24 +327,50 @@ export function useHouseholdDashboard(screenParams) {
     setActiveDropdownId(null);
   };
 
-  const archiveToggleNotification = (id) => {
+  const archiveToggleNotification = async (id) => {
     setNotifications(prev =>
       prev.map(item => (item.id === id ? { ...item, archived: !item.archived } : item))
     );
+    if (typeof id === 'string' && id.includes('-')) {
+      try {
+        await toggleArchiveNotification(id);
+      } catch (err) {
+        console.warn('toggleArchiveNotification API error:', err.message);
+      }
+    }
   };
 
-  const readToggleNotification = (id) => {
+  const readToggleNotification = async (id) => {
     setNotifications(prev =>
       prev.map(item => (item.id === id ? { ...item, unread: !item.unread } : item))
     );
+    if (typeof id === 'string' && id.includes('-')) {
+      try {
+        await markNotificationRead(id);
+      } catch (err) {
+        console.warn('markNotificationRead API error:', err.message);
+      }
+    }
   };
 
-  const deleteNotification = (id) => {
+  const deleteNotification = async (id) => {
     setNotifications(prev => prev.filter(item => item.id !== id));
+    if (typeof id === 'string' && id.includes('-')) {
+      try {
+        await deleteNotificationApi(id);
+      } catch (err) {
+        console.warn('deleteNotification API error:', err.message);
+      }
+    }
   };
 
-  const markAllNotificationsRead = () => {
+  const markAllNotificationsRead = async () => {
     setNotifications(prev => prev.map(n => ({ ...n, unread: false })));
+    try {
+      await markAllNotificationsReadApi();
+    } catch (err) {
+      console.warn('markAllNotificationsRead API error:', err.message);
+    }
   };
 
   const archiveAllNotifications = () => {

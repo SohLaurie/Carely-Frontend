@@ -110,3 +110,11 @@ export async function skipSession(sessionId, token = getAccessToken()) {
 export async function submitReview(reviewData, token = getAccessToken()) {
   return await apiPost('/reviews', reviewData, token);
 }
+
+/**
+ * Fetch reviews and ratings for a provider
+ */
+export async function fetchProviderReviews(providerId, token = getAccessToken()) {
+  return await apiGet(`/reviews/provider/${providerId}`, token);
+}
+

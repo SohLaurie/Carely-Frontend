@@ -28,12 +28,17 @@ import BookingWizard from '../Household/components/booking/BookingWizard'
 import Payment from '../Household/screens/Payment'
 import BookingConfirmed from '../Household/screens/BookingConfirmed'
 import { CAREGIVERS, SPECIALTY_META } from '../../data'
-import { initialDiscussions as defaultClientDiscussions } from '../Household/data/mockHouseholdData'
-import { payoutHistory, caregiverReviews, initialDiscussions } from './data/mockDashboardData'
+import { payoutHistory } from './data/mockDashboardData'
 import { fetchSubscriptionStatus, paySubscription } from '../../services/admin.service.js'
 import SubscriptionPaymentModal from './components/SubscriptionPaymentModal'
 import { getStoredUser, apiGet } from '../../services/api.js'
-import { verifySessionOtp, providerCompleteSession } from '../../services/bookingApi.js'
+import { verifySessionOtp, providerCompleteSession, fetchProviderReviews } from '../../services/bookingApi.js'
+import {
+  markNotificationRead,
+  markAllNotificationsReadApi,
+  toggleArchiveNotification,
+  deleteNotificationApi
+} from '../../services/notificationsApi.js'
 import {
   fetchDiscussions,
   fetchMessages,
@@ -187,6 +192,45 @@ export default function CaregiverDashboard({ onNavigate }) {
   const [activeSessionError, setActiveSessionError] = useState('')
   const [activeSessionSuccess, setActiveSessionSuccess] = useState('')
   const [completingJob, setCompletingJob] = useState(false)
+
+  // Real Reviews state
+  const [providerReviews, setProviderReviews] = useState([])
+  const [ratingStats, setRatingStats] = useState({ rating: 5.0, count: 0 })
+
+  const loadReviews = useCallback(async () => {
+    const user = getStoredUser()
+    if (!user?.id) return
+    try {
+      const data = await fetchProviderReviews(user.id)
+      if (data) {
+        setRatingStats({
+          rating: Number(data.averageRating || 5.0),
+          count: Number(data.totalReviews || 0)
+        })
+        if (Array.isArray(data.reviews)) {
+          setProviderReviews(data.reviews.map(r => {
+            const author = `${r.reviewer_first_name || ''} ${r.reviewer_last_name || ''}`.trim() || 'Household Client'
+            const initials = `${(r.reviewer_first_name?.[0] || 'C')}${(r.reviewer_last_name?.[0] || 'L')}`.toUpperCase()
+            const dateFormatted = r.created_at ? new Date(r.created_at).toLocaleDateString('en-US', { month: 'short', year: 'numeric' }) : 'Recently'
+            return {
+              id: r.id,
+              author,
+              initials,
+              rating: Number(r.rating || 5),
+              date: dateFormatted,
+              comment: r.comment || 'Verified service completed successfully.'
+            }
+          }))
+        }
+      }
+    } catch (e) {
+      console.warn('Could not load provider reviews:', e.message)
+    }
+  }, [])
+
+  useEffect(() => {
+    loadReviews()
+  }, [loadReviews])
 
   // ── Subscription Status State ──
   const [subStatus, setSubStatus] = useState(null)
@@ -884,8 +928,13 @@ export default function CaregiverDashboard({ onNavigate }) {
   }
 
   // Notification tab helpers
-  const markAllNotificationsRead = () => {
+  const markAllNotificationsRead = async () => {
     setNotifications(notifications.map(n => ({ ...n, unread: false })))
+    try {
+      await markAllNotificationsReadApi()
+    } catch (err) {
+      console.warn('markAllNotificationsRead API error:', err.message)
+    }
   }
 
   const archiveAllNotifications = () => {
@@ -896,16 +945,37 @@ export default function CaregiverDashboard({ onNavigate }) {
     setNotifications([])
   }
 
-  const deleteNotification = (id) => {
+  const deleteNotification = async (id) => {
     setNotifications(notifications.filter(n => n.id !== id))
+    if (typeof id === 'string' && id.includes('-')) {
+      try {
+        await deleteNotificationApi(id)
+      } catch (err) {
+        console.warn('deleteNotification API error:', err.message)
+      }
+    }
   }
 
-  const readToggleNotification = (id) => {
+  const readToggleNotification = async (id) => {
     setNotifications(notifications.map(n => n.id === id ? { ...n, unread: !n.unread } : n))
+    if (typeof id === 'string' && id.includes('-')) {
+      try {
+        await markNotificationRead(id)
+      } catch (err) {
+        console.warn('markNotificationRead API error:', err.message)
+      }
+    }
   }
 
-  const archiveToggleNotification = (id) => {
+  const archiveToggleNotification = async (id) => {
     setNotifications(notifications.map(n => n.id === id ? { ...n, archived: !n.archived } : n))
+    if (typeof id === 'string' && id.includes('-')) {
+      try {
+        await toggleArchiveNotification(id)
+      } catch (err) {
+        console.warn('toggleArchiveNotification API error:', err.message)
+      }
+    }
   }
 
   const addMessageNotification = ({ recipient, subject, body }) => {
@@ -1779,25 +1849,31 @@ export default function CaregiverDashboard({ onNavigate }) {
             </div>
 
             <div className="divide-y divide-[#F0EBE5] border-t border-[#F0EBE5]">
-              {payoutHistory.map((row, idx) => (
-                <div key={idx} className="py-4.5 flex justify-between items-center gap-4">
-                  <div className="space-y-1">
-                    <p className="text-sm font-bold text-[#1C1A17]">{row.amount}</p>
-                    <p className="text-[11px] text-[#8A7E74] font-medium">{row.date}</p>
-                  </div>
-                  <div className="text-xs font-semibold text-[#8A7E74] hidden md:block">
-                    {row.method}
-                  </div>
-                  <div className="flex items-center gap-3">
-                    <span className="bg-[#EDF7F2] text-[#1E4030] border border-green-200 text-[10px] font-bold px-3 py-1 rounded-full shrink-0">
-                      Paid & Verified
-                    </span>
-                    <button className="w-8 h-8 rounded-full border border-[#E2D9CF] bg-white flex items-center justify-center text-[#8A7E74] hover:text-[#1E4030] hover:bg-[#FAF8F5] transition-all cursor-pointer">
-                      <ArrowUpRight size={14} />
-                    </button>
-                  </div>
+              {payoutHistory.length === 0 ? (
+                <div className="py-8 text-center text-xs text-[#8A7E74]">
+                  No payout transfers processed yet. Completed sessions will show here automatically.
                 </div>
-              ))}
+              ) : (
+                payoutHistory.map((row, idx) => (
+                  <div key={idx} className="py-4.5 flex justify-between items-center gap-4">
+                    <div className="space-y-1">
+                      <p className="text-sm font-bold text-[#1C1A17]">{row.amount}</p>
+                      <p className="text-[11px] text-[#8A7E74] font-medium">{row.date}</p>
+                    </div>
+                    <div className="text-xs font-semibold text-[#8A7E74] hidden md:block">
+                      {row.method}
+                    </div>
+                    <div className="flex items-center gap-3">
+                      <span className="bg-[#EDF7F2] text-[#1E4030] border border-green-200 text-[10px] font-bold px-3 py-1 rounded-full shrink-0">
+                        Paid & Verified
+                      </span>
+                      <button className="w-8 h-8 rounded-full border border-[#E2D9CF] bg-white flex items-center justify-center text-[#8A7E74] hover:text-[#1E4030] hover:bg-[#FAF8F5] transition-all cursor-pointer">
+                        <ArrowUpRight size={14} />
+                      </button>
+                    </div>
+                  </div>
+                ))
+              )}
             </div>
           </div>
         </div>
@@ -1813,39 +1889,46 @@ export default function CaregiverDashboard({ onNavigate }) {
             </div>
           </div>
 
-          <RatingCard />
+          <RatingCard rating={ratingStats.rating} reviewCount={ratingStats.count} />
 
           <div className="space-y-4">
-            {caregiverReviews.map(rev => (
-              <div key={rev.id} className="bg-white border border-[#E2D9CF] rounded-3xl p-6 shadow-sm space-y-4">
-                <div className="flex justify-between items-start gap-4 flex-wrap">
-                  <div className="flex items-center gap-3">
-                    <div className="w-11 h-11 rounded-2xl bg-[#EDF7F2] border border-green-200 text-[#1E4030] flex items-center justify-center font-bold text-xs shrink-0">
-                      {rev.initials}
-                    </div>
-                    <div>
-                      <h4 className="font-bold text-sm text-[#1C1A17]">{rev.author}</h4>
-                      <p className="text-[11px] text-[#8A7E74] font-medium">{rev.date} &middot; Verified Household Client</p>
-                    </div>
-                  </div>
-
-                  <div className="flex items-center gap-1 text-amber-500 bg-[#FAF8F5] px-3 py-1 rounded-xl border border-[#E2D9CF]">
-                    {Array.from({ length: 5 }).map((_, i) => (
-                      <Star
-                        key={i}
-                        size={14}
-                        className={i < rev.rating ? "fill-amber-400 text-amber-400" : "text-[#E2D9CF]"}
-                      />
-                    ))}
-                    <span className="text-xs font-bold text-[#1C1A17] ml-1">{rev.rating}.0</span>
-                  </div>
-                </div>
-
-                <p className="text-xs text-[#5A5248] leading-relaxed bg-[#FAF8F5] p-4 rounded-2xl border border-[#F0EBE5]">
-                  "{rev.comment}"
-                </p>
+            {providerReviews.length === 0 ? (
+              <div className="bg-white border border-[#E2D9CF] rounded-3xl p-8 text-center space-y-2">
+                <p className="text-sm font-semibold text-[#1C1A17]">No client reviews yet</p>
+                <p className="text-xs text-[#8A7E74]">Once you complete confirmed sessions, household reviews and ratings will appear here.</p>
               </div>
-            ))}
+            ) : (
+              providerReviews.map(rev => (
+                <div key={rev.id} className="bg-white border border-[#E2D9CF] rounded-3xl p-6 shadow-sm space-y-4">
+                  <div className="flex justify-between items-start gap-4 flex-wrap">
+                    <div className="flex items-center gap-3">
+                      <div className="w-11 h-11 rounded-2xl bg-[#EDF7F2] border border-green-200 text-[#1E4030] flex items-center justify-center font-bold text-xs shrink-0">
+                        {rev.initials}
+                      </div>
+                      <div>
+                        <h4 className="font-bold text-sm text-[#1C1A17]">{rev.author}</h4>
+                        <p className="text-[11px] text-[#8A7E74] font-medium">{rev.date} &middot; Verified Household Client</p>
+                      </div>
+                    </div>
+
+                    <div className="flex items-center gap-1 text-amber-500 bg-[#FAF8F5] px-3 py-1 rounded-xl border border-[#E2D9CF]">
+                      {Array.from({ length: 5 }).map((_, i) => (
+                        <Star
+                          key={i}
+                          size={14}
+                          className={i < rev.rating ? "fill-amber-400 text-amber-400" : "text-[#E2D9CF]"}
+                        />
+                      ))}
+                      <span className="text-xs font-bold text-[#1C1A17] ml-1">{rev.rating}.0</span>
+                    </div>
+                  </div>
+
+                  <p className="text-xs text-[#5A5248] leading-relaxed bg-[#FAF8F5] p-4 rounded-2xl border border-[#F0EBE5]">
+                    "{rev.comment}"
+                  </p>
+                </div>
+              ))
+            )}
           </div>
         </div>
       )}

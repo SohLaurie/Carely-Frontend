@@ -38,31 +38,38 @@ export default function RequestsTab({
 
   const handlePayClick = (item) => {
     setActiveDropdownId(null);
+    const bookingId = item.id || item.bookingId;
     const bookingVal = {
-      caregiver: {
-        id: item.caregiverId || '1',
-        name: item.name || item.clientName || 'Marie-Claire Nkomo',
-        photo: item.photo || null,
+      ...item,
+      id: bookingId,
+      bookingId: bookingId,
+      caregiver: item.caregiver || {
+        id: item.provider_id || item.caregiverId || item.provider?.id,
+        name: item.provider ? `${item.provider.firstName || ''} ${item.provider.lastName || ''}`.trim() : (item.name || 'Care Provider'),
+        photo: item.photo || item.provider?.photoUrl || null,
         profession: item.profession || item.specialty || 'Cleaner',
-        specialty: item.specialty === 'Home Nursing' ? 'nursing' : (item.specialty === 'Babysitting & Childcare' ? 'babysitting' : 'cleaning'),
-        location: item.location || 'Bastos, Yaoundé',
-        rating: 4.93,
+        specialty: item.specialty || 'cleaning',
+        location: item.location || 'Yaoundé / Douala',
+        rating: item.provider?.rating || 5.0,
         pricePerHour: item.pricePerHour || 3500
       },
-      sessionType: 'once',
-      date: item.schedule ? item.schedule.split('(')[0].trim() : (item.date || 'Mon Aug 4'),
+      sessionType: item.sessionType || item.bookingType || 'once',
+      date: item.schedule ? item.schedule.split('(')[0].trim() : (item.date || 'Upcoming'),
       time: item.schedule && item.schedule.includes('(') ? item.schedule.split('(')[1].replace(')', '').trim() : (item.time || '09:00 – 12:00'),
-      totalPrice: item.price
-        ? parseInt(String(item.price).replace(/[^0-9]/g, '')) || 10500
-        : 10500,
-      durationWeeks: 1,
-      status: 'Accepted'
+      totalPrice: typeof item.totalPrice === 'number'
+        ? item.totalPrice
+        : (item.price ? parseInt(String(item.price).replace(/[^0-9]/g, '')) : 10500) || 10500,
+      subtotal: item.subtotal || 10000,
+      serviceFee: item.serviceFee || 500,
+      durationWeeks: item.durationWeeks || 1,
+      status: 'Accepted',
+      rawStatus: item.rawStatus || 'accepted'
     };
 
     if (onNavigate) {
       onNavigate('payment', { booking: bookingVal });
     } else if (onMakePayment) {
-      onMakePayment(item);
+      onMakePayment(bookingVal);
     }
   };
 

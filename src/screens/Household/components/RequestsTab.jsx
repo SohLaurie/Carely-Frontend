@@ -276,7 +276,44 @@ export default function RequestsTab({
                     <span className="flex items-center gap-1.5"><MapPin size={12} className="text-[#B0A89E]" />{r.location}</span>
                   </div>
                 </div>
-                <div className="flex items-center gap-3 shrink-0">
+                <div className="flex items-center gap-2.5 shrink-0">
+                  {r.status === 'Accepted' && (
+                    <button
+                      onClick={() => {
+                        const bookingVal = {
+                          id: r.id,
+                          bookingId: r.id,
+                          caregiver: {
+                            id: r.caregiver?.id,
+                            name: r.name,
+                            photo: r.photo,
+                            specialty: r.specialty,
+                            location: r.location,
+                            rating: r.caregiver?.rating || 5.0,
+                            pricePerHour: r.pricePerHour || 50
+                          },
+                          sessionType: r.bookingType || 'once',
+                          date: r.date,
+                          time: r.time,
+                          startTime: r.startTime,
+                          endTime: r.endTime,
+                          subtotal: r.subtotal || 50,
+                          serviceFee: r.serviceFee || 5,
+                          totalPrice: typeof r.totalPrice === 'number'
+                            ? r.totalPrice
+                            : parseInt(String(r.totalPrice).replace(/[^0-9]/g, '')) || 55,
+                          durationWeeks: r.durationWeeks || 1,
+                          totalSessions: r.totalSessions || 1,
+                          status: 'Accepted'
+                        };
+                        onNavigate('payment', { booking: bookingVal });
+                      }}
+                      className="bg-[#1E4030] hover:bg-[#152e22] text-white text-xs font-bold px-3 py-1.5 rounded-xl shadow-xs transition-all cursor-pointer flex items-center gap-1"
+                    >
+                      <DollarSign size={13} />
+                      <span>Pay Now</span>
+                    </button>
+                  )}
                   <span className={`flex items-center gap-1.5 text-xs font-bold px-3 py-1.5 rounded-full border ${statusConfig.bg} ${statusConfig.text} ${statusConfig.border}`}>
                     <span className={`w-1.5 h-1.5 rounded-full ${statusConfig.dot}`}></span>
                     {r.status}
@@ -287,41 +324,43 @@ export default function RequestsTab({
                     </button>
                     {showDropdown && (
                       <div className="absolute right-0 top-10 w-44 bg-white border border-[#E2D9CF] rounded-xl shadow-xl py-1.5 z-50 animate-fadeIn">
-                        <button
-                          onClick={() => {
-                            setActiveDropdownId(null);
-                            const bookingVal = {
-                              id: r.id,
-                              bookingId: r.id,
-                              caregiver: {
-                                id: r.caregiver?.id,
-                                name: r.name,
-                                photo: r.photo,
-                                specialty: r.specialty,
-                                location: r.location,
-                                rating: r.caregiver?.rating || 5.0,
-                                pricePerHour: r.pricePerHour || 50
-                              },
-                              sessionType: r.bookingType || 'once',
-                              date: r.date,
-                              time: r.time,
-                              startTime: r.startTime,
-                              endTime: r.endTime,
-                              subtotal: r.subtotal || 50,
-                              serviceFee: r.serviceFee || 5,
-                              totalPrice: typeof r.totalPrice === 'number'
-                                ? r.totalPrice
-                                : parseInt(String(r.totalPrice).replace(/[^0-9]/g, '')) || 55,
-                              durationWeeks: r.durationWeeks || 1,
-                              totalSessions: r.totalSessions || 1,
-                              status: 'Accepted'
-                            };
-                            onNavigate('payment', { booking: bookingVal });
-                          }}
-                          className="w-full px-4 py-2 text-xs text-[#1E4030] hover:bg-[#EDF7F2] text-left font-semibold transition-colors cursor-pointer flex items-center gap-2 border-b border-[#F0EBE5]"
-                        >
-                          <DollarSign size={13} className="text-[#1E4030]" />Make Payment
-                        </button>
+                        {r.status === 'Accepted' && (
+                          <button
+                            onClick={() => {
+                              setActiveDropdownId(null);
+                              const bookingVal = {
+                                id: r.id,
+                                bookingId: r.id,
+                                caregiver: {
+                                  id: r.caregiver?.id,
+                                  name: r.name,
+                                  photo: r.photo,
+                                  specialty: r.specialty,
+                                  location: r.location,
+                                  rating: r.caregiver?.rating || 5.0,
+                                  pricePerHour: r.pricePerHour || 50
+                                },
+                                sessionType: r.bookingType || 'once',
+                                date: r.date,
+                                time: r.time,
+                                startTime: r.startTime,
+                                endTime: r.endTime,
+                                subtotal: r.subtotal || 50,
+                                serviceFee: r.serviceFee || 5,
+                                totalPrice: typeof r.totalPrice === 'number'
+                                  ? r.totalPrice
+                                  : parseInt(String(r.totalPrice).replace(/[^0-9]/g, '')) || 55,
+                                durationWeeks: r.durationWeeks || 1,
+                                totalSessions: r.totalSessions || 1,
+                                status: 'Accepted'
+                              };
+                              onNavigate('payment', { booking: bookingVal });
+                            }}
+                            className="w-full px-4 py-2 text-xs text-[#1E4030] hover:bg-[#EDF7F2] text-left font-semibold transition-colors cursor-pointer flex items-center gap-2 border-b border-[#F0EBE5]"
+                          >
+                            <DollarSign size={13} className="text-[#1E4030]" />Make Payment
+                          </button>
+                        )}
                         <button
                           onClick={() => {
                             setActiveDropdownId(null);
