@@ -1,5 +1,6 @@
-import React, { useState } from 'react';
-import { Gift, Share2, Mail, Copy, Check, CreditCard } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { Gift, Share2, Mail, Copy, Check, CreditCard, Coins } from 'lucide-react';
+import { getCareCreditWallet } from '../../../services/carecreditApi';
 
 const FacebookIcon = ({ size = 14, className }) => (
   <svg width={size} height={size} viewBox="0 0 24 24" fill="currentColor" className={className}>
@@ -23,8 +24,18 @@ export default function ReferEarnTab() {
   const [copied, setCopied] = useState(false);
   const [emailInput, setEmailInput] = useState('');
   const [invited, setInvited] = useState(false);
-  const referralCode = 'NWBSYE';
+  const [referralCode, setReferralCode] = useState('CARELY');
+
+  useEffect(() => {
+    getCareCreditWallet()
+      .then(res => {
+        if (res?.referralCode) setReferralCode(res.referralCode);
+      })
+      .catch(err => console.warn('Could not load referral code:', err));
+  }, []);
+
   const referralLink = `https://carely.com/signup?ref=${referralCode}`;
+
 
   const handleCopy = () => {
     navigator.clipboard.writeText(referralLink);
@@ -49,8 +60,9 @@ export default function ReferEarnTab() {
         </div>
         <div>
           <h2 className="font-display text-2xl font-bold text-[#1E4030]">Refer & Earn</h2>
-          <p className="text-sm text-[#8A7E74]">Earn 5,000 FCFA CareCred per friend referral</p>
+          <p className="text-sm text-[#8A7E74]">Earn 5 CareCredits per friend referral</p>
         </div>
+
       </div>
 
       {/* Share Unique Code Card */}
@@ -174,7 +186,7 @@ export default function ReferEarnTab() {
               <Gift size={20} />
             </div>
             <p className="text-sm text-[#5A5248] leading-relaxed">
-              Each friend that books their first Carely service gets <strong className="text-[#1E4030]">5,000 FCFA off</strong>
+              Each friend that books their first Carely service gets <strong className="text-[#1E4030]">platform fee waived (-5 FCFA)</strong>
             </p>
           </div>
 
@@ -184,7 +196,7 @@ export default function ReferEarnTab() {
               <CreditCard size={20} />
             </div>
             <p className="text-sm text-[#5A5248] leading-relaxed">
-              For each referral you earn <strong className="text-[#1E4030]">5,000 FCFA CareCred</strong>
+              When their service completes, you earn <strong className="text-[#1E4030]">5 CareCredits</strong> redeemable for cash
             </p>
           </div>
         </div>
@@ -192,3 +204,4 @@ export default function ReferEarnTab() {
     </div>
   );
 }
+

@@ -1,5 +1,6 @@
 import React from 'react';
-import { Home, Compass, ClipboardList, Calendar, Bell, Heart, User, LogOut, X, MessageSquare, Gift } from 'lucide-react';
+import { Home, Compass, ClipboardList, Calendar, Bell, Heart, User, LogOut, X, MessageSquare, Gift, Coins } from 'lucide-react';
+
 
 export default function Sidebar({
   activeTab,
@@ -21,7 +22,9 @@ export default function Sidebar({
     { id: 'notifications', label: 'Notifications', Icon: Bell, badge: unreadNotificationsCount },
     { id: 'saved', label: 'Saved', Icon: Heart },
     { id: 'refer', label: 'Refer & Earn', Icon: Gift },
+    { id: 'carecred', label: 'CareCred', Icon: Coins },
   ];
+
 
   return (
     <>

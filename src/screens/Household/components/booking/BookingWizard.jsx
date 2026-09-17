@@ -136,7 +136,7 @@ export default function BookingWizard({
       endTime = formatTimeHHMM(endTime, '12:00');
 
       const rawTotal = Number(finalData.totalPrice) || 11000;
-      const serviceFee = 5;
+      const serviceFee = typeof finalData.escrowFee === 'number' ? finalData.escrowFee : 5;
       const subtotal = Math.max(1, rawTotal - serviceFee);
       const totalPrice = subtotal + serviceFee;
 
@@ -158,7 +158,11 @@ export default function BookingWizard({
         subtotal,
         serviceFee,
         totalPrice,
+        promoCode: finalData.promoCode || undefined,
+        promoReferralCodeId: finalData.promoReferralCodeId || undefined,
+        promoReferrerId: finalData.promoReferrerId || undefined,
       };
+
 
       const res = await submitBooking(payload);
       onComplete && onComplete({

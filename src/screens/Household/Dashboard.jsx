@@ -10,6 +10,8 @@ import NotificationsTab from './components/NotificationsTab';
 import SavedTab from './components/SavedTab';
 import ProfileTab from './components/ProfileTab';
 import ReferEarnTab from './components/ReferEarnTab';
+import CareCreditTab from './components/CareCreditTab';
+
 
 // Workflow Screens (Rendered inside the Household layout!)
 import BookingForm from './screens/BookingForm';
@@ -173,10 +175,11 @@ export default function HouseholdDashboard({ onNavigate: topNavigate, screenPara
   const handleInternalNavigate = (target, params = {}) => {
     const internalTabs = [
       'home', 'explore', 'discussions', 'requests', 'bookings',
-      'notifications', 'saved', 'profile', 'booking',
+      'notifications', 'saved', 'profile', 'booking', 'carecred',
       'pending', 'payment', 'confirmed', 'otp',
-      'completion', 'review', 'search'
+      'completion', 'review', 'search', 'refer'
     ];
+
 
     if (target === 'search') {
       setActiveTab('explore');
@@ -317,6 +320,12 @@ export default function HouseholdDashboard({ onNavigate: topNavigate, screenPara
       {activeTab === 'refer' && (
         <ReferEarnTab />
       )}
+
+      {/* CareCred Tab (Redeem only for clients) */}
+      {activeTab === 'carecred' && (
+        <CareCreditTab />
+      )}
+
 
       {/* 7. Current User Profile Tab */}
       {activeTab === 'profile' && (

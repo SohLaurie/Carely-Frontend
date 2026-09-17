@@ -1,6 +1,7 @@
 import React from 'react'
-import { LogOut, User, CheckCircle2, ClipboardList, Calendar, Clock, Wallet, Star, Bell, X, Home, Compass, MessageSquare, Gift } from 'lucide-react'
+import { LogOut, User, CheckCircle2, ClipboardList, Calendar, Clock, Wallet, Star, Bell, X, Home, Compass, MessageSquare, Gift, Coins } from 'lucide-react'
 import { NAVIGATION_ITEMS, CAREGIVER_CONSTANTS } from '../constants/dashboardConstants'
+
 
 export default function Sidebar({
   activeTab,
@@ -23,10 +24,12 @@ export default function Sidebar({
     bookings: Calendar,
     calendar: Clock,
     earnings: Wallet,
+    carecred: Coins,
     reviews: Star,
     notifications: Bell,
     refer: Gift
   }
+
 
   // Ensure 'profile' is strictly excluded from main menu list (only rendered in bottom footer)
   const mainMenuItems = NAVIGATION_ITEMS.filter(item => item.id !== 'profile')

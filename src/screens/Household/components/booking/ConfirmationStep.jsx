@@ -1,6 +1,8 @@
-import React from 'react';
-import { MapPin, Calendar, Clock, RefreshCw, Check, ShieldCheck, HeartHandshake } from 'lucide-react';
+import React, { useState } from 'react';
+import { MapPin, Calendar, Clock, RefreshCw, Check, ShieldCheck, HeartHandshake, Tag, CheckCircle2, AlertCircle } from 'lucide-react';
 import { DAYS_OF_WEEK } from './bookingData';
+import { validatePromoCode } from '../../../../services/carecreditApi';
+
 
 function getInitials(name) {
   const parts = name.trim().split(' ');
@@ -29,6 +31,13 @@ function formatSchedule(data) {
 export default function ConfirmationStep({ data, onConfirm, onBack, isSubmitting = false, error = null }) {
   const { service, address, provider, bookingType } = data;
 
+  // ── Promo code state ──
+  const [promoCode, setPromoCode] = useState('');
+  const [promoApplied, setPromoApplied] = useState(false);
+  const [promoLoading, setPromoLoading] = useState(false);
+  const [promoError, setPromoError] = useState('');
+  const [promoData, setPromoData] = useState(null); // { referralCodeId, referrerId }
+
   const ratePerHour = provider?.pricePerHour || 3500;
   const isRecurring = bookingType === 'recurring';
   
@@ -56,7 +65,8 @@ export default function ConfirmationStep({ data, onConfirm, onBack, isSubmitting
   }
 
   const sessionFee = Math.round(ratePerHour * hours);
-  const escrowFee = 5;
+  // escrowFee is 5 XAF normally, 0 with a valid promo code
+  const escrowFee = promoApplied ? 0 : 5;
   
   let skippedDiscount = 0;
   if (isRecurring && data.skippedDates && data.skippedDates.length > 0) {
@@ -95,13 +105,37 @@ export default function ConfirmationStep({ data, onConfirm, onBack, isSubmitting
     skippedDiscount = skippedHours * ratePerHour;
   }
 
-  const totalPrice = Math.max(5, Math.round(sessionFee - skippedDiscount + escrowFee));
+  const totalPrice = Math.max(escrowFee > 0 ? 5 : 0, Math.round(sessionFee - skippedDiscount + escrowFee));
+
+  // ── Promo code handlers ──
+  const handleApplyPromo = async () => {
+    if (!promoCode.trim()) { setPromoError('Please enter a promo code.'); return; }
+    setPromoLoading(true); setPromoError(''); setPromoApplied(false); setPromoData(null);
+    try {
+      const res = await validatePromoCode(promoCode.trim());
+      if (res?.valid) {
+        setPromoApplied(true);
+        setPromoData({ referralCodeId: res.referralCodeId, referrerId: res.referrerId, code: res.code });
+      } else {
+        setPromoError(res?.reason || 'Invalid promo code.');
+      }
+    } catch (err) {
+      setPromoError(err.message || 'Could not validate promo code.');
+    } finally { setPromoLoading(false); }
+  };
 
   const handleConfirmClick = () => {
-    onConfirm && onConfirm({ totalPrice });
+    onConfirm && onConfirm({
+      totalPrice,
+      promoCode: promoApplied ? promoData?.code : undefined,
+      promoReferralCodeId: promoApplied ? promoData?.referralCodeId : undefined,
+      promoReferrerId: promoApplied ? promoData?.referrerId : undefined,
+      escrowFee,
+    });
   };
 
   const summaryRows = [
+
     {
       icon: HeartHandshake,
       label: 'Service',
@@ -231,8 +265,17 @@ export default function ConfirmationStep({ data, onConfirm, onBack, isSubmitting
           </div>
         )}
         <div className="cs-price-row">
-          <span className="cs-price-label">Carely Escrow Protection</span>
-          <span className="cs-price-val">{escrowFee.toLocaleString()} XAF</span>
+          <span className="cs-price-label" style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+            Carely Escrow Protection
+            {promoApplied && (
+              <span style={{ background: '#D1FAE5', color: '#065F46', fontSize: '9px', fontWeight: 800, padding: '1px 6px', borderRadius: '999px', marginLeft: '4px' }}>
+                PROMO APPLIED
+              </span>
+            )}
+          </span>
+          <span className="cs-price-val" style={{ color: promoApplied ? '#059669' : undefined }}>
+            {escrowFee} XAF
+          </span>
         </div>
         <div className="cs-price-divider" />
         <div className="cs-price-row cs-price-row--total">
@@ -241,7 +284,46 @@ export default function ConfirmationStep({ data, onConfirm, onBack, isSubmitting
         </div>
       </div>
 
-      {/* Disclaimer */}
+      {/* Promo / Referral Code */}
+      <div style={{ background: '#fff', border: '1.5px solid #E0DBD5', borderRadius: '14px', padding: '0.9rem 1rem', marginBottom: '0.85rem' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '8px' }}>
+          <Tag size={14} style={{ color: '#1E4030' }} />
+          <span style={{ fontSize: '0.72rem', fontWeight: 700, color: '#1E4030', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Promo / Referral Code</span>
+          <span style={{ fontSize: '0.65rem', color: '#8A7E74', fontStyle: 'italic', marginLeft: '2px' }}>(optional)</span>
+        </div>
+        {promoApplied ? (
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', background: '#D1FAE5', border: '1px solid #6EE7B7', borderRadius: '10px', padding: '0.6rem 0.85rem' }}>
+            <CheckCircle2 size={15} style={{ color: '#059669', flexShrink: 0 }} />
+            <div>
+              <p style={{ fontSize: '0.78rem', fontWeight: 700, color: '#065F46', margin: 0 }}>Promo code applied! Platform fee waived.</p>
+              <p style={{ fontSize: '0.68rem', color: '#047857', margin: 0 }}>Code: <strong>{promoData?.code}</strong> · Saving 5 XAF</p>
+            </div>
+            <button type="button" onClick={() => { setPromoApplied(false); setPromoData(null); setPromoCode(''); }}
+              style={{ marginLeft: 'auto', fontSize: '0.68rem', color: '#6B7280', cursor: 'pointer', background: 'none', border: 'none', padding: '2px 4px', borderRadius: '6px' }}>
+              Remove
+            </button>
+          </div>
+        ) : (
+          <div style={{ display: 'flex', gap: '8px' }}>
+            <input type="text" placeholder="Enter code (e.g. ABCDE)" value={promoCode}
+              onChange={e => { setPromoCode(e.target.value.toUpperCase()); setPromoError(''); }}
+              style={{ flex: 1, padding: '0.55rem 0.85rem', border: '1.5px solid #E0DBD5', borderRadius: '10px', fontSize: '0.8rem', fontWeight: 600, color: '#1C1A17', background: '#FAF8F5', outline: 'none', letterSpacing: '0.05em' }} />
+            <button type="button" onClick={handleApplyPromo} disabled={promoLoading || !promoCode.trim()}
+              style={{ padding: '0.55rem 1rem', background: '#1E4030', color: '#fff', border: 'none', borderRadius: '10px', fontSize: '0.75rem', fontWeight: 700, cursor: 'pointer', whiteSpace: 'nowrap', display: 'flex', alignItems: 'center', gap: '5px', opacity: promoLoading ? 0.7 : 1 }}>
+              {promoLoading ? <RefreshCw size={13} style={{ animation: 'spin 1s linear infinite' }} /> : null}
+              Apply
+            </button>
+          </div>
+        )}
+        {promoError && (
+          <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginTop: '6px', color: '#9B1C1C', fontSize: '0.72rem' }}>
+            <AlertCircle size={12} />
+            <span>{promoError}</span>
+          </div>
+        )}
+      </div>
+
+
       <p className="cs-disclaimer">
         Your request will be sent to the provider. Booking is confirmed once they accept.
         Funds are held in escrow until service completion.

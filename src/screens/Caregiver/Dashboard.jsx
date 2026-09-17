@@ -31,6 +31,8 @@ import { CAREGIVERS, SPECIALTY_META } from '../../data'
 import { payoutHistory } from './data/mockDashboardData'
 import { fetchSubscriptionStatus, paySubscription } from '../../services/admin.service.js'
 import SubscriptionPaymentModal from './components/SubscriptionPaymentModal'
+import CareCreditTab from './components/CareCreditTab'
+
 import { getStoredUser, apiGet } from '../../services/api.js'
 import { verifySessionOtp, providerCompleteSession, fetchProviderReviews } from '../../services/bookingApi.js'
 import {
@@ -814,7 +816,8 @@ export default function CaregiverDashboard({ onNavigate }) {
       openBookingWizard(params)
     } else if (target === 'discussions' && (params?.recipientId || params?.id || params?.caregiver || params?.booker_id || params?.clientName || params?.name)) {
       openDiscussionWithCaregiver(params?.caregiver || params)
-    } else if (['payment', 'confirmed', 'home', 'explore', 'discussions', 'requests', 'bookings', 'calendar', 'earnings', 'reviews', 'notifications', 'refer', 'profile', 'overview'].includes(target)) {
+    } else if (['payment', 'confirmed', 'home', 'explore', 'discussions', 'requests', 'bookings', 'calendar', 'earnings', 'carecred', 'reviews', 'notifications', 'refer', 'profile', 'overview'].includes(target)) {
+
       setActiveTab(target)
     } else if (onNavigate) {
       onNavigate(target, params)
@@ -1880,7 +1883,13 @@ export default function CaregiverDashboard({ onNavigate }) {
         </div>
       )}
 
+      {/* ─── 5b. CARECRED TAB ─── */}
+      {activeTab === 'carecred' && (
+        <CareCreditTab />
+      )}
+
       {/* ─── 6. REVIEWS TAB (FULL WIDTH) ─── */}
+
       {activeTab === 'reviews' && (
         <div className="w-full space-y-6 animate-fadeIn">
           <div className="flex items-center justify-between gap-4 flex-wrap">
