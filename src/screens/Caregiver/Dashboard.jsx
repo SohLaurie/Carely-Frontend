@@ -195,7 +195,7 @@ export default function CaregiverDashboard({ onNavigate }) {
 
   // Real Reviews state
   const [providerReviews, setProviderReviews] = useState([])
-  const [ratingStats, setRatingStats] = useState({ rating: 5.0, count: 0 })
+  const [ratingStats, setRatingStats] = useState({ rating: 0, count: 0 })
 
   const loadReviews = useCallback(async () => {
     const user = getStoredUser()
@@ -1292,6 +1292,7 @@ export default function CaregiverDashboard({ onNavigate }) {
           onNavigate={handleInternalNavigate}
           openBookingWizard={openBookingWizard}
           userFirstName={getStoredUser()?.firstName || getStoredUser()?.first_name || 'Caregiver'}
+          bookings={incomingBookings}
         />
       )}
 

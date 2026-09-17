@@ -212,6 +212,7 @@ export default function HouseholdDashboard({ onNavigate: topNavigate, screenPara
           onNavigate={handleInternalNavigate}
           openBookingWizard={openBookingWizard}
           userFirstName={getStoredUser()?.firstName || getStoredUser()?.first_name || 'there'}
+          bookings={bookings}
         />
       )}
 

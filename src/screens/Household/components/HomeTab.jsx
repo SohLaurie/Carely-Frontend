@@ -159,42 +159,29 @@ const SERVICES = [
   },
 ];
 
-/* ── Mock upcoming bookings (same shape as BookingsTab) ───── */
-const UPCOMING = [
-  {
-    id: 'b1',
-    provider: 'Marie-Claire Nkomo',
-    service: 'Indoor Cleaning',
-    date: 'Thu 29 Aug 2026',
-    time: '09:00 – 13:00',
-    location: 'Bastos, Yaoundé',
-    status: 'Confirmed',
-    rating: 4.9,
-    initials: 'MN',
-  },
-  {
-    id: 'b2',
-    provider: 'Fatima Bello',
-    service: 'Babysitting',
-    date: 'Sat 31 Aug 2026',
-    time: '14:00 – 18:00',
-    location: 'Akwa, Douala',
-    status: 'Confirmed',
-    rating: 4.8,
-    initials: 'FB',
-  },
-];
-
-/* ── Stat cards shown at the top ─────────────────────────── */
-const STATS = [
-  { label: 'Bookings this month', value: '3', Icon: Calendar, accent: '#2D6A4F' },
-  { label: 'Hours of care', value: '18h', Icon: Clock, accent: '#1B6CA8' },
-  { label: 'Avg. provider rating', value: '4.9', Icon: Star, accent: '#C77B2A' },
-];
-
 /* ── Component ───────────────────────────────────────────── */
-export default function HomeTab({ onNavigate, openBookingWizard, userFirstName = 'there' }) {
+export default function HomeTab({ onNavigate, openBookingWizard, userFirstName = 'there', bookings = [] }) {
   const [hoveredService, setHoveredService] = useState(null);
+
+  const displayBookings = Array.isArray(bookings) && bookings.length > 0
+    ? bookings.map(b => ({
+        id: b.id,
+        provider: b.provider ? `${b.provider.firstName || ''} ${b.provider.lastName || ''}`.trim() : (b.name || b.clientName || 'Care Provider'),
+        service: b.profession || b.service || 'Care Service',
+        date: b.date || 'Upcoming',
+        time: b.time || 'Scheduled',
+        location: b.location || 'Yaoundé / Douala',
+        status: b.status || 'Confirmed',
+        rating: b.provider?.rating || b.rating || 5.0,
+        initials: b.initials || 'CP'
+      }))
+    : [];
+
+  const stats = [
+    { label: 'Bookings this month', value: String(displayBookings.length), Icon: Calendar, accent: '#2D6A4F' },
+    { label: 'Hours of care', value: displayBookings.length > 0 ? `${displayBookings.length * 2}h` : '0h', Icon: Clock, accent: '#1B6CA8' },
+    { label: 'Avg. provider rating', value: displayBookings.length > 0 ? '5.0' : '—', Icon: Star, accent: '#C77B2A' },
+  ];
 
   const greetingHour = new Date().getHours();
   const greeting =
@@ -236,7 +223,7 @@ export default function HomeTab({ onNavigate, openBookingWizard, userFirstName =
       {/* ── Quick Stats ─────────────────────────────────────── */}
       <div className="home-section">
         <div className="home-stats-row">
-          {STATS.map(({ label, value, Icon, accent }) => (
+          {stats.map(({ label, value, Icon, accent }) => (
             <div key={label} className="home-stat-card">
               <div className="home-stat-icon" style={{ background: accent + '1a', color: accent }}>
                 <Icon size={16} />
@@ -359,7 +346,7 @@ export default function HomeTab({ onNavigate, openBookingWizard, userFirstName =
           </button>
         </div>
 
-        {UPCOMING.length === 0 ? (
+        {displayBookings.length === 0 ? (
           <div className="home-empty">
             <Calendar size={28} className="home-empty-icon" />
             <p className="home-empty-text">No upcoming bookings</p>
@@ -367,7 +354,7 @@ export default function HomeTab({ onNavigate, openBookingWizard, userFirstName =
           </div>
         ) : (
           <div className="home-bookings-list">
-            {UPCOMING.map((b) => (
+            {displayBookings.map((b) => (
               <div key={b.id} className="home-booking-card">
                 {/* Avatar */}
                 <div className="home-booking-avatar">

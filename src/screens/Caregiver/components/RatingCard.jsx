@@ -1,10 +1,10 @@
 import React from 'react'
 import { Star } from 'lucide-react'
 
-export default function RatingCard({ rating = 5.0, reviewCount = 0 }) {
-  const numRating = Number(rating || 5.0)
-  const displayRating = numRating.toFixed(1)
-  const roundedRating = Math.round(numRating)
+export default function RatingCard({ rating = 0, reviewCount = 0 }) {
+  const numRating = Number(rating || 0)
+  const displayRating = reviewCount > 0 ? numRating.toFixed(1) : '—'
+  const roundedRating = reviewCount > 0 ? Math.round(numRating) : 0
 
   return (
     <div className="bg-white border border-[#E2D9CF] rounded-3xl p-6 shadow-sm flex flex-col md:flex-row items-center justify-between gap-6">
@@ -35,7 +35,7 @@ export default function RatingCard({ rating = 5.0, reviewCount = 0 }) {
 
       <div className="flex gap-2">
         <span className="bg-[#EDF7F2] text-[#1E4030] border border-green-200 text-xs font-bold px-3 py-1.5 rounded-full">
-          100% Recommendation Rate
+          {reviewCount > 0 ? '100% Recommendation Rate' : 'New Verified Provider'}
         </span>
       </div>
     </div>
