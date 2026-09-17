@@ -1,23 +1,29 @@
-﻿import { apiGet, apiPost } from './api';
+import { apiGet, apiPost, getAccessToken } from './api';
 
 const BASE = '/carecredits';
 
 export async function getCareCreditWallet() {
-  return apiGet(`${BASE}/wallet`);
+  const token = getAccessToken();
+  return apiGet(`${BASE}/wallet`, token);
 }
 
 export async function validatePromoCode(code) {
-  return apiPost(`${BASE}/validate-promo`, { code });
+  const token = getAccessToken();
+  return apiPost(`${BASE}/validate-promo`, { code }, token);
 }
 
 export async function purchaseCareCredits({ credits, phoneNumber, providerName }) {
-  return apiPost(`${BASE}/purchase`, { credits, phoneNumber, providerName });
+  const token = getAccessToken();
+  return apiPost(`${BASE}/purchase`, { credits, phoneNumber, providerName }, token);
 }
 
 export async function verifyCareCreditPurchase(ref, pendingCredits) {
-  return apiGet(`${BASE}/purchase/verify/${ref}?pendingCredits=${pendingCredits}`);
+  const token = getAccessToken();
+  return apiGet(`${BASE}/purchase/verify/${ref}?pendingCredits=${pendingCredits}`, token);
 }
 
 export async function withdrawCareCredits({ credits, phoneNumber }) {
-  return apiPost(`${BASE}/withdraw`, { credits, phoneNumber });
+  const token = getAccessToken();
+  return apiPost(`${BASE}/withdraw`, { credits, phoneNumber }, token);
 }
+

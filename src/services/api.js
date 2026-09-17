@@ -72,7 +72,9 @@ export function getAvatarUrl(url) {
 
 async function request(method, path, body, token) {
   const headers = { 'Content-Type': 'application/json' }
-  if (token) headers['Authorization'] = `Bearer ${token}`
+  const authToken = token || getAccessToken()
+  if (authToken) headers['Authorization'] = `Bearer ${authToken}`
+
 
   const res = await fetch(`${BASE_URL}${path}`, {
     method,
