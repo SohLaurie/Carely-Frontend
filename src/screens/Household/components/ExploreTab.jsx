@@ -40,6 +40,38 @@ export default function ExploreTab({
   const [error, setError] = useState(null);
   const [modalCaregiver, setModalCaregiver] = useState(null);
 
+  // Saved / Favourites state synchronized across components
+  const [savedIds, setSavedIds] = useState(() => {
+    try {
+      const stored = JSON.parse(localStorage.getItem('carely_saved_providers') || '[]');
+      return Array.isArray(stored) ? stored : [];
+    } catch {
+      return [];
+    }
+  });
+
+  const toggleSaveProvider = (id) => {
+    setSavedIds(prev => {
+      const next = prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id];
+      try {
+        localStorage.setItem('carely_saved_providers', JSON.stringify(next));
+        window.dispatchEvent(new CustomEvent('carely_saved_updated', { detail: next }));
+      } catch {}
+      return next;
+    });
+  };
+
+  useEffect(() => {
+    const syncSaved = () => {
+      try {
+        const stored = JSON.parse(localStorage.getItem('carely_saved_providers') || '[]');
+        if (Array.isArray(stored)) setSavedIds(stored);
+      } catch {}
+    };
+    window.addEventListener('carely_saved_updated', syncSaved);
+    return () => window.removeEventListener('carely_saved_updated', syncSaved);
+  }, []);
+
   const SPECIALTY_ICON_MAP = {
     nursing: Stethoscope,
     babysitting: Baby,
@@ -490,8 +522,28 @@ export default function ExploreTab({
                           <h4 className="font-bold text-base text-[#1C1A17] group-hover:text-[#1E4030] transition-colors truncate">
                             {c.name}
                           </h4>
-                          <div className="bg-[#EDF7F2] border border-green-200/80 px-2.5 py-1 rounded-xl text-right shrink-0">
-                            <span className="font-extrabold text-xs text-[#1E4030]">{c.pricePerHour.toLocaleString()} XAF/hr</span>
+                          <div className="flex items-center gap-2 shrink-0">
+                            <div className="bg-[#EDF7F2] border border-green-200/80 px-2.5 py-1 rounded-xl text-right">
+                              <span className="font-extrabold text-xs text-[#1E4030]">{c.pricePerHour.toLocaleString()} XAF/hr</span>
+                            </div>
+                            <button
+                              type="button"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                toggleSaveProvider(c.id);
+                              }}
+                              className={`w-8 h-8 rounded-full flex items-center justify-center border transition-all cursor-pointer shadow-2xs hover:scale-110 active:scale-95 ${
+                                savedIds.includes(c.id)
+                                  ? 'bg-rose-50 border-rose-200 text-rose-500'
+                                  : 'bg-white border-[#E2D9CF] text-[#8A7E74] hover:text-rose-500 hover:border-rose-200'
+                              }`}
+                              title={savedIds.includes(c.id) ? "Remove from favourites" : "Save to favourites"}
+                            >
+                              <Heart
+                                size={15}
+                                className={savedIds.includes(c.id) ? "fill-rose-500 text-rose-500" : ""}
+                              />
+                            </button>
                           </div>
                         </div>
 
@@ -634,15 +686,32 @@ export default function ExploreTab({
             className="bg-white border border-[#E2D9CF] rounded-3xl p-6 sm:p-8 shadow-2xl max-w-lg w-full relative space-y-6 max-h-[90vh] overflow-y-auto"
             onClick={e => e.stopPropagation()}
           >
-            {/* Modal Close Button */}
-            <button
-              type="button"
-              onClick={() => setModalCaregiver(null)}
-              className="absolute top-5 right-5 w-9 h-9 rounded-full bg-[#FAF8F5] border border-[#E2D9CF] text-[#8A7E74] hover:text-[#1C1A17] hover:bg-[#E2D9CF]/50 flex items-center justify-center transition-colors cursor-pointer"
-              aria-label="Close modal"
-            >
-              <X size={18} />
-            </button>
+            {/* Modal Actions (Save & Close) */}
+            <div className="absolute top-5 right-5 flex items-center gap-2 z-10">
+              <button
+                type="button"
+                onClick={() => toggleSaveProvider(modalCaregiver.id)}
+                className={`w-9 h-9 rounded-full flex items-center justify-center border transition-all cursor-pointer shadow-2xs hover:scale-105 active:scale-95 ${
+                  savedIds.includes(modalCaregiver.id)
+                    ? 'bg-rose-50 border-rose-200 text-rose-500'
+                    : 'bg-[#FAF8F5] border-[#E2D9CF] text-[#8A7E74] hover:text-rose-500 hover:border-rose-200'
+                }`}
+                title={savedIds.includes(modalCaregiver.id) ? "Remove from favourites" : "Save to favourites"}
+              >
+                <Heart
+                  size={16}
+                  className={savedIds.includes(modalCaregiver.id) ? "fill-rose-500 text-rose-500" : ""}
+                />
+              </button>
+              <button
+                type="button"
+                onClick={() => setModalCaregiver(null)}
+                className="w-9 h-9 rounded-full bg-[#FAF8F5] border border-[#E2D9CF] text-[#8A7E74] hover:text-[#1C1A17] hover:bg-[#E2D9CF]/50 flex items-center justify-center transition-colors cursor-pointer"
+                aria-label="Close modal"
+              >
+                <X size={18} />
+              </button>
+            </div>
 
             {/* Provider Header */}
             <div className="flex items-start gap-4 pt-1">

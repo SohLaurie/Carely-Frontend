@@ -3,6 +3,7 @@ import {
   Sparkles, ChevronRight, Calendar, Star, Clock, MapPin,
   TrendingUp, Shield, ArrowRight
 } from 'lucide-react';
+import { getStoredUser } from '../../../services/api';
 
 /* ── Custom SVG icons per service ────────────────────────── */
 const IndoorCleaningIcon = ({ color }) => (
@@ -164,17 +165,28 @@ export default function HomeTab({ onNavigate, openBookingWizard, userFirstName =
   const [hoveredService, setHoveredService] = useState(null);
 
   const displayBookings = Array.isArray(bookings) && bookings.length > 0
-    ? bookings.map(b => ({
-        id: b.id,
-        provider: b.provider ? `${b.provider.firstName || ''} ${b.provider.lastName || ''}`.trim() : (b.name || b.clientName || 'Care Provider'),
-        service: b.profession || b.service || 'Care Service',
-        date: b.date || 'Upcoming',
-        time: b.time || 'Scheduled',
-        location: b.location || 'Yaoundé / Douala',
-        status: b.status || 'Confirmed',
-        rating: b.provider?.rating || b.rating || 5.0,
-        initials: b.initials || 'CP'
-      }))
+    ? bookings.map(b => {
+        const user = getStoredUser();
+        const isProvider = user?.role === 'provider';
+        const clientName = b.clientName || (b.booker ? `${b.booker.firstName || ''} ${b.booker.lastName || ''}`.trim() : '') || b.name || 'Household Client';
+        const providerName = b.provider ? `${b.provider.firstName || ''} ${b.provider.lastName || ''}`.trim() : (b.name || 'Care Provider');
+        const partnerName = isProvider ? clientName : providerName;
+        const initials = isProvider
+          ? (b.booker ? `${(b.booker.firstName?.[0] || 'C')}${(b.booker.lastName?.[0] || 'H')}` : (b.initials || 'HC'))
+          : (b.provider ? `${(b.provider.firstName?.[0] || 'P')}${(b.provider.lastName?.[0] || 'R')}` : (b.initials || 'CP'));
+
+        return {
+          id: b.id,
+          displayName: partnerName,
+          service: b.profession || b.service || 'Care Service',
+          date: b.date || 'Upcoming',
+          time: b.time || 'Scheduled',
+          location: b.location || 'Yaoundé / Douala',
+          status: b.status || 'Confirmed',
+          rating: b.provider?.rating || b.rating || 5.0,
+          initials
+        };
+      })
     : [];
 
   const stats = [
@@ -362,7 +374,7 @@ export default function HomeTab({ onNavigate, openBookingWizard, userFirstName =
                 </div>
                 <div className="home-booking-info">
                   <div className="home-booking-top">
-                    <span className="home-booking-name">{b.provider}</span>
+                    <span className="home-booking-name">{b.displayName}</span>
                     <span className="home-booking-status">{b.status}</span>
                   </div>
                   <p className="home-booking-service">{b.service}</p>

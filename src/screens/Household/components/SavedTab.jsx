@@ -5,32 +5,60 @@ import { apiGet, getAvatarUrl } from '../../../services/api';
 
 export default function SavedTab({ setSelectedId, setActiveTab }) {
   const [saved, setSaved] = useState([]);
+  const [savedIds, setSavedIds] = useState(() => {
+    try {
+      const stored = JSON.parse(localStorage.getItem('carely_saved_providers') || '[]');
+      return Array.isArray(stored) ? stored : [];
+    } catch {
+      return [];
+    }
+  });
+
+  const loadSaved = async (currentSavedIds = savedIds) => {
+    try {
+      const data = await apiGet('/providers');
+      if (data?.providers) {
+        const list = data.providers
+          .filter(p => p.approval_status === 'approved' && p.subscription_paid && currentSavedIds.includes(p.id))
+          .map(p => ({
+            id: p.id,
+            name: `${p.first_name || ''} ${p.last_name || ''}`.trim() || 'Verified Provider',
+            specialty: (Array.isArray(p.specialties) ? p.specialties[0] : null) || (p.profession ? p.profession.toLowerCase().replace(/\s+/g, '_') : 'cleaning'),
+            rating: parseFloat(p.rating) > 0 ? parseFloat(p.rating) : 5.0,
+            profession: p.profession || 'Care Provider',
+            photo: p.photo_url || null,
+          }));
+        setSaved(list);
+      }
+    } catch (err) {
+      console.error('Failed to load saved providers:', err);
+    }
+  };
 
   useEffect(() => {
-    let isMounted = true;
-    async function loadSaved() {
-      try {
-        const data = await apiGet('/providers');
-        if (isMounted && data?.providers) {
-          const list = data.providers
-            .filter(p => p.approval_status === 'approved' && p.subscription_paid)
-            .map(p => ({
-              id: p.id,
-              name: `${p.first_name || ''} ${p.last_name || ''}`.trim() || 'Verified Provider',
-              specialty: (Array.isArray(p.specialties) ? p.specialties[0] : null) || (p.profession ? p.profession.toLowerCase().replace(/\s+/g, '_') : 'cleaning'),
-              rating: parseFloat(p.rating) > 0 ? parseFloat(p.rating) : 5.0,
-              profession: p.profession || 'Care Provider',
-              photo: p.photo_url || null,
-            }));
-          setSaved(list);
-        }
-      } catch (err) {
-        console.error('Failed to load saved providers:', err);
-      }
-    }
-    loadSaved();
-    return () => { isMounted = false; };
+    loadSaved(savedIds);
   }, []);
+
+  useEffect(() => {
+    const handleSavedUpdated = (e) => {
+      const updatedIds = Array.isArray(e.detail) ? e.detail : [];
+      setSavedIds(updatedIds);
+      loadSaved(updatedIds);
+    };
+    window.addEventListener('carely_saved_updated', handleSavedUpdated);
+    return () => window.removeEventListener('carely_saved_updated', handleSavedUpdated);
+  }, []);
+
+  const toggleUnsave = (id, e) => {
+    e.stopPropagation();
+    const next = savedIds.filter(x => x !== id);
+    setSavedIds(next);
+    setSaved(prev => prev.filter(c => c.id !== id));
+    try {
+      localStorage.setItem('carely_saved_providers', JSON.stringify(next));
+      window.dispatchEvent(new CustomEvent('carely_saved_updated', { detail: next }));
+    } catch {}
+  };
 
   const getInitials = (name) => {
     const parts = (name || '').trim().split(/\s+/);
@@ -40,8 +68,8 @@ export default function SavedTab({ setSelectedId, setActiveTab }) {
   return (
     <div className="space-y-6">
       <div className="flex items-center gap-4">
-        <div className="w-12 h-12 bg-[#EDF7F2] rounded-2xl flex items-center justify-center border border-green-200/60 text-[#1E4030] shadow-sm">
-          <Heart size={20} className="fill-[#1E4030]" />
+        <div className="w-12 h-12 bg-rose-50 rounded-2xl flex items-center justify-center border border-rose-200 text-rose-500 shadow-sm">
+          <Heart size={20} className="fill-rose-500 text-rose-500" />
         </div>
         <div>
           <h2 className="font-display text-2xl font-bold text-[#1E4030]">Saved Providers</h2>
@@ -75,7 +103,7 @@ export default function SavedTab({ setSelectedId, setActiveTab }) {
                 <h4 className="font-bold text-base text-[#1C1A17] group-hover:text-[#1E4030] transition-colors">{c.name}</h4>
                 <div className="flex items-center gap-3 text-xs text-[#8A7E74]">
                   <span className="bg-[#FAF8F5] border border-[#E2D9CF] px-2.5 py-0.5 rounded-full font-semibold text-[11px]">
-                    {SPECIALTY_META[c.specialty]?.label}
+                    {SPECIALTY_META[c.specialty]?.label || c.profession}
                   </span>
                   <span className="flex items-center gap-1">
                     <Star size={11} className="text-amber-400 fill-amber-400" />
@@ -83,17 +111,26 @@ export default function SavedTab({ setSelectedId, setActiveTab }) {
                   </span>
                 </div>
               </div>
-              <div className="w-9 h-9 rounded-xl bg-[#FAF8F5] group-hover:bg-[#EDF7F2] border border-[#E2D9CF] flex items-center justify-center text-[#8A7E74] group-hover:text-[#1E4030] transition-all shrink-0">
-                <Heart size={16} className="fill-current" />
-              </div>
+              <button
+                type="button"
+                onClick={(e) => toggleUnsave(c.id, e)}
+                className="w-9 h-9 rounded-xl bg-rose-50 border border-rose-200 text-rose-500 hover:bg-rose-100 flex items-center justify-center transition-all shrink-0 cursor-pointer shadow-2xs hover:scale-105"
+                title="Remove from saved"
+              >
+                <Heart size={16} className="fill-rose-500 text-rose-500" />
+              </button>
             </div>
           </div>
         ))}
         {saved.length === 0 && (
-          <div className="text-center py-16 bg-white border border-[#E2D9CF] rounded-2xl">
-            <Heart size={32} className="mx-auto text-[#8A7E74]/30 mb-3" />
-            <p className="text-sm font-semibold text-[#8A7E74]">No saved providers</p>
-            <p className="text-xs text-[#8A7E74]/70 mt-1">Save providers you like to access them quickly.</p>
+          <div className="text-center py-16 bg-white border border-[#E2D9CF] rounded-3xl space-y-3">
+            <div className="w-12 h-12 rounded-full bg-rose-50 text-rose-500 border border-rose-200 flex items-center justify-center mx-auto">
+              <Heart size={22} className="text-rose-400" />
+            </div>
+            <p className="text-sm font-bold text-[#1C1A17]">No saved providers yet</p>
+            <p className="text-xs text-[#8A7E74] max-w-sm mx-auto">
+              Tap the heart icon on any caregiver profile in Explore to save them to your favourites.
+            </p>
           </div>
         )}
       </div>
