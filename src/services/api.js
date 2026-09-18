@@ -72,8 +72,14 @@ export function getAvatarUrl(url) {
 
 async function request(method, path, body, token) {
   const headers = { 'Content-Type': 'application/json' }
-  const authToken = token || getAccessToken()
+  const isPublicAuthRoute = path.startsWith('/auth/register') ||
+    path.startsWith('/auth/login') ||
+    path.startsWith('/auth/forgot-password') ||
+    path.startsWith('/auth/reset-password')
+
+  const authToken = (token !== false && token !== null && !isPublicAuthRoute) ? (token || getAccessToken()) : token
   if (authToken) headers['Authorization'] = `Bearer ${authToken}`
+
 
 
   const res = await fetch(`${BASE_URL}${path}`, {

@@ -126,12 +126,11 @@ export async function registerProvider(data) {
     certificateName:     data.certDocName || null,
   }
 
-  // POST — provider registration (no token needed, they're not logged in yet)
-  const result = await apiPost('/auth/register/provider', payload)
-  // Store tokens so they can access /me/subscription-status after submission
-  storeAuth(result)
+  // POST — provider registration (no token needed, fresh registration)
+  const result = await apiPost('/auth/register/provider', payload, null)
   return result
 }
+
 
 // ── Logout ─────────────────────────────────────────────────────────────────────
 
