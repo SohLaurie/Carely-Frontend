@@ -1,6 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react'
 import {
-  Bell, Check, Reply, MessageSquare, Calendar, Wallet, Star, ArrowRight, X
+  Bell, Check, Reply, MessageSquare, Calendar, Wallet, Star, ArrowRight, X, ShieldCheck
 } from 'lucide-react'
 
 export default function NotificationBell({
@@ -9,7 +9,8 @@ export default function NotificationBell({
   onMarkRead,
   onMarkAllRead,
   onReplyClick,
-  onViewAll
+  onViewAll,
+  onPaySubscription
 }) {
   const [open, setOpen] = useState(false)
   const menuRef = useRef(null)
@@ -27,6 +28,7 @@ export default function NotificationBell({
   }, [open])
 
   const getIcon = (type) => {
+    if (type === 'subscription_required' || type === 'subscription_activated') return ShieldCheck
     if (type === 'request') return Calendar
     if (type === 'payout') return Wallet
     if (type === 'message') return MessageSquare
@@ -97,7 +99,20 @@ export default function NotificationBell({
                     <p className="text-[11px] text-[#8A7E74] line-clamp-2 leading-relaxed">{n.description || n.text}</p>
                     
                     {/* Action buttons */}
-                    <div className="flex items-center gap-2 pt-1">
+                    <div className="flex items-center gap-2 pt-1 flex-wrap">
+                      {onPaySubscription && (n.type === 'subscription_required' || n.metadata?.action === 'pay_subscription') && (
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setOpen(false)
+                            onPaySubscription()
+                          }}
+                          className="text-[10px] font-bold text-white bg-[#1E4030] hover:bg-[#152e22] px-2.5 py-1 rounded-lg transition-colors flex items-center gap-1 cursor-pointer shadow-xs"
+                        >
+                          <ShieldCheck size={11} />
+                          <span>Pay 25 XAF</span>
+                        </button>
+                      )}
                       {onReplyClick && (
                         <button
                           onClick={() => {

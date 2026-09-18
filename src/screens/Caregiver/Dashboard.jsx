@@ -244,24 +244,6 @@ export default function CaregiverDashboard({ onNavigate }) {
     try {
       const data = await fetchSubscriptionStatus()
       setSubStatus(data)
-      // If approved and not yet paid, inject payment notification into notifications
-      if (data && data.approvalStatus === 'approved' && !data.subscriptionPaid) {
-        const notifId = 'sub-pay-notif'
-        setNotifications(prev => {
-          if (prev.some(n => n.id === notifId)) return prev
-          return [
-            {
-              id: notifId,
-              title: 'Action Required: Pay Subscription',
-              desc: 'Your profile is approved! Pay the 25 XAF subscription via Campay to activate your account and start receiving bookings.',
-              time: 'Just now',
-              unread: true,
-              type: 'payment',
-            },
-            ...prev
-          ]
-        })
-      }
     } catch {
       // If not logged in as a provider or offline, ignore gracefully
     }
@@ -1037,6 +1019,7 @@ export default function CaregiverDashboard({ onNavigate }) {
           initialSubject: `Re: ${n.title}`,
         })}
         onNavigate={handleInternalNavigate}
+        onPaySubscription={() => setShowPaymentModal(true)}
       >
         {/* ─── Subscription & Approval Status Banner ─── */}
         {subStatus && !subStatus.accountActive && subStatus.approvalStatus === 'approved' && (
@@ -2003,6 +1986,7 @@ export default function CaregiverDashboard({ onNavigate }) {
           <div className="space-y-2">
             {filteredNotifications.map(n => {
               const IconComponent =
+                n.type === 'subscription_required' || n.type === 'subscription_activated' ? ShieldCheck :
                 n.type === 'request' ? Calendar :
                 n.type === 'payout' ? Wallet :
                 n.type === 'message' ? MessageSquare :
@@ -2011,6 +1995,8 @@ export default function CaregiverDashboard({ onNavigate }) {
                 Bell
 
               const iconStyle =
+                n.type === 'subscription_required' ? 'bg-amber-100 border border-amber-300 text-amber-800' :
+                n.type === 'subscription_activated' ? 'bg-emerald-100 border border-emerald-300 text-emerald-800' :
                 n.type === 'message' ? 'bg-blue-50 border border-blue-200 text-blue-600' :
                 n.type === 'reminder' ? 'bg-[#FAF8F5] border border-[#E2D9CF] text-[#8A7E74]' :
                 n.type === 'payout' ? 'bg-amber-50 border border-amber-200 text-amber-700' :
@@ -2027,8 +2013,22 @@ export default function CaregiverDashboard({ onNavigate }) {
                         <h4 className={`font-bold text-sm ${n.unread ? 'text-[#1C1A17]' : 'text-[#3A3634]'}`}>{n.title}</h4>
                         {n.unread && <span className="w-2 h-2 rounded-full bg-[#1E4030]"></span>}
                         {n.type === 'message' && <span className="text-[10px] bg-blue-50 text-blue-600 border border-blue-200 px-2 py-0.5 rounded-full font-semibold">Message</span>}
+                        {n.type === 'subscription_required' && <span className="text-[10px] bg-amber-100 text-amber-800 border border-amber-300 px-2 py-0.5 rounded-full font-bold">Action Required</span>}
+                        {n.type === 'subscription_activated' && <span className="text-[10px] bg-emerald-100 text-emerald-800 border border-emerald-300 px-2 py-0.5 rounded-full font-bold">Active</span>}
                       </div>
                       <p className="text-xs text-[#8A7E74] leading-relaxed">{n.description || n.text}</p>
+                      {(n.type === 'subscription_required' || n.metadata?.action === 'pay_subscription') && (
+                        <div className="pt-2">
+                          <button
+                            type="button"
+                            onClick={() => setShowPaymentModal(true)}
+                            className="bg-[#1E4030] hover:bg-[#152e22] text-white text-xs font-bold px-3.5 py-1.5 rounded-xl shadow-xs transition-all cursor-pointer inline-flex items-center gap-1.5"
+                          >
+                            <ShieldCheck size={13} />
+                            <span>Pay 25 XAF Subscription</span>
+                          </button>
+                        </div>
+                      )}
                       {n.recipient && <p className="text-[10px] text-[#8A7E74]/70">To: {n.recipient}</p>}
                     </div>
                     <div className="flex items-center gap-1.5 shrink-0">

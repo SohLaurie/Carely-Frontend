@@ -16,6 +16,7 @@ export default function CaregiverLayout({
   onMarkAllRead,
   onReplyClick,
   onNavigate,
+  onPaySubscription,
   children
 }) {
   const scrollContainerRef = useRef(null)
@@ -55,6 +56,7 @@ export default function CaregiverLayout({
           onReplyClick={onReplyClick}
           onViewAllNotifications={() => setActiveTab('notifications')}
           onProfileClick={() => setActiveTab('profile')}
+          onPaySubscription={onPaySubscription}
         />
 
         {/* Content body */}

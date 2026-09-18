@@ -16,7 +16,8 @@ export default function TopNavbar({
   onMarkAllRead,
   onReplyClick,
   onViewAllNotifications,
-  onProfileClick
+  onProfileClick,
+  onPaySubscription
 }) {
   const [user, setUser] = useState(getStoredUser())
 
@@ -139,6 +140,7 @@ export default function TopNavbar({
           onMarkAllRead={onMarkAllRead}
           onReplyClick={onReplyClick}
           onViewAll={onViewAllNotifications}
+          onPaySubscription={onPaySubscription}
         />
 
         {/* Profile Avatar dropdown component */}
