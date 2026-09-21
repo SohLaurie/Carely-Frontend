@@ -118,3 +118,17 @@ export async function fetchProviderReviews(providerId, token = getAccessToken())
   return await apiGet(`/reviews/provider/${providerId}`, token);
 }
 
+/**
+ * Report unable to complete a session (provider emergency mid-session)
+ */
+export async function reportUnableToComplete(sessionId, reason, token = getAccessToken()) {
+  return await apiPost(`/sessions/${sessionId}/report-unable`, { reason }, token);
+}
+
+/**
+ * Confirm partial payment for an interrupted session (household)
+ */
+export async function confirmPartialPayment(sessionId, token = getAccessToken()) {
+  return await apiPost(`/sessions/${sessionId}/confirm-partial`, {}, token);
+}
+

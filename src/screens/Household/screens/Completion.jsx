@@ -5,7 +5,7 @@ import {
   AlertTriangle, DollarSign
 } from 'lucide-react';
 import { CAREGIVERS, SPECIALTY_META } from '../../../data';
-import { confirmSession, disputeSession, skipSession } from '../../../services/bookingApi';
+import { confirmSession, disputeSession, skipSession, confirmPartialPayment } from '../../../services/bookingApi';
 
 export default function Completion({ onNavigate, screenParams }) {
   const booking = screenParams?.booking || {
@@ -30,7 +30,32 @@ export default function Completion({ onNavigate, screenParams }) {
 
   // 24-Hour Confirmation Window Timer
   const [timeLeft, setTimeLeft] = useState({ hours: 23, minutes: 54, seconds: 12 });
-  const [escrowState, setEscrowState] = useState('window_open'); // 'window_open' | 'released' | 'refunded'
+  const [escrowState, setEscrowState] = useState('window_open'); // 'window_open' | 'released' | 'partial_released' | 'refunded' | 'disputed'
+
+  const firstSession = Array.isArray(booking.sessions) && booking.sessions.length > 0
+    ? booking.sessions[0]
+    : null;
+
+  // Interruption status & calculations
+  const isInterrupted = firstSession?.status === 'INTERRUPTED' || booking.status === 'interrupted' || booking.rawStatus === 'interrupted';
+  const totalAmount = Number(booking.totalPrice || firstSession?.session_amount || 11000);
+  const partialAmount = Number(firstSession?.partial_amount || Math.round(totalAmount * 0.5));
+  const refundAmount = Math.max(0, totalAmount - partialAmount);
+  
+  const otpVerifiedAt = firstSession?.otp_verified_at
+    ? new Date(firstSession.otp_verified_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+    : (booking.time?.split('–')[0]?.trim() || '09:00 AM');
+    
+  const interruptedAt = firstSession?.interrupted_at
+    ? new Date(firstSession.interrupted_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+    : '11:15 AM';
+
+  // Calculate hours worked for display
+  const hoursWorked = firstSession?.otp_verified_at && firstSession?.interrupted_at
+    ? Math.max(1, Math.floor((new Date(firstSession.interrupted_at) - new Date(firstSession.otp_verified_at)) / 3600000))
+    : 1;
+
+  const interruptionReason = firstSession?.interruption_reason || booking.interruption_reason || '';
 
   const initialSessions = Array.isArray(booking.sessions) && booking.sessions.length > 0
     ? booking.sessions.map((s, idx) => ({
@@ -40,13 +65,15 @@ export default function Completion({ onNavigate, screenParams }) {
         date: s.scheduled_date || 'Upcoming',
         time: `${s.scheduled_start_time?.slice(0, 5) || '09:00'} – ${s.scheduled_end_time?.slice(0, 5) || '12:00'}`,
         price: Number(s.session_amount) || 10500,
-        status: s.status === 'COMPLETED' ? 'Completed' : (s.status === 'ARRIVED' ? 'In Progress' : 'Scheduled')
+        status: s.status === 'COMPLETED' ? 'Completed' : (s.status === 'INTERRUPTED' ? 'Interrupted' : (s.status === 'ARRIVED' ? 'In Progress' : 'Scheduled'))
       }))
     : (booking.scheduleList || []);
 
   const [recurringSessions, setRecurringSessions] = useState(initialSessions);
   const [disputeModalOpen, setDisputeModalOpen] = useState(false);
-  const [disputeSubmitted, setDisputeSubmitted] = useState(false);
+  const [disputeReason, setDisputeReason] = useState('');
+  const [disputeLoading, setDisputeLoading] = useState(false);
+  const [disputeError, setDisputeError] = useState('');
   const [notificationMessage, setNotificationMessage] = useState(null);
 
   useEffect(() => {
@@ -61,7 +88,7 @@ export default function Completion({ onNavigate, screenParams }) {
     return () => clearInterval(timer);
   }, []);
 
-  // Household explicitly confirms completion
+  // Household explicitly confirms full completion
   const handleHouseholdConfirm = async () => {
     const sessionId = booking.sessions?.[0]?.id;
     if (sessionId && typeof sessionId === 'string' && sessionId.includes('-')) {
@@ -77,14 +104,55 @@ export default function Completion({ onNavigate, screenParams }) {
     }, 1800);
   };
 
-  // Simulate 24-Hour Timeout
+  // Household confirms partial payment for interrupted session
+  const handleConfirmPartial = async () => {
+    const sessionId = booking.sessions?.[0]?.id;
+    if (sessionId && typeof sessionId === 'string' && sessionId.includes('-')) {
+      try {
+        await confirmPartialPayment(sessionId);
+      } catch (err) {
+        console.warn('confirmPartialPayment API error:', err.message);
+      }
+    }
+    setEscrowState('partial_released');
+    setTimeout(() => {
+      onNavigate('review', { caregiver, booking });
+    }, 2000);
+  };
+
+  // Dispute submission
+  const handleDisputeSubmit = async () => {
+    if (!disputeReason.trim()) return;
+    setDisputeLoading(true);
+    setDisputeError('');
+    const sessionId = booking.sessions?.[0]?.id;
+    try {
+      if (sessionId && typeof sessionId === 'string' && sessionId.includes('-')) {
+        await disputeSession(sessionId, disputeReason);
+      }
+      setDisputeModalOpen(false);
+      setEscrowState('disputed');
+      setNotificationMessage('Dispute lodged. Escrow frozen. Carely mediation team will contact you within 24 hours.');
+    } catch (err) {
+      setDisputeError(err.message || 'Failed to submit dispute.');
+    } finally {
+      setDisputeLoading(false);
+    }
+  };
+
+  // Simulate 24-Hour Timeout based on user specification table
   const handleSimulate24hTimeout = () => {
-    if (booking.otpVerified) {
-      setEscrowState('released');
-      setNotificationMessage('24-Hour window expired with verified OTP. Escrow payout auto-released to provider.');
-    } else {
+    if (isInterrupted) {
+      setEscrowState('partial_released');
+      setNotificationMessage('24-Hour window expired for interrupted session. Partial payout auto-released to provider, remainder refunded to your wallet.');
+    } else if (booking.otpVerified) {
+      // Per spec: Normal, neither party acts within 24h -> full refund to household (no proof of completion from either side)
       setEscrowState('refunded');
-      setNotificationMessage('24-Hour window expired without verified OTP. Funds automatically refunded to household.');
+      setNotificationMessage('24-Hour window expired with no completion confirmation from either party. Full refund released back to household.');
+    } else {
+      // No-show (no OTP) -> automatic full refund
+      setEscrowState('refunded');
+      setNotificationMessage('24-Hour window expired without verified OTP (No-show). Full refund processed back to household.');
     }
   };
 
@@ -120,11 +188,15 @@ export default function Completion({ onNavigate, screenParams }) {
         <div className="space-y-1">
           <div className="inline-flex items-center gap-2 bg-[#EDF7F2] text-[#1E4030] text-[11px] font-bold px-3 py-1 rounded-full border border-green-200">
             <Clock size={13} />
-            Step 5 & 6: Confirmation Window & Escrow Payout
+            Confirmation Window & Escrow Payout
           </div>
-          <h1 className="font-display text-3xl sm:text-4xl font-bold text-[#1E4030]">Service Confirmation & Fund Release</h1>
+          <h1 className="font-display text-3xl sm:text-4xl font-bold text-[#1E4030]">
+            {isInterrupted ? 'Early Departure & Partial Payment' : 'Service Confirmation & Fund Release'}
+          </h1>
           <p className="text-xs sm:text-sm text-[#8A7E74]">
-            The scheduled end time has passed. Please confirm that {caregiver.name.split(' ')[0]} completed the service satisfactorily.
+            {isInterrupted
+              ? `Your provider reported early departure due to an emergency. Review hours worked and confirm partial payment.`
+              : `The scheduled end time has passed. Please confirm that ${caregiver.name.split(' ')[0]} completed the service satisfactorily.`}
           </p>
         </div>
 
@@ -138,7 +210,7 @@ export default function Completion({ onNavigate, screenParams }) {
 
         {/* 24-Hour Confirmation Window Timer Box */}
         <div className="bg-white rounded-3xl border border-[#E2D9CF] p-6 sm:p-8 shadow-sm text-center space-y-5">
-          {escrowState === 'window_open' && (
+          {escrowState === 'window_open' && !isInterrupted && (
             <>
               <div className="w-16 h-16 bg-[#EDF7F2] text-[#1E4030] rounded-3xl flex items-center justify-center mx-auto border border-green-200 shadow-sm">
                 <Clock size={32} />
@@ -146,27 +218,109 @@ export default function Completion({ onNavigate, screenParams }) {
 
               <div className="space-y-1">
                 <span className="text-xs font-bold text-[#8A7E74] uppercase tracking-wider">
-                  Automatic 24-Hour Confirmation Window Open
+                  24-Hour Confirmation Window Open
                 </span>
                 <div className="font-mono text-3xl sm:text-4xl font-extrabold text-[#1E4030]">
                   {String(timeLeft.hours).padStart(2, '0')}:{String(timeLeft.minutes).padStart(2, '0')}:{String(timeLeft.seconds).padStart(2, '0')}
                 </div>
-                <p className="text-xs text-[#8A7E74] max-w-md mx-auto pt-1">
-                  If you take no action, escrow will automatically release to {caregiver.name.split(' ')[0]} after 24h because the arrival OTP was verified on-site.
+                <p className="text-xs text-[#8A7E74] max-w-md mx-auto pt-1 leading-relaxed">
+                  Please confirm completion once the service is finished. If neither party acts within 24 hours, both buttons disable and escrow funds are fully refunded to the household.
                 </p>
               </div>
 
               {/* Confirm Completion Button */}
-              <div className="pt-3 max-w-md mx-auto">
+              <div className="pt-3 max-w-md mx-auto flex flex-col sm:flex-row items-center gap-3">
+                <button
+                  type="button"
+                  onClick={() => setDisputeModalOpen(true)}
+                  className="w-full sm:w-auto py-3.5 px-5 rounded-2xl border border-red-200 text-red-600 hover:bg-red-50 text-xs font-bold transition-all cursor-pointer flex items-center justify-center gap-1.5"
+                >
+                  <AlertTriangle size={15} />
+                  <span>Dispute</span>
+                </button>
                 <button
                   onClick={handleHouseholdConfirm}
-                  className="w-full bg-[#1E4030] hover:bg-[#152e22] text-white py-4 px-6 rounded-2xl text-sm font-bold transition-all shadow-md hover:shadow-lg flex items-center justify-center gap-2 cursor-pointer"
+                  className="flex-1 w-full bg-[#1E4030] hover:bg-[#152e22] text-white py-3.5 px-6 rounded-2xl text-xs font-bold transition-all shadow-md hover:shadow-lg flex items-center justify-center gap-2 cursor-pointer active:scale-95"
                 >
                   <CheckCircle2 size={18} />
-                  <span>Confirm Service Completed (Release Escrow Funds)</span>
+                  <span>Confirm Service Completed (Full Release)</span>
                 </button>
               </div>
             </>
+          )}
+
+          {/* INTERRUPTED STATE (Provider reported unable to complete) */}
+          {escrowState === 'window_open' && isInterrupted && (
+            <div className="space-y-5 animate-fadeIn">
+              <div className="w-16 h-16 bg-amber-50 text-amber-700 rounded-3xl flex items-center justify-center mx-auto border border-amber-200 shadow-sm">
+                <AlertTriangle size={32} />
+              </div>
+
+              <div className="space-y-1">
+                <span className="text-xs font-bold text-amber-800 uppercase tracking-wider">
+                  Provider Reported Early Departure / Interruption
+                </span>
+                <div className="font-mono text-3xl sm:text-4xl font-extrabold text-[#1C1A17]">
+                  {String(timeLeft.hours).padStart(2, '0')}:{String(timeLeft.minutes).padStart(2, '0')}:{String(timeLeft.seconds).padStart(2, '0')}
+                </div>
+                <p className="text-xs text-[#8A7E74] max-w-md mx-auto pt-1 leading-relaxed">
+                  Your provider had to leave early due to an emergency. Review the hours worked below and confirm partial payment or dispute.
+                </p>
+              </div>
+
+              {/* Partial Payment Breakdown Card */}
+              <div className="bg-[#FAF8F5] border border-[#E2D9CF] rounded-2xl p-5 max-w-lg mx-auto text-left space-y-3 text-xs">
+                <div className="flex justify-between items-center border-b border-[#E2D9CF] pb-2.5">
+                  <span className="text-[#8A7E74] font-medium">Arrival (OTP Verified)</span>
+                  <span className="font-bold text-[#1C1A17]">{otpVerifiedAt}</span>
+                </div>
+                <div className="flex justify-between items-center border-b border-[#E2D9CF] pb-2.5">
+                  <span className="text-[#8A7E74] font-medium">Interruption Timestamp</span>
+                  <span className="font-bold text-[#1C1A17]">{interruptedAt}</span>
+                </div>
+                <div className="flex justify-between items-center border-b border-[#E2D9CF] pb-2.5">
+                  <span className="text-[#8A7E74] font-medium">Calculated Time Worked</span>
+                  <span className="font-bold text-[#1E4030]">{hoursWorked} hour(s)</span>
+                </div>
+                {interruptionReason && (
+                  <div className="border-b border-[#E2D9CF] pb-2.5">
+                    <span className="text-[#8A7E74] font-medium block mb-0.5">Reason Given:</span>
+                    <span className="italic text-[#5A5248]">"{interruptionReason}"</span>
+                  </div>
+                )}
+                <div className="flex justify-between items-center pt-1 font-bold text-sm">
+                  <span className="text-[#1E4030]">Provider Earns (Partial):</span>
+                  <span className="text-[#1E4030] font-extrabold">{partialAmount.toLocaleString()} XAF</span>
+                </div>
+                <div className="flex justify-between items-center font-bold text-sm text-emerald-800 bg-emerald-50/80 p-3 rounded-xl border border-emerald-200">
+                  <span>Your Escrow Refund:</span>
+                  <span className="font-extrabold">{refundAmount.toLocaleString()} XAF</span>
+                </div>
+              </div>
+
+              {/* Action Buttons: Confirm Partial vs Dispute */}
+              <div className="pt-2 max-w-lg mx-auto flex flex-col sm:flex-row items-center gap-3">
+                <button
+                  type="button"
+                  onClick={() => setDisputeModalOpen(true)}
+                  className="w-full sm:w-auto py-3.5 px-5 rounded-2xl border border-red-200 text-red-600 hover:bg-red-50 text-xs font-bold transition-all cursor-pointer flex items-center justify-center gap-1.5"
+                >
+                  <AlertTriangle size={15} />
+                  <span>Dispute Hours</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={handleConfirmPartial}
+                  className="flex-1 w-full bg-[#1E4030] hover:bg-[#152e22] text-white py-3.5 px-6 rounded-2xl text-xs font-bold transition-all shadow-md hover:shadow-lg flex items-center justify-center gap-2 cursor-pointer active:scale-95"
+                >
+                  <CheckCircle2 size={16} />
+                  <span>Confirm Partial Payment ({partialAmount.toLocaleString()} XAF)</span>
+                </button>
+              </div>
+              <p className="text-[11px] text-[#8A7E74] max-w-sm mx-auto">
+                If no action is taken within 24 hours, the partial payout of {partialAmount.toLocaleString()} XAF will be automatically released to the provider.
+              </p>
+            </div>
           )}
 
           {escrowState === 'released' && (
@@ -176,7 +330,19 @@ export default function Completion({ onNavigate, screenParams }) {
               </div>
               <h2 className="font-display text-2xl font-bold text-[#1E4030]">Escrow Released Successfully!</h2>
               <p className="text-xs text-[#8A7E74]">
-                Payout has been transferred to {caregiver.name.split(' ')[0]}'s mobile wallet. Redirecting to ratings & review...
+                Full payout has been transferred to {caregiver.name.split(' ')[0]}'s mobile wallet. Redirecting to ratings & review...
+              </p>
+            </div>
+          )}
+
+          {escrowState === 'partial_released' && (
+            <div className="space-y-3 animate-fadeIn">
+              <div className="w-16 h-16 bg-[#1E4030] text-white rounded-full flex items-center justify-center mx-auto shadow-md">
+                <Check size={32} strokeWidth={3} />
+              </div>
+              <h2 className="font-display text-2xl font-bold text-[#1E4030]">Partial Payment Confirmed!</h2>
+              <p className="text-xs text-[#8A7E74]">
+                {partialAmount.toLocaleString()} XAF has been disbursed to {caregiver.name.split(' ')[0]} for hours worked. The remaining {refundAmount.toLocaleString()} XAF has been refunded to your wallet. Redirecting to review...
               </p>
             </div>
           )}
@@ -188,7 +354,19 @@ export default function Completion({ onNavigate, screenParams }) {
               </div>
               <h2 className="font-display text-2xl font-bold text-amber-900">Funds Refunded to Household</h2>
               <p className="text-xs text-amber-800">
-                Since no arrival OTP was recorded, funds were safely returned to your wallet.
+                Escrow funds were safely returned to your wallet per platform confirmation policy.
+              </p>
+            </div>
+          )}
+
+          {escrowState === 'disputed' && (
+            <div className="space-y-3 animate-fadeIn">
+              <div className="w-16 h-16 bg-red-500 text-white rounded-full flex items-center justify-center mx-auto shadow-md">
+                <AlertTriangle size={28} />
+              </div>
+              <h2 className="font-display text-2xl font-bold text-red-900">Dispute Under Review</h2>
+              <p className="text-xs text-[#5A5248] max-w-md mx-auto">
+                Escrow funds are frozen. Our team will review the timestamps, reason, and contact both parties.
               </p>
             </div>
           )}
@@ -202,13 +380,16 @@ export default function Completion({ onNavigate, screenParams }) {
               <span>MVP Simulation: Test 24h Window Expiration</span>
             </div>
             <p className="text-xs text-white/80 leading-relaxed">
-              Test what happens when the household takes no action for 24 hours (Auto-release if OTP was verified vs Auto-refund if OTP was missing).
+              Test what happens when the 24-hour confirmation window expires with no user action.
+              {isInterrupted
+                ? ' For an interrupted session: auto-releases partial payment to provider and refunds remainder.'
+                : ' For a normal session: if neither party acts, both buttons disable and full refund goes to household.'}
             </p>
             <button
               onClick={handleSimulate24hTimeout}
               className="bg-white/15 hover:bg-white/25 text-white font-bold py-3 px-5 rounded-xl text-xs transition-all cursor-pointer flex items-center justify-center gap-2"
             >
-              <span>Simulate 24-Hour Timer Expiration (Current OTP Status: {booking.otpVerified ? 'Verified ✓' : 'Unverified ✗'})</span>
+              <span>Simulate 24-Hour Timer Expiration ({isInterrupted ? 'Interrupted Session' : (booking.otpVerified ? 'Normal Session (No Action)' : 'No-Show')})</span>
             </button>
           </div>
         )}
@@ -267,6 +448,75 @@ export default function Completion({ onNavigate, screenParams }) {
           </div>
         )}
       </div>
+
+      {/* Dispute Modal */}
+      {disputeModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-xs animate-fadeIn">
+          <div className="bg-white rounded-3xl max-w-md w-full p-6 shadow-2xl border border-[#E2D9CF] space-y-5 animate-scaleUp">
+            <div className="flex items-start justify-between gap-3">
+              <div className="flex items-center gap-3">
+                <div className="w-12 h-12 rounded-2xl bg-red-50 border border-red-200 flex items-center justify-center text-red-600">
+                  <AlertTriangle size={22} />
+                </div>
+                <div>
+                  <h3 className="font-display font-bold text-lg text-[#1C1A17]">Dispute Session</h3>
+                  <p className="text-xs text-[#8A7E74]">Escalate to Carely support team</p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setDisputeModalOpen(false)}
+                className="text-[#8A7E74] hover:text-[#1C1A17] p-1 rounded-lg transition-colors cursor-pointer"
+              >
+                <X size={18} />
+              </button>
+            </div>
+
+            <p className="text-xs text-[#5A5248] leading-relaxed">
+              Flagging a dispute freezes all escrow funds immediately. Our mediation team will contact both parties within 24 hours.
+            </p>
+
+            <div className="space-y-1.5">
+              <label className="text-xs font-bold text-[#1C1A17] block">
+                Describe the dispute reason <span className="text-red-500">*</span>
+              </label>
+              <textarea
+                rows={3}
+                value={disputeReason}
+                onChange={(e) => setDisputeReason(e.target.value)}
+                placeholder="E.g. Provider left earlier than reported, service not performed properly..."
+                className="w-full text-xs p-3 rounded-xl border border-[#E2D9CF] focus:outline-none focus:border-red-600 resize-none"
+              />
+            </div>
+
+            {disputeError && (
+              <div className="p-3 bg-red-50 border border-red-200 rounded-xl text-xs text-red-700 flex items-center gap-2">
+                <AlertCircle size={14} className="shrink-0" />
+                <span>{disputeError}</span>
+              </div>
+            )}
+
+            <div className="flex items-center gap-3 pt-1">
+              <button
+                type="button"
+                onClick={() => setDisputeModalOpen(false)}
+                className="flex-1 py-3 px-4 rounded-xl border border-[#E2D9CF] text-xs font-bold text-[#5A5248] hover:bg-[#FAF8F5] transition-colors cursor-pointer"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                disabled={disputeLoading || disputeReason.trim().length < 5}
+                onClick={handleDisputeSubmit}
+                className="flex-1 py-3 px-4 rounded-xl bg-red-600 hover:bg-red-700 text-white text-xs font-bold transition-all shadow-sm flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50 active:scale-95"
+              >
+                <AlertTriangle size={14} />
+                <span>{disputeLoading ? 'Submitting...' : 'Submit Dispute'}</span>
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

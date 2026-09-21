@@ -4,7 +4,8 @@ import {
   Check, Archive, Trash2, ArchiveRestore, Lock, Download,
   ArrowUpRight, Sparkles, X, XCircle, Calendar, Wallet, User,
   Mail, Phone, ShieldCheck, Save, Camera, Globe, Plus, Paperclip,
-  Reply, ClipboardList, ArrowRight, Eye, ChevronLeft, ChevronRight, Send, RefreshCw
+  Reply, ClipboardList, ArrowRight, Eye, ChevronLeft, ChevronRight, Send, RefreshCw,
+  AlertTriangle
 } from 'lucide-react'
 
 // Hook, layouts, constants, services and components
@@ -33,9 +34,10 @@ import { fetchSubscriptionStatus, paySubscription } from '../../services/admin.s
 import SubscriptionPaymentModal from './components/SubscriptionPaymentModal'
 import CertificationPaymentModal from './components/CertificationPaymentModal'
 import CareCreditTab from './components/CareCreditTab'
+import { getCareCreditWallet } from '../../services/carecreditApi.js'
 
 import { getStoredUser, apiGet } from '../../services/api.js'
-import { verifySessionOtp, providerCompleteSession, fetchProviderReviews } from '../../services/bookingApi.js'
+import { verifySessionOtp, providerCompleteSession, fetchProviderReviews, reportUnableToComplete } from '../../services/bookingApi.js'
 import {
   markNotificationRead,
   markAllNotificationsReadApi,
@@ -195,6 +197,19 @@ export default function CaregiverDashboard({ onNavigate }) {
   const [activeSessionError, setActiveSessionError] = useState('')
   const [activeSessionSuccess, setActiveSessionSuccess] = useState('')
   const [completingJob, setCompletingJob] = useState(false)
+
+  // CareCredits Acceptance Modal state
+  const [acceptModalBooking, setAcceptModalBooking] = useState(null)
+  const [acceptingLoading, setAcceptingLoading] = useState(false)
+  const [acceptWallet, setAcceptWallet] = useState(null)
+  const [acceptWalletLoading, setAcceptWalletLoading] = useState(false)
+  const [acceptError, setAcceptError] = useState('')
+
+  // Report Unable to Complete Modal state
+  const [reportUnableOpen, setReportUnableOpen] = useState(false)
+  const [reportUnableReason, setReportUnableReason] = useState('')
+  const [reportUnableLoading, setReportUnableLoading] = useState(false)
+  const [reportUnableError, setReportUnableError] = useState('')
 
   // Real Reviews state
   const [providerReviews, setProviderReviews] = useState([])
@@ -874,6 +889,55 @@ export default function CaregiverDashboard({ onNavigate }) {
     }
   }
 
+  const handleInitiateAccept = async (bookingId) => {
+    const target = incomingRequests.find(r => r.id === bookingId) || { id: bookingId }
+    setAcceptModalBooking(target)
+    setAcceptError('')
+    setAcceptWalletLoading(true)
+    try {
+      const res = await getCareCreditWallet()
+      if (res?.wallet) {
+        setAcceptWallet(res.wallet)
+      }
+    } catch (err) {
+      console.warn('Could not fetch wallet for accept modal:', err.message)
+    } finally {
+      setAcceptWalletLoading(false)
+    }
+  }
+
+  const handleConfirmAcceptBooking = async () => {
+    if (!acceptModalBooking?.id) return
+    setAcceptingLoading(true)
+    setAcceptError('')
+    try {
+      await handleRequestAction(acceptModalBooking.id, 'accept')
+      setAcceptModalBooking(null)
+      setActiveSessionSuccess('Booking accepted! 5 CareCredits have been frozen in escrow until the session begins.')
+    } catch (err) {
+      setAcceptError(err.message || 'Failed to accept booking.')
+    } finally {
+      setAcceptingLoading(false)
+    }
+  }
+
+  const handleReportUnable = async () => {
+    if (!activeBooking?.sessionId) return
+    setReportUnableLoading(true)
+    setReportUnableError('')
+    try {
+      await reportUnableToComplete(activeBooking.sessionId, reportUnableReason)
+      setActiveSessionSuccess('Emergency reported. The household has been notified and partial payment will be processed.')
+      setReportUnableOpen(false)
+      setReportUnableReason('')
+      if (loadProviderRequests) await loadProviderRequests()
+    } catch (err) {
+      setReportUnableError(err.message || 'Failed to report unable to complete.')
+    } finally {
+      setReportUnableLoading(false)
+    }
+  }
+
   const triggerRequestDetailsModal = (r) => {
     const rateVal = Number(r.pricePerHour) || 50
     const feeVal = Number(r.serviceFee) || 5
@@ -1139,25 +1203,46 @@ export default function CaregiverDashboard({ onNavigate }) {
                       </div>
                     )}
 
-                    {/* If session is SCHEDULED and needs arrival OTP */}
-                    {activeBooking.sessionStatus === 'SCHEDULED' && activeBooking.rawStatus !== 'in_progress' ? (
-                      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pt-2 bg-[#FAF8F5] p-4 rounded-2xl border border-[#E2D9CF]">
-                        <div className="space-y-1">
-                          <span className="text-xs font-bold text-[#1C1A17] block">Enter Client's Arrival OTP</span>
-                          <p className="text-[11px] text-[#8A7E74]">Ask {activeBooking.clientName} for their 6-digit code to start the session.</p>
-                          <div className="flex items-center gap-2 pt-1">
-                            {otp.map((digit, idx) => (
-                              <input
-                                key={idx}
-                                id={`otp-${idx}`}
-                                type="text"
-                                maxLength={1}
-                                value={digit}
-                                onChange={e => handleOtpChange(idx, e.target.value, activeTab)}
-                                className="w-9 h-9 sm:w-10 sm:h-10 border border-[#E2D9CF] rounded-xl text-center bg-white font-bold text-[#1C1A17] text-sm focus:outline-none focus:border-[#1E4030] shadow-2xs"
-                              />
-                            ))}
+                    {/* Session action: OTP input vs Complete/Interrupted */}
+                    {((activeBooking.rawStatus === 'confirmed' && !activeBooking.sessionStatus) || (activeBooking.sessionStatus === 'SCHEDULED' && activeBooking.rawStatus !== 'in_progress')) ? (
+                      /* Need arrival OTP from client to start */
+                      <div className="pt-2 space-y-3 bg-[#FAF8F5] p-4 rounded-2xl border border-[#E2D9CF]">
+                        <div className="flex items-center justify-between gap-2 flex-wrap">
+                          <div>
+                            <span className="text-xs font-bold text-[#1C1A17] block">Enter Client Arrival OTP</span>
+                            <span className="text-[11px] text-[#8A7E74]">
+                              Ask the household for the 6-digit code shown on their booking card to check in.
+                            </span>
                           </div>
+                        </div>
+
+                        <div className="flex items-center gap-2">
+                          {[0, 1, 2, 3, 4, 5].map((idx) => (
+                            <input
+                              key={idx}
+                              id={`active-otp-${idx}`}
+                              type="text"
+                              maxLength={1}
+                              value={otp[idx] || ''}
+                              onChange={(e) => {
+                                const val = e.target.value.replace(/\D/g, '')
+                                const next = [...otp]
+                                next[idx] = val
+                                setOtp(next)
+                                if (val && idx < 5) {
+                                  const el = document.getElementById(`active-otp-${idx + 1}`)
+                                  if (el) el.focus()
+                                }
+                              }}
+                              onKeyDown={(e) => {
+                                if (e.key === 'Backspace' && !otp[idx] && idx > 0) {
+                                  const el = document.getElementById(`active-otp-${idx - 1}`)
+                                  if (el) el.focus()
+                                }
+                              }}
+                              className="w-10 h-11 text-center font-mono font-bold text-sm rounded-xl border border-[#E2D9CF] bg-white focus:border-[#1E4030] focus:ring-1 focus:ring-[#1E4030] outline-none transition-all"
+                            />
+                          ))}
                         </div>
 
                         <div className="flex items-center gap-2 self-end sm:self-center">
@@ -1179,8 +1264,24 @@ export default function CaregiverDashboard({ onNavigate }) {
                           </button>
                         </div>
                       </div>
+                    ) : (activeBooking.sessionStatus === 'INTERRUPTED' || activeBooking.rawStatus === 'interrupted') ? (
+                      /* If session was INTERRUPTED: Show notice that partial payment is pending household action */
+                      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pt-2 bg-amber-50/80 p-4 rounded-2xl border border-amber-200">
+                        <div className="space-y-0.5">
+                          <span className="text-xs font-bold text-amber-900 flex items-center gap-1.5">
+                            <AlertTriangle size={14} className="text-amber-600" />
+                            Interruption Reported &middot; Partial Payment Pending
+                          </span>
+                          <p className="text-[11px] text-[#5A5248]">
+                            You flagged that you were unable to complete this session. The household has 24 hours to confirm partial payout for hours worked.
+                          </p>
+                        </div>
+                        <span className="text-[11px] font-bold px-3 py-1.5 rounded-xl bg-amber-100 text-amber-800 border border-amber-300 shrink-0 self-start sm:self-auto">
+                          Awaiting Household Confirmation
+                        </span>
+                      </div>
                     ) : (
-                      /* If session is ARRIVED or in_progress: Show Mark Job Complete button */
+                      /* If session is ARRIVED or in_progress: Show Mark Job Complete and Report Unable to Complete buttons */
                       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pt-2 bg-[#EDF7F2]/60 p-4 rounded-2xl border border-green-200">
                         <div className="space-y-0.5">
                           <span className="text-xs font-bold text-[#1E4030] flex items-center gap-1.5">
@@ -1188,19 +1289,35 @@ export default function CaregiverDashboard({ onNavigate }) {
                             Arrival Confirmed &middot; On-Site Work In Progress
                           </span>
                           <p className="text-[11px] text-[#5A5248]">
-                            When service is finished, mark the job complete below.
+                            When service is finished, mark complete below, or report early departure if an emergency arose.
                           </p>
                         </div>
 
-                        <button
-                          type="button"
-                          disabled={completingJob}
-                          onClick={handleProviderMarkJobComplete}
-                          className="bg-[#1E4030] hover:bg-[#152e22] text-white font-bold text-xs px-5 py-2.5 rounded-xl transition-all flex items-center justify-center gap-2 shadow-sm cursor-pointer active:scale-95 whitespace-nowrap disabled:opacity-50"
-                        >
-                          <CheckCircle2 size={14} />
-                          <span>{completingJob ? 'Completing...' : 'Mark Job Complete'}</span>
-                        </button>
+                        <div className="flex items-center gap-2 flex-wrap sm:flex-nowrap">
+                          <button
+                            type="button"
+                            disabled={completingJob}
+                            onClick={() => {
+                              setReportUnableReason('')
+                              setReportUnableError('')
+                              setReportUnableOpen(true)
+                            }}
+                            className="border border-amber-300 bg-white hover:bg-amber-50 text-amber-800 font-bold text-xs px-3.5 py-2.5 rounded-xl transition-all flex items-center justify-center gap-1.5 shadow-2xs cursor-pointer active:scale-95 whitespace-nowrap disabled:opacity-50"
+                          >
+                            <AlertTriangle size={13} className="text-amber-600" />
+                            <span>Report Unable to Complete</span>
+                          </button>
+
+                          <button
+                            type="button"
+                            disabled={completingJob}
+                            onClick={handleProviderMarkJobComplete}
+                            className="bg-[#1E4030] hover:bg-[#152e22] text-white font-bold text-xs px-4 py-2.5 rounded-xl transition-all flex items-center justify-center gap-2 shadow-sm cursor-pointer active:scale-95 whitespace-nowrap disabled:opacity-50"
+                          >
+                            <CheckCircle2 size={14} />
+                            <span>{completingJob ? 'Completing...' : 'Mark Job Complete'}</span>
+                          </button>
+                        </div>
                       </div>
                     )}
                   </>
@@ -1337,7 +1454,7 @@ export default function CaregiverDashboard({ onNavigate }) {
       {activeTab === 'requests' && (
         <RequestsTab
           incomingRequests={incomingRequests}
-          onAccept={(id) => handleRequestAction(id, 'accept')}
+          onAccept={(id) => handleInitiateAccept(id)}
           onDecline={(id) => handleRequestAction(id, 'decline')}
           onViewDetails={triggerRequestDetailsModal}
           onNavigate={handleInternalNavigate}
@@ -2159,6 +2276,195 @@ export default function CaregiverDashboard({ onNavigate }) {
           // reloaded automatically via notifications and profile tab
         }}
       />
+
+      {/* ─── CareCredits Acceptance Cost Modal ─── */}
+      {acceptModalBooking && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-xs animate-fadeIn">
+          <div className="bg-white rounded-3xl max-w-md w-full p-6 shadow-2xl border border-[#E2D9CF] space-y-5 animate-scaleUp">
+            {/* Header */}
+            <div className="flex items-start justify-between gap-3">
+              <div className="flex items-center gap-3">
+                <div className="w-12 h-12 rounded-2xl bg-[#EDF7F2] border border-green-200 flex items-center justify-center text-[#1E4030]">
+                  <Wallet size={22} />
+                </div>
+                <div>
+                  <h3 className="font-display font-bold text-lg text-[#1C1A17]">Accept Booking Request</h3>
+                  <p className="text-xs text-[#8A7E74]">Cost: 5 CareCredits commitment fee</p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setAcceptModalBooking(null)}
+                className="text-[#8A7E74] hover:text-[#1C1A17] p-1 rounded-lg transition-colors cursor-pointer"
+              >
+                <X size={18} />
+              </button>
+            </div>
+
+            {/* Explanatory Callouts */}
+            <div className="bg-[#FAF8F5] border border-[#E2D9CF] rounded-2xl p-4 space-y-3 text-xs leading-relaxed text-[#5A5248]">
+              <div className="flex items-start gap-2.5">
+                <Lock size={15} className="text-[#1E4030] shrink-0 mt-0.5" />
+                <p>
+                  <strong className="text-[#1C1A17]">5 CareCredits will be frozen:</strong> Deducted from your available balance and held in escrow for this booking.
+                </p>
+              </div>
+              <div className="flex items-start gap-2.5">
+                <CheckCircle2 size={15} className="text-emerald-600 shrink-0 mt-0.5" />
+                <p>
+                  <strong className="text-[#1C1A17]">Refundable if Cancelled:</strong> If the client cancels before the service goes <strong className="text-[#1E4030]">In Progress</strong>, your 5 CC will be immediately refunded back to your wallet.
+                </p>
+              </div>
+              <div className="flex items-start gap-2.5">
+                <AlertTriangle size={15} className="text-amber-600 shrink-0 mt-0.5" />
+                <p>
+                  <strong className="text-[#1C1A17]">Consumed Once In Progress:</strong> Once the service starts (arrival OTP verified / scheduled time reached), the 5 CC can no longer be refunded.
+                </p>
+              </div>
+            </div>
+
+            {/* Wallet Status Banner */}
+            <div className="bg-[#EDF7F2]/70 border border-green-200 rounded-2xl p-3.5 flex items-center justify-between text-xs">
+              <div>
+                <span className="text-[11px] font-bold text-[#8A7E74] block">Your Available Balance</span>
+                <span className="font-extrabold text-base text-[#1E4030]">
+                  {acceptWalletLoading ? 'Checking...' : `${(acceptWallet ? (acceptWallet.balance - acceptWallet.held) : 80)} CC`}
+                </span>
+              </div>
+              <span className="text-[11px] font-bold px-2.5 py-1 rounded-full bg-white border border-green-200 text-[#1E4030]">
+                Requires: 5 CC
+              </span>
+            </div>
+
+            {/* Error banner if any */}
+            {acceptError && (
+              <div className="p-3 bg-red-50 border border-red-200 rounded-xl text-xs text-red-700 flex items-center gap-2">
+                <AlertTriangle size={14} className="shrink-0" />
+                <span>{acceptError}</span>
+              </div>
+            )}
+
+            {/* Insufficient balance notice */}
+            {acceptWallet && (acceptWallet.balance - acceptWallet.held) < 5 && (
+              <div className="p-3 bg-amber-50 border border-amber-200 rounded-xl text-xs text-amber-800 space-y-2">
+                <p className="font-semibold">⚠️ Insufficient CareCredits to accept this booking.</p>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setAcceptModalBooking(null)
+                    setActiveTab('carecred')
+                  }}
+                  className="w-full py-2 bg-[#1E4030] text-white rounded-lg font-bold text-xs hover:bg-[#152e22] transition-colors"
+                >
+                  Top Up CareCredits
+                </button>
+              </div>
+            )}
+
+            {/* Modal Actions */}
+            <div className="flex items-center gap-3 pt-1">
+              <button
+                type="button"
+                onClick={() => setAcceptModalBooking(null)}
+                className="flex-1 py-3 px-4 rounded-xl border border-[#E2D9CF] text-xs font-bold text-[#5A5248] hover:bg-[#FAF8F5] transition-colors cursor-pointer"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                disabled={acceptingLoading || (acceptWallet && (acceptWallet.balance - acceptWallet.held) < 5)}
+                onClick={handleConfirmAcceptBooking}
+                className="flex-1 py-3 px-4 rounded-xl bg-[#1E4030] hover:bg-[#152e22] text-white text-xs font-bold transition-all shadow-sm flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50 active:scale-95"
+              >
+                <Check size={15} />
+                <span>{acceptingLoading ? 'Accepting...' : 'Confirm & Accept (5 CC)'}</span>
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ─── Report Unable to Complete Modal ─── */}
+      {reportUnableOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-xs animate-fadeIn">
+          <div className="bg-white rounded-3xl max-w-md w-full p-6 shadow-2xl border border-[#E2D9CF] space-y-5 animate-scaleUp">
+            {/* Header */}
+            <div className="flex items-start justify-between gap-3">
+              <div className="flex items-center gap-3">
+                <div className="w-12 h-12 rounded-2xl bg-amber-50 border border-amber-200 flex items-center justify-center text-amber-700">
+                  <AlertTriangle size={22} />
+                </div>
+                <div>
+                  <h3 className="font-display font-bold text-lg text-[#1C1A17]">Report Unable to Complete</h3>
+                  <p className="text-xs text-[#8A7E74]">Emergency / Early Departure</p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setReportUnableOpen(false)}
+                className="text-[#8A7E74] hover:text-[#1C1A17] p-1 rounded-lg transition-colors cursor-pointer"
+              >
+                <X size={18} />
+              </button>
+            </div>
+
+            {/* Explanation */}
+            <div className="bg-[#FAF8F5] border border-[#E2D9CF] rounded-2xl p-4 text-xs text-[#5A5248] space-y-2 leading-relaxed">
+              <p>
+                Logging this report timestamps your departure. The household will be notified immediately.
+              </p>
+              <p className="font-semibold text-[#1C1A17]">
+                Payment will be calculated for the hours worked between your arrival OTP check-in and now.
+              </p>
+              <p className="text-[11px] text-[#8A7E74]">
+                The household has 24 hours to confirm partial payout, or it will be automatically processed.
+              </p>
+            </div>
+
+            {/* Reason input */}
+            <div className="space-y-1.5">
+              <label className="text-xs font-bold text-[#1C1A17] block">
+                Reason / What happened? <span className="text-[#8A7E74] font-normal">(optional)</span>
+              </label>
+              <textarea
+                rows={3}
+                value={reportUnableReason}
+                onChange={(e) => setReportUnableReason(e.target.value)}
+                placeholder="E.g. Sudden medical emergency, urgent family issue, client requested early departure..."
+                className="w-full text-xs p-3 rounded-xl border border-[#E2D9CF] focus:outline-none focus:border-[#1E4030] resize-none"
+              />
+            </div>
+
+            {/* Error */}
+            {reportUnableError && (
+              <div className="p-3 bg-red-50 border border-red-200 rounded-xl text-xs text-red-700 flex items-center gap-2">
+                <AlertTriangle size={14} className="shrink-0" />
+                <span>{reportUnableError}</span>
+              </div>
+            )}
+
+            {/* Actions */}
+            <div className="flex items-center gap-3 pt-1">
+              <button
+                type="button"
+                onClick={() => setReportUnableOpen(false)}
+                className="flex-1 py-3 px-4 rounded-xl border border-[#E2D9CF] text-xs font-bold text-[#5A5248] hover:bg-[#FAF8F5] transition-colors cursor-pointer"
+              >
+                Go Back
+              </button>
+              <button
+                type="button"
+                disabled={reportUnableLoading}
+                onClick={handleReportUnable}
+                className="flex-1 py-3 px-4 rounded-xl bg-amber-700 hover:bg-amber-800 text-white text-xs font-bold transition-all shadow-sm flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50 active:scale-95"
+              >
+                <AlertTriangle size={14} />
+                <span>{reportUnableLoading ? 'Submitting...' : 'Submit Emergency Report'}</span>
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </CaregiverLayout>
 
     {/* ── Booking Wizard Overlay ─────────────────────────── */}

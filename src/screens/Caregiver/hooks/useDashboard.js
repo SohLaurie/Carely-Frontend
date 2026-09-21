@@ -217,11 +217,14 @@ export function useDashboard() {
           await declineBooking(id);
         }
         await loadProviderRequests();
+        setIncomingRequests((prev) => prev.filter((req) => req.id !== id));
       } catch (err) {
         console.warn(`handleRequestAction ${action} error:`, err.message);
+        throw err;
       }
+    } else {
+      setIncomingRequests((prev) => prev.filter((req) => req.id !== id));
     }
-    setIncomingRequests((prev) => prev.filter((req) => req.id !== id));
   };
 
   const handleOtpChange = (index, val, activeTabInput) => {
