@@ -1,8 +1,9 @@
 import React, { useState, useEffect } from 'react';
-import { Gift, Share2, Mail, Copy, Check, CreditCard, Coins } from 'lucide-react';
-import { getCareCreditWallet } from '../../../services/carecreditApi';
+import { Gift, Share2, Mail, Copy, Check, CreditCard, Coins, Loader2, AlertCircle } from 'lucide-react';
+import { getCareCreditWallet, sendReferralInvites } from '../../../services/carecreditApi';
 
 const FacebookIcon = ({ size = 14, className }) => (
+
   <svg width={size} height={size} viewBox="0 0 24 24" fill="currentColor" className={className}>
     <path d="M22 12c0-5.52-4.48-10-10-10S2 6.48 2 12c0 4.84 3.44 8.87 8 9.8V15H8v-3h2V9.5C10 7.57 11.57 6 13.5 6H16v3h-2c-.55 0-1 .45-1 1v2h3v3h-3v6.95c4.56-.93 8-4.96 8-9.75z"/>
   </svg>
@@ -23,7 +24,9 @@ const WhatsappIcon = ({ size = 14, className }) => (
 export default function ReferEarnTab() {
   const [copied, setCopied] = useState(false);
   const [emailInput, setEmailInput] = useState('');
-  const [invited, setInvited] = useState(false);
+  const [sending, setSending] = useState(false);
+  const [inviteSuccess, setInviteSuccess] = useState('');
+  const [inviteError, setInviteError] = useState('');
   const [referralCode, setReferralCode] = useState('CARELY');
 
   useEffect(() => {
@@ -34,8 +37,10 @@ export default function ReferEarnTab() {
       .catch(err => console.warn('Could not load referral code:', err));
   }, []);
 
-  const referralLink = `https://carely.com/signup?ref=${referralCode}`;
-
+  const baseUrl = typeof window !== 'undefined' && window.location.origin
+    ? window.location.origin
+    : 'https://carely-frontend-ytei.vercel.app';
+  const referralLink = `${baseUrl}/login?ref=${referralCode}`;
 
   const handleCopy = () => {
     navigator.clipboard.writeText(referralLink);
@@ -43,13 +48,28 @@ export default function ReferEarnTab() {
     setTimeout(() => setCopied(false), 2000);
   };
 
-  const handleSendInvites = (e) => {
+  const handleSendInvites = async (e) => {
     e.preventDefault();
-    if (!emailInput.trim()) return;
-    setInvited(true);
-    setEmailInput('');
-    setTimeout(() => setInvited(false), 3000);
+    if (!emailInput.trim() || sending) return;
+    setSending(true);
+    setInviteSuccess('');
+    setInviteError('');
+    try {
+      const res = await sendReferralInvites(emailInput.trim());
+      if (res?.success) {
+        setInviteSuccess(res.message || 'Invites sent successfully to your friends!');
+        setEmailInput('');
+        setTimeout(() => setInviteSuccess(''), 5000);
+      } else {
+        setInviteError(res?.error || 'Failed to send invites. Please try again.');
+      }
+    } catch (err) {
+      setInviteError(err.message || 'Could not send invites. Check the email addresses and try again.');
+    } finally {
+      setSending(false);
+    }
   };
+
 
   return (
     <div className="space-y-6 w-full">
@@ -114,7 +134,7 @@ export default function ReferEarnTab() {
             <span>Messenger</span>
           </a>
           <a
-            href={`https://twitter.com/intent/tweet?url=${encodeURIComponent(referralLink)}&text=${encodeURIComponent('Join Carely and get 5,000 FCFA off your first professional home service booking!')}`}
+            href={`https://twitter.com/intent/tweet?url=${encodeURIComponent(referralLink)}&text=${encodeURIComponent('Join Carely and get 5 frs off your first professional home service booking!')}`}
             target="_blank"
             rel="noopener noreferrer"
             className="flex items-center gap-2 bg-black hover:bg-neutral-800 text-white px-5 py-2.5 rounded-xl text-xs font-bold transition-all shadow-sm"
@@ -123,7 +143,7 @@ export default function ReferEarnTab() {
             <span>Share</span>
           </a>
           <a
-            href={`https://api.whatsapp.com/send?text=${encodeURIComponent(`Join Carely and get 5,000 FCFA off your first professional home service booking! Signup here: ${referralLink}`)}`}
+            href={`https://api.whatsapp.com/send?text=${encodeURIComponent(`Join Carely and get 5 frs off your first professional home service booking! Signup here: ${referralLink}`)}`}
             target="_blank"
             rel="noopener noreferrer"
             className="flex items-center gap-2 bg-[#25D366] hover:bg-[#20BA5A] text-white px-5 py-2.5 rounded-xl text-xs font-bold transition-all shadow-sm"
@@ -143,23 +163,40 @@ export default function ReferEarnTab() {
           <div className="flex flex-col sm:flex-row gap-3 w-full">
             <input
               type="text"
-              placeholder="comma separated: friend1@mail.com, friend2@mail.com"
+              placeholder="comma separated: friend1@gmail.com, friend2@gmail.com"
               value={emailInput}
+              disabled={sending}
               onChange={(e) => setEmailInput(e.target.value)}
-              className="flex-1 bg-[#FAF8F5] border border-[#E2D9CF] rounded-xl px-5 py-3.5 text-sm text-[#1C1A17] outline-none focus:border-[#1E4030]/60 transition-all placeholder-[#B0A89E]"
+              className="flex-1 bg-[#FAF8F5] border border-[#E2D9CF] rounded-xl px-5 py-3.5 text-sm text-[#1C1A17] outline-none focus:border-[#1E4030]/60 transition-all placeholder-[#B0A89E] disabled:opacity-60"
             />
             <button
               type="submit"
-              className="bg-[#1E4030] hover:bg-[#152e22] text-white px-8 py-3.5 rounded-xl font-bold text-sm transition-all flex items-center justify-center gap-2 cursor-pointer shadow-sm active:scale-95 shrink-0"
+              disabled={sending}
+              className="bg-[#1E4030] hover:bg-[#152e22] disabled:opacity-60 text-white px-8 py-3.5 rounded-xl font-bold text-sm transition-all flex items-center justify-center gap-2 cursor-pointer shadow-sm active:scale-95 shrink-0"
             >
-              <Mail size={16} />
-              <span>Send Invites</span>
+              {sending ? (
+                <>
+                  <Loader2 size={16} className="animate-spin" />
+                  <span>Sending...</span>
+                </>
+              ) : (
+                <>
+                  <Mail size={16} />
+                  <span>Send Invites</span>
+                </>
+              )}
             </button>
           </div>
-          {invited && (
+          {inviteSuccess && (
             <p className="text-xs text-[#2D6A4F] font-semibold flex items-center gap-1.5 animate-fadeIn">
               <Check size={14} />
-              <span>Invites sent successfully to your friends!</span>
+              <span>{inviteSuccess}</span>
+            </p>
+          )}
+          {inviteError && (
+            <p className="text-xs text-[#DC2626] font-semibold flex items-center gap-1.5 animate-fadeIn">
+              <AlertCircle size={14} />
+              <span>{inviteError}</span>
             </p>
           )}
         </form>
@@ -186,9 +223,10 @@ export default function ReferEarnTab() {
               <Gift size={20} />
             </div>
             <p className="text-sm text-[#5A5248] leading-relaxed">
-              Each friend that books their first Carely service gets <strong className="text-[#1E4030]">platform fee waived (-5 FCFA)</strong>
+              Each friend that books their first Carely service gets <strong className="text-[#1E4030]">platform fee waived (5 frs off)</strong>
             </p>
           </div>
+
 
           {/* Step 3 */}
           <div className="flex flex-col items-center text-center space-y-3 p-5 bg-[#FAF8F5] border border-[#E2D9CF] rounded-2xl">

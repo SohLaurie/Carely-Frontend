@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { MapPin, Calendar, Clock, RefreshCw, Check, ShieldCheck, HeartHandshake, Tag, CheckCircle2, AlertCircle } from 'lucide-react';
 import { DAYS_OF_WEEK } from './bookingData';
 import { validatePromoCode } from '../../../../services/carecreditApi';
@@ -37,6 +37,15 @@ export default function ConfirmationStep({ data, onConfirm, onBack, isSubmitting
   const [promoLoading, setPromoLoading] = useState(false);
   const [promoError, setPromoError] = useState('');
   const [promoData, setPromoData] = useState(null); // { referralCodeId, referrerId }
+
+  useEffect(() => {
+    try {
+      const pendingRef = localStorage.getItem('carely_pending_referral');
+      if (pendingRef && !promoCode) {
+        setPromoCode(pendingRef);
+      }
+    } catch (e) {}
+  }, []);
 
   const ratePerHour = provider?.pricePerHour || 3500;
   const isRecurring = bookingType === 'recurring';

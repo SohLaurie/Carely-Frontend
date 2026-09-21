@@ -27,3 +27,8 @@ export async function withdrawCareCredits({ credits, phoneNumber }) {
   return apiPost(`${BASE}/withdraw`, { credits, phoneNumber }, token);
 }
 
+export async function sendReferralInvites(emails) {
+  const token = getAccessToken();
+  return apiPost(`${BASE}/send-invites`, { emails }, token);
+}
+

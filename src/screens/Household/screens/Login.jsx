@@ -248,6 +248,19 @@ export default function Login({ onNavigate }) {
   const [twoFactorData, setTwoFactorData] = useState(null)
   const [showTwoFactorModal, setShowTwoFactorModal] = useState(false)
 
+  useEffect(() => {
+    try {
+      const searchParams = new URLSearchParams(window.location.search)
+      const ref = searchParams.get('ref')
+      if (ref) {
+        localStorage.setItem('carely_pending_referral', ref.trim())
+      }
+    } catch (e) {
+      // Ignore URL parsing errors
+    }
+  }, [])
+
+
   const handleNavigateByRole = (role) => {
     if (role === 'admin') {
       onNavigate('admin')
