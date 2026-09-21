@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { getExtraTasksForService, TIME_SLOTS } from './bookingData';
 import { TASK_ICON_MAP } from './ExtraTaskIcons';
+import ServiceQuestions from './ServiceQuestions';
 
 export default function SingleSessionForm({ data, onChange, onSubmit, onBack }) {
   const extraTasks = getExtraTasksForService(data.service?.id);
@@ -8,6 +9,7 @@ export default function SingleSessionForm({ data, onChange, onSubmit, onBack }) 
   const [startTime, setStartTime] = useState(data.startTime || '');
   const [endTime, setEndTime]     = useState(data.endTime || '');
   const [extras, setExtras]       = useState(data.extras || []);
+  const [serviceQuestions, setServiceQuestions] = useState(data.serviceQuestions || {});
   const [notes, setNotes]         = useState(data.notes || '');
 
   const toggleExtra = (id) => {
@@ -33,6 +35,7 @@ export default function SingleSessionForm({ data, onChange, onSubmit, onBack }) 
       startTime: normalizeTime(startTime),
       endTime: normalizeTime(endTime),
       extras,
+      serviceQuestions,
       notes
     });
     onSubmit();
@@ -90,6 +93,13 @@ export default function SingleSessionForm({ data, onChange, onSubmit, onBack }) 
           End time must be after start time.
         </p>
       )}
+
+      {/* Service-specific questions (Babysitting / Laundry & Ironing) */}
+      <ServiceQuestions
+        serviceId={data.service?.id}
+        values={serviceQuestions}
+        onChange={setServiceQuestions}
+      />
 
       {/* Extra tasks */}
       <div className="ssf-field">

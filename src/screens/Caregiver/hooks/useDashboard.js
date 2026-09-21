@@ -138,7 +138,9 @@ export function useDashboard() {
           escrowStatus: b.payment_status === 'paid' ? '100% Funded & Secured' : (b.status === 'accepted' ? 'Awaiting Payment' : 'Unpaid'),
           arrivalOtp: b.sessions?.[0]?.otp_code || '—',
           needsOtp: b.status === 'confirmed' && b.sessions?.[0]?.status === 'SCHEDULED',
+          notes: b.notes || '',
           summary: b.notes || 'Household booking request submitted via Carely.',
+          rawBooking: b,
           photo: (isProvider ? b.booker?.photoUrl : b.provider?.photoUrl) || null,
           sentTime: b.created_at ? new Date(b.created_at).toLocaleDateString() : 'Recently'
         };

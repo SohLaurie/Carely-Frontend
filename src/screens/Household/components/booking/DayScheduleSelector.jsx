@@ -3,6 +3,7 @@ import { Check, ChevronDown, ChevronUp } from 'lucide-react';
 import { DAYS_OF_WEEK, TIME_SLOTS, getExtraTasksForService } from './bookingData';
 import CalendarPreview from './CalendarPreview';
 import { TASK_ICON_MAP } from './ExtraTaskIcons';
+import ServiceQuestions from './ServiceQuestions';
 
 // Per-day config shape: { startTime, endTime, extras: [] }
 const defaultDayConfig = () => ({ startTime: '08:00', endTime: '12:00', extras: [] });
@@ -11,6 +12,7 @@ export default function DayScheduleSelector({ data, onChange, onSubmit, onBack }
   const extraTasks = getExtraTasksForService(data.service?.id);
   // selectedDays: { mon: { startTime, endTime, extras }, ... }
   const [selectedDays, setSelectedDays] = useState(data.selectedDays || {});
+  const [serviceQuestions, setServiceQuestions] = useState(data.serviceQuestions || {});
   const [expandedDay, setExpandedDay]   = useState(null);
   const [skippedDates, setSkippedDates] = useState(data.skippedDates || []);
   const [frequency, setFrequency]         = useState(data.frequency || 'weekly');
@@ -100,6 +102,7 @@ export default function DayScheduleSelector({ data, onChange, onSubmit, onBack }
 
     onChange({
       selectedDays: cleanedDays,
+      serviceQuestions,
       skippedDates,
       frequency,
       durationWeeks,
@@ -175,6 +178,13 @@ export default function DayScheduleSelector({ data, onChange, onSubmit, onBack }
           </p>
         </div>
       </div>
+
+      {/* Service-specific questions (Babysitting / Laundry & Ironing) */}
+      <ServiceQuestions
+        serviceId={data.service?.id}
+        values={serviceQuestions}
+        onChange={setServiceQuestions}
+      />
 
       <h3 className="dss-title dss-title--days">Which days?</h3>
 

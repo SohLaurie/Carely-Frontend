@@ -229,6 +229,45 @@ export default function ConfirmationStep({ data, onConfirm, onBack, isSubmitting
         </div>
       )}
 
+      {/* Service-Specific Requirements Summary */}
+      {data.serviceQuestions && Object.keys(data.serviceQuestions).length > 0 && (
+        <div className="cs-profile-summary">
+          <h4 className="cs-profile-title">Service Requirements</h4>
+          <div className="cs-profile-grid">
+            {data.serviceQuestions.childrenCount && (
+              <div className="cs-profile-item">
+                <span className="cs-profile-label">Children</span>
+                <span className="cs-profile-val">{data.serviceQuestions.childrenCount}</span>
+              </div>
+            )}
+            {data.serviceQuestions.includesNewborns && (
+              <div className="cs-profile-item">
+                <span className="cs-profile-label">Newborns</span>
+                <span className="cs-profile-val">{data.serviceQuestions.includesNewborns}</span>
+              </div>
+            )}
+            {data.serviceQuestions.machineWashLoads && (
+              <div className="cs-profile-item">
+                <span className="cs-profile-label">Machine Wash</span>
+                <span className="cs-profile-val">{data.serviceQuestions.machineWashLoads}</span>
+              </div>
+            )}
+            {data.serviceQuestions.ironClothesLoads && (
+              <div className="cs-profile-item">
+                <span className="cs-profile-label">Iron Clothes</span>
+                <span className="cs-profile-val">{data.serviceQuestions.ironClothesLoads}</span>
+              </div>
+            )}
+            {data.serviceQuestions.pets && (
+              <div className="cs-profile-item">
+                <span className="cs-profile-label">Pets</span>
+                <span className="cs-profile-val">{data.serviceQuestions.pets}</span>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
       {/* Provider card */}
       {provider && (
         <div className="cs-provider">

@@ -293,6 +293,49 @@ export const MobilityAssistanceIcon = ({ size = 20, color = 'currentColor' }) =>
   </svg>
 );
 
+// ── Laundry & Ironing Icons ──────────────────────────────────────────────────
+
+// Dry Clean (Hanger with delicate sparkles)
+export const DryCleanIcon = ({ size = 20, color = 'currentColor' }) => (
+  <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <path d="M12 4a2 2 0 0 1 2 2c0 1.1-.9 2-2 2h0l-8 6h16l-8-6" />
+    <path d="M4 14h16v5a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1v-5z" />
+    <path d="M19 6l.5 1.5L21 8l-1.5.5L19 10l-.5-1.5L17 8l1.5-.5L19 6z" strokeWidth="1.5" />
+  </svg>
+);
+
+// Hand Clean (Wash basin with suds / water waves)
+export const HandCleanIcon = ({ size = 20, color = 'currentColor' }) => (
+  <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <path d="M4 10h16l-2 9H6L4 10z" />
+    <path d="M2 10h20" />
+    <circle cx="8" cy="6" r="1.5" />
+    <circle cx="12" cy="4.5" r="1.2" />
+    <circle cx="16" cy="6" r="1.5" />
+    <path d="M7 14c1.5 0 2.5.8 4 .8s2.5-.8 4-.8 2.5.8 3 .8" strokeWidth="1.5" />
+  </svg>
+);
+
+// Bleaching (Detergent / Bleach spray bottle with clean star)
+export const BleachingIcon = ({ size = 20, color = 'currentColor' }) => (
+  <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <rect x="7" y="10" width="10" height="11" rx="2" />
+    <path d="M10 10V6h4v4" />
+    <path d="M9 6h6" />
+    <path d="M12 13v5M9.5 15.5h5" strokeWidth="1.8" />
+    <circle cx="18.5" cy="4.5" r="1" fill={color} />
+  </svg>
+);
+
+// Folding & Organising (Neatly folded stack of clothes)
+export const FoldingIcon = ({ size = 20, color = 'currentColor' }) => (
+  <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <path d="M4 7l8-3 8 3-8 3-8-3z" />
+    <path d="M4 12l8 3 8-3" />
+    <path d="M4 17l8 3 8-3" />
+  </svg>
+);
+
 export const TASK_ICON_MAP = {
   // Indoor Cleaning
   fridge:   FridgeIcon,
@@ -329,4 +372,11 @@ export const TASK_ICON_MAP = {
   trusted_companion:   TrustedCompanionIcon,
   meal_prep:           MealPrepIcon,
   mobility_assistance: MobilityAssistanceIcon,
+
+  // Laundry & Ironing
+  machine_wash: LaundryIcon,
+  dry_clean:    DryCleanIcon,
+  hand_clean:   HandCleanIcon,
+  bleaching:    BleachingIcon,
+  folding:      FoldingIcon,
 };

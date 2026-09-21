@@ -7,6 +7,7 @@ import ProviderMatchStep from './ProviderMatchStep';
 import ElderProfileStep from './ElderProfileStep';
 import ConfirmationStep from './ConfirmationStep';
 import { submitBooking } from '../../../../services/bookingApi';
+import { serializeBookingNotes } from '../../../../utils/bookingMetadata';
 
 export default function BookingWizard({
   initialService  = null,
@@ -146,6 +147,15 @@ export default function BookingWizard({
         providerId = '8bfed537-d073-461c-bf96-cc51cbf98a11';
       }
 
+      const notesFormatted = serializeBookingNotes({
+        notes: finalData.notes,
+        service: finalData.service,
+        serviceQuestions: finalData.serviceQuestions,
+        elderProfile: finalData.elderProfile,
+        extras: finalData.extras,
+        selectedDays: finalData.selectedDays,
+      });
+
       const payload = {
         providerId,
         sessionType: isRecurring ? 'recurring' : 'once',
@@ -154,7 +164,7 @@ export default function BookingWizard({
         endTime,
         durationWeeks: isRecurring ? (Number(finalData.durationWeeks) || 3) : 1,
         selectedDays: isRecurring ? selectedDays : undefined,
-        notes: finalData.notes || (finalData.service?.label ? `Booking for ${finalData.service.label}` : 'Carely service request'),
+        notes: notesFormatted,
         subtotal,
         serviceFee,
         totalPrice,

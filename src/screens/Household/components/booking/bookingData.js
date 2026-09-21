@@ -156,12 +156,74 @@ export const ELDER_CARE_EXTRAS = [
   { id: 'mobility_assistance', label: 'Mobility Assistance' },
 ];
 
+export const LAUNDRY_IRONING_EXTRAS = [
+  { id: 'machine_wash', label: 'Machine Wash' },
+  { id: 'dry_clean',    label: 'Dry Clean' },
+  { id: 'hand_clean',   label: 'Hand Clean' },
+  { id: 'bleaching',    label: 'Bleaching' },
+  { id: 'ironing',      label: 'Iron Clothes' },
+  { id: 'folding',      label: 'Folding & Organising' },
+];
+
 export function getExtraTasksForService(serviceId) {
   if (serviceId === 'outdoor-cleaning') return OUTDOOR_CLEANING_EXTRAS;
   if (serviceId === 'babysitting') return BABYSITTING_EXTRAS;
   if (serviceId === 'elder-care') return ELDER_CARE_EXTRAS;
+  if (serviceId === 'laundry-ironing') return LAUNDRY_IRONING_EXTRAS;
   return CLEANING_EXTRAS;
 }
+
+export const SERVICE_QUESTIONS_CONFIG = {
+  babysitting: [
+    {
+      id: 'childrenCount',
+      label: 'How many children do you need help with?',
+      options: ['1', '2', '3', '4', '5+'],
+      defaultValue: '1',
+    },
+    {
+      id: 'includesNewborns',
+      label: 'Does it include newborns/infants?',
+      options: ['No', 'Yes - 1 newborn', 'Yes - 2+ newborns'],
+      defaultValue: 'No',
+    },
+    {
+      id: 'pets',
+      label: 'Do you have pets?',
+      options: ['No pets', 'Dogs', 'Cats', 'Dogs & Cats', 'Other pets'],
+      defaultValue: 'No pets',
+    },
+  ],
+  'laundry-ironing': [
+    {
+      id: 'machineWashLoads',
+      label: 'Machine Wash',
+      sublabel: 'How many loads?',
+      info: 'Estimate how many washing machine loads need to be processed.',
+      options: ['None', '1 - 2 Loads', '3 - 4 Loads', '5+ Loads'],
+      defaultValue: '1 - 2 Loads',
+    },
+    {
+      id: 'ironClothesLoads',
+      label: 'Iron Clothes',
+      sublabel: 'How many loads / items?',
+      info: 'Estimate how many garments or baskets of ironing you require.',
+      options: [
+        'None',
+        '1 Load (up to 15 items)',
+        '2 Loads (16-30 items)',
+        '3+ Loads (31+ items)',
+      ],
+      defaultValue: '1 Load (up to 15 items)',
+    },
+    {
+      id: 'pets',
+      label: 'Do you have pets?',
+      options: ['No pets', 'Dogs', 'Cats', 'Dogs & Cats', 'Other pets'],
+      defaultValue: 'No pets',
+    },
+  ],
+};
 
 // ── 30-minute time slots 06:00 → 20:00 ───────────────────────────────────────
 export const TIME_SLOTS = [

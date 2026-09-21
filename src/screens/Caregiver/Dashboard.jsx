@@ -955,6 +955,7 @@ export default function CaregiverDashboard({ onNavigate }) {
     const totalVal = Number(r.totalPrice) || (subtotalVal + feeVal)
 
     setSelectedBookingDetails({
+      ...r,
       clientName: r.clientName || 'Household Client',
       initials: r.initials || 'HC',
       specialty: r.specialty || 'Care Service',
@@ -966,9 +967,19 @@ export default function CaregiverDashboard({ onNavigate }) {
       subtotal: `${subtotalVal.toLocaleString()} XAF`,
       serviceFee: `${feeVal.toLocaleString()} XAF`,
       total: `${totalVal.toLocaleString()} XAF`,
-      schedule: [
-        { date: r.date || 'Upcoming', time: r.time || 'Scheduled Slot', status: r.status || 'Pending' }
-      ],
+      notes: r.notes || r.summary || '',
+      rawBooking: r,
+      schedule: r.sessions && r.sessions.length > 0
+        ? r.sessions.map((s, idx) => ({
+            date: s.scheduled_date || r.date || `Session ${idx + 1}`,
+            time: (s.scheduled_start_time && s.scheduled_end_time)
+              ? `${s.scheduled_start_time.slice(0, 5)} — ${s.scheduled_end_time.slice(0, 5)}`
+              : (r.time || 'Scheduled Slot'),
+            status: s.status || r.status || 'Confirmed'
+          }))
+        : [
+            { date: r.date || 'Upcoming', time: r.time || 'Scheduled Slot', status: r.status || 'Pending' }
+          ],
       payoutInfo: 'Payout released from escrow upon arrival OTP presence confirmation & completion',
       nextSteps: [
         `This is an incoming request from ${r.clientName || 'the client'}.`,
