@@ -31,6 +31,7 @@ import { CAREGIVERS, SPECIALTY_META } from '../../data'
 import { payoutHistory } from './data/mockDashboardData'
 import { fetchSubscriptionStatus, paySubscription } from '../../services/admin.service.js'
 import SubscriptionPaymentModal from './components/SubscriptionPaymentModal'
+import CertificationPaymentModal from './components/CertificationPaymentModal'
 import CareCreditTab from './components/CareCreditTab'
 
 import { getStoredUser, apiGet } from '../../services/api.js'
@@ -239,6 +240,7 @@ export default function CaregiverDashboard({ onNavigate }) {
   const [subLoading, setSubLoading] = useState(false)
   const [payMessage, setPayMessage] = useState('')
   const [showPaymentModal, setShowPaymentModal] = useState(false)
+  const [showCertPaymentModal, setShowCertPaymentModal] = useState(false)
 
   const loadSubStatus = async () => {
     try {
@@ -1020,6 +1022,7 @@ export default function CaregiverDashboard({ onNavigate }) {
         })}
         onNavigate={handleInternalNavigate}
         onPaySubscription={() => setShowPaymentModal(true)}
+        onPayCertification={() => setShowCertPaymentModal(true)}
       >
         {/* ─── Subscription & Approval Status Banner ─── */}
         {subStatus && !subStatus.accountActive && subStatus.approvalStatus === 'approved' && (
@@ -2029,6 +2032,18 @@ export default function CaregiverDashboard({ onNavigate }) {
                           </button>
                         </div>
                       )}
+                      {(n.type === 'certification_approved' || n.metadata?.action === 'pay_certification') && (
+                        <div className="pt-2">
+                          <button
+                            type="button"
+                            onClick={() => setShowCertPaymentModal(true)}
+                            className="bg-emerald-700 hover:bg-emerald-800 text-white text-xs font-bold px-3.5 py-1.5 rounded-xl shadow-xs transition-all cursor-pointer inline-flex items-center gap-1.5"
+                          >
+                            <ShieldCheck size={13} />
+                            <span>Pay 25 XAF Badge Fee</span>
+                          </button>
+                        </div>
+                      )}
                       {n.recipient && <p className="text-[10px] text-[#8A7E74]/70">To: {n.recipient}</p>}
                     </div>
                     <div className="flex items-center gap-1.5 shrink-0">
@@ -2132,6 +2147,16 @@ export default function CaregiverDashboard({ onNavigate }) {
         onPaymentSuccess={(updatedStatus) => {
           setSubStatus(updatedStatus)
           loadSubStatus()
+        }}
+      />
+
+      {/* Certification Payment Modal */}
+      <CertificationPaymentModal
+        isOpen={showCertPaymentModal}
+        onClose={() => setShowCertPaymentModal(false)}
+        initialPhone={subStatus?.phone || getStoredUser()?.phone || ''}
+        onPaymentSuccess={() => {
+          // reloaded automatically via notifications and profile tab
         }}
       />
     </CaregiverLayout>

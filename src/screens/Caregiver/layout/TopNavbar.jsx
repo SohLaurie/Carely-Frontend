@@ -17,7 +17,8 @@ export default function TopNavbar({
   onReplyClick,
   onViewAllNotifications,
   onProfileClick,
-  onPaySubscription
+  onPaySubscription,
+  onPayCertification
 }) {
   const [user, setUser] = useState(getStoredUser())
 
@@ -141,6 +142,7 @@ export default function TopNavbar({
           onReplyClick={onReplyClick}
           onViewAll={onViewAllNotifications}
           onPaySubscription={onPaySubscription}
+          onPayCertification={onPayCertification}
         />
 
         {/* Profile Avatar dropdown component */}

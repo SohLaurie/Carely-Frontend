@@ -1,11 +1,14 @@
 import React, { useState, useEffect, useRef } from 'react';
 import {
-  User, Mail, Phone, MapPin, ShieldCheck, Check, Save, Camera, Globe, Award, Clock, Lock, Loader2, AlertCircle
+  User, Mail, Phone, MapPin, ShieldCheck, Check, Save, Camera, Globe, Award, Clock, Lock, Loader2, AlertCircle, CheckCircle2, FileText, Sparkles
 } from 'lucide-react';
 import { CAREGIVER_CONSTANTS } from '../constants/dashboardConstants';
 import { getStoredUser, getUserInitials, getAvatarUrl } from '../../../services/api.js';
 import { fetchCurrentProfile, updateCurrentProfile } from '../../../services/auth.service.js';
 import { compressAndReadImage } from '../../../utils/imageUtils.js';
+import { fetchCertificationStatus } from '../../../services/admin.service.js';
+import RequestCertificationModal from './RequestCertificationModal.jsx';
+import CertificationPaymentModal from './CertificationPaymentModal.jsx';
 
 export default function ProfileTab({ onNavigate }) {
   const [savedSuccess, setSavedSuccess] = useState(false);
@@ -14,6 +17,11 @@ export default function ProfileTab({ onNavigate }) {
   const [uploadingPhoto, setUploadingPhoto] = useState(false);
   const [photoPreview, setPhotoPreview] = useState(null);
   const fileInputRef = useRef(null);
+
+  const [certStatus, setCertStatus] = useState(null);
+  const [certLoading, setCertLoading] = useState(false);
+  const [showRequestCertModal, setShowRequestCertModal] = useState(false);
+  const [showCertPaymentModal, setShowCertPaymentModal] = useState(false);
 
   const storedUser = getStoredUser();
   const [user, setUser] = useState(storedUser);
@@ -69,6 +77,22 @@ export default function ProfileTab({ onNavigate }) {
     }
     loadProfile();
     return () => { isMounted = false; };
+  }, []);
+
+  const loadCertStatus = async () => {
+    setCertLoading(true);
+    try {
+      const status = await fetchCertificationStatus();
+      setCertStatus(status);
+    } catch (err) {
+      console.warn('Could not load certification status:', err.message);
+    } finally {
+      setCertLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    loadCertStatus();
   }, []);
 
   const initials = getUserInitials(user, 'PR');
@@ -407,14 +431,139 @@ export default function ProfileTab({ onNavigate }) {
                 />
               </div>
 
-              <div className="space-y-1.5 sm:col-span-3">
-                <label className="block text-xs font-bold text-[#8A7E74] uppercase tracking-wide">Verified Certifications & Licenses</label>
-                <input
-                  type="text"
-                  value={formData.certifications}
-                  onChange={e => setFormData({ ...formData, certifications: e.target.value })}
-                  className="w-full px-4 py-3 bg-[#FAF8F5] border border-[#E2D9CF] rounded-xl text-xs text-[#1C1A17] focus:outline-none focus:border-[#1E4030] font-medium"
-                />
+              {/* Carely Two-Tier Trust: Certified Provider Section */}
+              <div className="space-y-3 sm:col-span-3 pt-2">
+                <div>
+                  <label className="block text-xs font-bold text-[#8A7E74] uppercase tracking-wide">
+                    Carely Quality Certification (Tier 2 Trust)
+                  </label>
+                  <p className="text-[11px] text-[#8A7E74] mt-0.5">
+                    Earn the official <strong className="text-[#1E4030]">[✓ Certified]</strong> badge by submitting educational certificates or diplomas.
+                  </p>
+                </div>
+
+                {certStatus?.isCertified ? (
+                  <div className="p-4 bg-emerald-50 border border-emerald-200 rounded-2xl flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                    <div className="flex items-center gap-3">
+                      <div className="w-10 h-10 rounded-xl bg-emerald-600 text-white flex items-center justify-center shrink-0 shadow-xs">
+                        <CheckCircle2 size={20} />
+                      </div>
+                      <div>
+                        <div className="flex items-center gap-2">
+                          <h4 className="text-xs font-bold text-emerald-950">✓ Certified Provider Active</h4>
+                          <span className="bg-emerald-100 text-emerald-800 text-[10px] font-bold px-2 py-0.5 rounded-full border border-emerald-200">
+                            Badge Active
+                          </span>
+                        </div>
+                        <p className="text-[11px] text-emerald-800 mt-0.5">
+                          {certStatus.certificationTitle ? `${certStatus.certificationTitle} · ` : ''}
+                          {certStatus.certificationInstitution || 'Accredited Institution'}
+                        </p>
+                        <p className="text-[10px] text-emerald-700/80 mt-0.5">
+                          The official Certified badge is now displayed on your search cards and public profile.
+                        </p>
+                      </div>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => setShowRequestCertModal(true)}
+                      className="text-xs font-bold text-emerald-900 hover:text-emerald-700 bg-white border border-emerald-200 hover:bg-emerald-50 px-3.5 py-2 rounded-xl transition-all self-start sm:self-center cursor-pointer shadow-2xs"
+                    >
+                      Update Certificate
+                    </button>
+                  </div>
+                ) : certStatus?.certificationStatus === 'pending' ? (
+                  <div className="p-4 bg-amber-50 border border-amber-200 rounded-2xl flex items-center justify-between gap-3">
+                    <div className="flex items-center gap-3">
+                      <div className="w-10 h-10 rounded-xl bg-amber-500 text-white flex items-center justify-center shrink-0 shadow-xs">
+                        <Clock size={20} />
+                      </div>
+                      <div>
+                        <div className="flex items-center gap-2">
+                          <h4 className="text-xs font-bold text-amber-950">Certification Application Under Review</h4>
+                          <span className="bg-amber-100 text-amber-800 text-[10px] font-bold px-2 py-0.5 rounded-full border border-amber-200">
+                            Pending Admin Review
+                          </span>
+                        </div>
+                        <p className="text-[11px] text-amber-900 mt-0.5 font-medium">
+                          {certStatus.certificationTitle ? `${certStatus.certificationTitle} · ` : ''}
+                          {certStatus.certificationInstitution || 'Submitted Document'}
+                        </p>
+                        <p className="text-[10px] text-amber-800 mt-0.5">
+                          Carely administrators are reviewing your diploma credentials. You will be notified once approved.
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                ) : certStatus?.certificationStatus === 'approved' && !certStatus?.isCertified ? (
+                  <div className="p-4 bg-gradient-to-r from-emerald-50 to-teal-50 border border-emerald-200 rounded-2xl flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                    <div className="flex items-center gap-3">
+                      <div className="w-10 h-10 rounded-xl bg-emerald-700 text-white flex items-center justify-center shrink-0 shadow-xs">
+                        <Sparkles size={20} />
+                      </div>
+                      <div>
+                        <div className="flex items-center gap-2">
+                          <h4 className="text-xs font-bold text-emerald-950">Certification Approved! Badge Ready</h4>
+                          <span className="bg-emerald-200 text-emerald-900 text-[10px] font-bold px-2 py-0.5 rounded-full">
+                            Action Required
+                          </span>
+                        </div>
+                        <p className="text-[11px] text-emerald-900 mt-0.5">
+                          {certStatus.certificationTitle ? `${certStatus.certificationTitle} was approved! ` : ''}
+                          Pay the 25 XAF fee to activate your official Certified badge.
+                        </p>
+                      </div>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => setShowCertPaymentModal(true)}
+                      className="bg-[#1E4030] hover:bg-[#152e22] text-white text-xs font-bold px-4 py-2.5 rounded-xl shadow-md hover:shadow-lg transition-all flex items-center gap-1.5 self-start sm:self-center cursor-pointer shrink-0"
+                    >
+                      <Award size={14} />
+                      <span>Pay 25 XAF & Activate Badge</span>
+                    </button>
+                  </div>
+                ) : (
+                  <div className="p-4 bg-[#FAF8F5] border border-[#E2D9CF] rounded-2xl flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                    <div className="flex items-center gap-3">
+                      <div className="w-10 h-10 rounded-xl bg-[#EDE8E1] text-[#1E4030] flex items-center justify-center shrink-0">
+                        <Award size={20} />
+                      </div>
+                      <div>
+                        <h4 className="text-xs font-bold text-[#1C1A17]">Request Quality Certification</h4>
+                        <p className="text-[11px] text-[#8A7E74] mt-0.5">
+                          Upload your nursing, caregiving, or vocational diplomas to display the verified quality badge.
+                        </p>
+                        {certStatus?.certificationStatus === 'rejected' && (
+                          <p className="text-[10px] text-red-600 font-semibold mt-0.5">
+                            Previous submission was declined{certStatus?.certificationNotes ? `: ${certStatus.certificationNotes}` : ''}. You may re-apply with valid credentials.
+                          </p>
+                        )}
+                      </div>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => setShowRequestCertModal(true)}
+                      className="bg-[#1E4030] hover:bg-[#152e22] text-white text-xs font-bold px-4 py-2.5 rounded-xl shadow-sm hover:shadow-md transition-all flex items-center gap-1.5 self-start sm:self-center cursor-pointer shrink-0"
+                    >
+                      <Award size={14} />
+                      <span>Request Certification</span>
+                    </button>
+                  </div>
+                )}
+
+                <div className="space-y-1.5 pt-1">
+                  <label className="block text-[11px] font-bold text-[#8A7E74] uppercase tracking-wide">
+                    Additional Certifications & Licenses Description
+                  </label>
+                  <input
+                    type="text"
+                    value={formData.certifications}
+                    onChange={e => setFormData({ ...formData, certifications: e.target.value })}
+                    placeholder="e.g. CPR Certified, First Aid, State Registered Nurse"
+                    className="w-full px-4 py-3 bg-[#FAF8F5] border border-[#E2D9CF] rounded-xl text-xs text-[#1C1A17] focus:outline-none focus:border-[#1E4030] font-medium"
+                  />
+                </div>
               </div>
 
               <div className="space-y-1.5 sm:col-span-3">
@@ -451,6 +600,25 @@ export default function ProfileTab({ onNavigate }) {
           </button>
         </div>
       </form>
+
+      {/* Request Certification Modal */}
+      <RequestCertificationModal
+        isOpen={showRequestCertModal}
+        onClose={() => setShowRequestCertModal(false)}
+        onSuccess={() => {
+          loadCertStatus();
+        }}
+      />
+
+      {/* Certification Payment Modal */}
+      <CertificationPaymentModal
+        isOpen={showCertPaymentModal}
+        onClose={() => setShowCertPaymentModal(false)}
+        initialPhone={user?.phone || ''}
+        onPaymentSuccess={() => {
+          loadCertStatus();
+        }}
+      />
     </div>
   );
 }

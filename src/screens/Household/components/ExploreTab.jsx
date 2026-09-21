@@ -128,6 +128,9 @@ export default function ExploreTab({
         : ['ID Verified', 'Background Checked'],
       approvalStatus: p.approval_status || 'approved',
       subscriptionPaid: Boolean(p.subscription_paid),
+      isCertified: Boolean(p.is_certified),
+      certificationStatus: p.certification_status || 'none',
+      certificationTitle: p.certification_title,
     };
   };
 
@@ -554,13 +557,9 @@ export default function ExploreTab({
                           >
                             {c.profession || meta.label || 'Provider'}
                           </span>
-                          {c.approvalStatus === 'approved' ? (
-                            <span className="inline-flex items-center gap-1 text-[10px] font-semibold text-green-700 bg-green-50 border border-green-200 px-2 py-0.5 rounded-full">
-                              <ShieldCheck size={11} /> Verified
-                            </span>
-                          ) : (
-                            <span className="inline-flex items-center gap-1 text-[10px] font-semibold text-amber-700 bg-amber-50 border border-amber-200 px-2 py-0.5 rounded-full">
-                              <Clock size={11} /> Verification Pending
+                          {c.isCertified && (
+                            <span className="inline-flex items-center gap-1 text-[10px] font-semibold text-emerald-700 bg-emerald-50 border border-emerald-200 px-2.5 py-0.5 rounded-full">
+                              <ShieldCheck size={11} /> Certified
                             </span>
                           )}
                         </div>
@@ -741,13 +740,9 @@ export default function ExploreTab({
                   <span className="text-xs bg-[#EDF7F2] text-[#1E4030] font-bold px-2.5 py-0.5 rounded-full border border-green-200 inline-block">
                     {modalCaregiver.profession || SPECIALTY_META[modalCaregiver.specialty]?.label || 'Verified Provider'}
                   </span>
-                  {modalCaregiver.approvalStatus === 'approved' ? (
-                    <span className="inline-flex items-center gap-1 text-[11px] font-semibold text-green-700 bg-green-50 border border-green-200 px-2 py-0.5 rounded-full">
-                      <ShieldCheck size={12} /> ID Verified
-                    </span>
-                  ) : (
-                    <span className="inline-flex items-center gap-1 text-[11px] font-semibold text-amber-700 bg-amber-50 border border-amber-200 px-2 py-0.5 rounded-full">
-                      <Clock size={12} /> Verification Pending
+                  {modalCaregiver.isCertified && (
+                    <span className="inline-flex items-center gap-1 text-[11px] font-semibold text-emerald-700 bg-emerald-50 border border-emerald-200 px-2.5 py-0.5 rounded-full">
+                      <ShieldCheck size={12} /> Certified Provider
                     </span>
                   )}
                 </div>

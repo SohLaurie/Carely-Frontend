@@ -24,6 +24,10 @@ export default function AdminDashboard({ onNavigate }) {
     sidebarOpen,
     setSidebarOpen,
     applications,
+    certApplications,
+    certLoading,
+    approveCertApplication,
+    rejectCertApplication,
     disputes,
     users,
     bookings,
@@ -102,6 +106,7 @@ export default function AdminDashboard({ onNavigate }) {
       {activeTab === 'applications' && (
         <ApplicationsTab
           applications={applications}
+          certApplications={certApplications}
           setSelectedApplication={setSelectedApplication}
           appSearchQuery={appSearchQuery}
           setAppSearchQuery={setAppSearchQuery}
@@ -109,6 +114,8 @@ export default function AdminDashboard({ onNavigate }) {
           setAppStatusFilter={setAppStatusFilter}
           appServiceFilter={appStatusFilter}
           setAppServiceFilter={setAppStatusFilter}
+          onApproveCert={approveCertApplication}
+          onRejectCert={rejectCertApplication}
         />
       )}
 
@@ -171,8 +178,20 @@ export default function AdminDashboard({ onNavigate }) {
       <ReviewApplicationModal
         application={selectedApplication}
         onClose={() => setSelectedApplication(null)}
-        onApprove={approveApplication}
-        onReject={rejectApplication}
+        onApprove={(id) => {
+          if (selectedApplication?.isCertificationApplication) {
+            approveCertApplication(id);
+          } else {
+            approveApplication(id);
+          }
+        }}
+        onReject={(id, reason) => {
+          if (selectedApplication?.isCertificationApplication) {
+            rejectCertApplication(id, reason);
+          } else {
+            rejectApplication(id);
+          }
+        }}
         onAsk={askForInfo}
       />
 

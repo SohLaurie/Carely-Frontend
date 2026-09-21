@@ -135,6 +135,96 @@ export async function paySubscription(phone) {
   return apiPost('/providers/me/pay-subscription', { phone }, token)
 }
 
+// ── Certification Applications (Admin) ─────────────────────────────────────────
+
+export async function fetchCertificationApplications({ status = 'all' } = {}) {
+  const token = getAccessToken()
+  const data = await apiGet(`/admin/certifications?status=${status}`, token)
+
+  const mapped = (data.providers || []).map(p => {
+    const formattedSpecialties = (Array.isArray(p.specialties) && p.specialties.length > 0)
+      ? p.specialties.map(s => s.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase()))
+      : [p.category || 'Caregiver']
+
+    return {
+      id:              p.id,
+      name:            p.name || `${p.firstName || ''} ${p.lastName || ''}`.trim(),
+      firstName:       p.firstName,
+      lastName:        p.lastName,
+      email:           p.email,
+      phone:           p.phone || '',
+      category:        p.category || 'Caregiver',
+      location:        p.city || p.location || 'Cameroon',
+      initials:        p.initials || (p.firstName ? `${p.firstName[0]}${p.lastName?.[0] || ''}`.toUpperCase() : 'PR'),
+      bio:             p.bio || 'No bio provided by applicant.',
+      experience:      p.experience || (p.experienceYrs ? `${p.experienceYrs} years` : 'Not specified'),
+      serviceRadius:   p.serviceRadius || '15 km',
+      hourlyRate:      p.hourlyRate || p.pricePerHour || 3000,
+      pricePerHour:    p.pricePerHour || p.hourlyRate || 3000,
+      approvalStatus:  p.certificationStatus || p.approvalStatus || 'pending',
+      status:          p.certificationStatus || p.status || 'pending',
+      certificationStatus: p.certificationStatus || 'pending',
+      isCertified:     Boolean(p.isCertified),
+      certificationPaid: Boolean(p.certificationPaid),
+      submissionTime:  p.submittedAt
+        ? new Date(p.submittedAt).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })
+        : 'Recently',
+      waitingTime:     computeWaitingTime(p.submittedAt),
+      idVerified:      true,
+      certVerified:    p.certificationStatus === 'approved',
+      refVerified:     true,
+      skills:          formattedSpecialties,
+      certificationTitle: p.certificationTitle || 'Professional Certificate',
+      certificationInstitution: p.certificationInstitution || 'Accredited Institution',
+      certificationDocumentUrl: p.certificationDocumentUrl || p.certificateUrl,
+      certificationDocumentName: p.certificationDocumentName || p.certificateName || 'Certificate Document',
+      certificationNotes: p.certificationNotes || '',
+      certificateUrl:  p.certificationDocumentUrl || p.certificateUrl,
+      certificateName: p.certificationDocumentName || p.certificateName || 'Educational Certificate',
+      isCertificationApplication: true,
+      _raw:            p,
+    }
+  })
+
+  return {
+    providers: mapped,
+    total: data.total || mapped.length,
+    counts: data.counts || {
+      all: mapped.length,
+      pending: mapped.filter(p => p.approvalStatus === 'pending').length,
+      approved: mapped.filter(p => p.approvalStatus === 'approved').length,
+      rejected: mapped.filter(p => p.approvalStatus === 'rejected').length
+    }
+  }
+}
+
+export async function approveCertificationApplication(providerId) {
+  const token = getAccessToken()
+  return apiPatch(`/admin/certifications/${providerId}/approve`, {}, token)
+}
+
+export async function rejectCertificationApplication(providerId, reason = '') {
+  const token = getAccessToken()
+  return apiPatch(`/admin/certifications/${providerId}/reject`, { reason }, token)
+}
+
+// ── Provider Certification Status & Action Methods ────────────────────────────
+
+export async function fetchCertificationStatus() {
+  const token = getAccessToken()
+  return apiGet('/providers/me/certification-status', token)
+}
+
+export async function requestCertification({ title, institution, documentUrl, documentName, notes }) {
+  const token = getAccessToken()
+  return apiPost('/providers/me/request-certification', { title, institution, documentUrl, documentName, notes }, token)
+}
+
+export async function payCertification(phone) {
+  const token = getAccessToken()
+  return apiPost('/providers/me/pay-certification', { phone }, token)
+}
+
 // ── Fetch Real Users List ──────────────────────────────────────────────────────
 
 export async function fetchAllUsers() {

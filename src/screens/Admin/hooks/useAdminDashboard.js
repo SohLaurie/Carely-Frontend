@@ -12,6 +12,9 @@ import {
   approveApplication as apiApprove,
   rejectApplication as apiReject,
   toggleUser2FA as apiToggleUser2FA,
+  fetchCertificationApplications,
+  approveCertificationApplication as apiApproveCert,
+  rejectCertificationApplication as apiRejectCert
 } from '../../../services/admin.service.js';
 
 export function useAdminDashboard() {
@@ -21,6 +24,8 @@ export function useAdminDashboard() {
   // Core Data States
   const [applications, setApplications] = useState([]);
   const [applicationsLoading, setApplicationsLoading] = useState(false);
+  const [certApplications, setCertApplications] = useState([]);
+  const [certLoading, setCertLoading] = useState(false);
   const [disputes, setDisputes] = useState(initialDisputes);
   const [users, setUsers] = useState(initialUsers);
   const [bookings, setBookings] = useState(initialBookings);
@@ -57,9 +62,11 @@ export function useAdminDashboard() {
   // ── Fetch real pending applications & users on mount & tab switch ────────
   useEffect(() => {
     loadApplications();
+    loadCertApplications();
     loadUsers();
     const handleFocus = () => {
       loadApplications();
+      loadCertApplications();
       loadUsers();
     };
     window.addEventListener('focus', handleFocus);
@@ -76,6 +83,19 @@ export function useAdminDashboard() {
       setApplications([]);
     } finally {
       setApplicationsLoading(false);
+    }
+  };
+
+  const loadCertApplications = async () => {
+    setCertLoading(true);
+    try {
+      const data = await fetchCertificationApplications({ status: 'all' });
+      setCertApplications(data.providers || []);
+    } catch (err) {
+      console.warn('Could not load certification applications from API:', err.message);
+      setCertApplications([]);
+    } finally {
+      setCertLoading(false);
     }
   };
 
@@ -161,6 +181,39 @@ export function useAdminDashboard() {
       console.error('Reject failed:', err.message);
     }
 
+    setSelectedApplication(null);
+  };
+
+  const approveCertApplication = async (appId) => {
+    const app = certApplications.find(a => a.id === appId);
+    try {
+      await apiApproveCert(appId);
+      setCertApplications(prev => prev.map(a => 
+        a.id === appId ? { ...a, approvalStatus: 'approved', status: 'approved', certificationStatus: 'approved' } : a
+      ));
+      addActivity(
+        'Certification Approved',
+        `${app?.name || 'Provider'} notified to pay 25 XAF badge activation fee`,
+        'application'
+      );
+    } catch (err) {
+      console.error('Approve certification failed:', err.message);
+      addActivity('Certification Error', `Could not approve certification: ${err.message}`, 'cancelled');
+    }
+    setSelectedApplication(null);
+  };
+
+  const rejectCertApplication = async (appId, reason = '') => {
+    const app = certApplications.find(a => a.id === appId);
+    try {
+      await apiRejectCert(appId, reason);
+      setCertApplications(prev => prev.map(a => 
+        a.id === appId ? { ...a, approvalStatus: 'rejected', status: 'rejected', certificationStatus: 'rejected' } : a
+      ));
+      addActivity('Certification Rejected', `Declined certification for ${app?.name || 'applicant'}`, 'cancelled');
+    } catch (err) {
+      console.error('Reject certification failed:', err.message);
+    }
     setSelectedApplication(null);
   };
 
@@ -257,6 +310,11 @@ export function useAdminDashboard() {
     setSidebarOpen,
     applications,
     applicationsLoading,
+    certApplications,
+    certLoading,
+    loadCertApplications,
+    approveCertApplication,
+    rejectCertApplication,
     disputes,
     users,
     bookings,

@@ -10,7 +10,8 @@ export default function NotificationBell({
   onMarkAllRead,
   onReplyClick,
   onViewAll,
-  onPaySubscription
+  onPaySubscription,
+  onPayCertification
 }) {
   const [open, setOpen] = useState(false)
   const menuRef = useRef(null)
@@ -28,7 +29,7 @@ export default function NotificationBell({
   }, [open])
 
   const getIcon = (type) => {
-    if (type === 'subscription_required' || type === 'subscription_activated') return ShieldCheck
+    if (type === 'subscription_required' || type === 'subscription_activated' || type === 'certification_approved') return ShieldCheck
     if (type === 'request') return Calendar
     if (type === 'payout') return Wallet
     if (type === 'message') return MessageSquare
@@ -111,6 +112,19 @@ export default function NotificationBell({
                         >
                           <ShieldCheck size={11} />
                           <span>Pay 25 XAF</span>
+                        </button>
+                      )}
+                      {onPayCertification && (n.type === 'certification_approved' || n.metadata?.action === 'pay_certification') && (
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setOpen(false)
+                            onPayCertification()
+                          }}
+                          className="text-[10px] font-bold text-white bg-emerald-700 hover:bg-emerald-800 px-2.5 py-1 rounded-lg transition-colors flex items-center gap-1 cursor-pointer shadow-xs"
+                        >
+                          <ShieldCheck size={11} />
+                          <span>Pay 25 XAF Badge Fee</span>
                         </button>
                       )}
                       {onReplyClick && (

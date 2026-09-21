@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import {
   X, User, Mail, Phone, Calendar, MapPin, Briefcase, Clock,
   Compass, Download, Eye, XCircle, CheckCircle2, UserCheck,
-  FileText, ShieldCheck, Banknote
+  FileText, ShieldCheck, Banknote, Award
 } from 'lucide-react';
 
 const API_ORIGIN = import.meta.env.VITE_API_URL || 'http://localhost:5000';
@@ -77,10 +77,19 @@ export default function ReviewApplicationModal({
   const policeDocName = application.policeClearanceName || application._raw?.police_clearance_name || (isRaissa ? 'casier_judiciaire_raissa.pdf' : `police_clearance_${lastNameSlug}.pdf`);
   const policeDocUrl = application.policeClearanceUrl || application._raw?.police_clearance_url || (isRaissa ? '/uploads/documents/police_clearance_raissa.pdf' : null);
 
-  const certDocName = application.certificateName || application._raw?.certificate_name || (isRaissa ? 'cert_cleaner.pdf' : `cert_${categorySlug}.pdf`);
-  const certDocUrl = application.certificateUrl || application._raw?.certificate_url || (isRaissa ? '/uploads/documents/certificate_cleaner.pdf' : null);
+  const certDocName = application.certificateName || application.certificationDocumentName || application._raw?.certificate_name || (isRaissa ? 'cert_cleaner.pdf' : `cert_${categorySlug}.pdf`);
+  const certDocUrl = application.certificateUrl || application.certificationDocumentUrl || application._raw?.certificate_url || (isRaissa ? '/uploads/documents/certificate_cleaner.pdf' : null);
 
-  const supportingDocs = [
+  const isCert = Boolean(application.isCertificationApplication);
+
+  const supportingDocs = isCert ? [
+    {
+      title: `Educational Document (${application.certificationTitle || 'Certificate'})`,
+      name: certDocName,
+      url: certDocUrl,
+      verified: true
+    }
+  ] : [
     {
       title: 'National ID (CNI)',
       name: idDocName,
@@ -148,6 +157,11 @@ export default function ReviewApplicationModal({
             <div>
               <div className="flex items-center gap-2">
                 <h2 className="text-[#1C1A17] font-display text-xl font-bold">{name}</h2>
+                {isCert && (
+                  <span className="bg-emerald-100 text-emerald-800 border border-emerald-300 text-[10px] font-bold px-2 py-0.5 rounded-full inline-flex items-center gap-1">
+                    <Award size={10} /> Certification Request
+                  </span>
+                )}
                 {appStatus === 'approved' && (
                   <span className="bg-[#EDF7F2] text-[#1D6F42] border border-green-200 text-[10px] font-bold px-2 py-0.5 rounded-full inline-flex items-center gap-1">
                     <CheckCircle2 size={10} /> Approved
@@ -181,6 +195,32 @@ export default function ReviewApplicationModal({
           
           {/* Left Column: Personal info, professional profile, references, bio, skills, languages */}
           <div className="space-y-6">
+
+            {/* Certification Application Details Card */}
+            {isCert && (
+              <div className="bg-emerald-50/70 border border-emerald-200 rounded-2xl p-4 space-y-2.5">
+                <div className="flex items-center gap-2 text-emerald-900 font-bold text-xs">
+                  <Award size={16} className="text-emerald-700" />
+                  <span>Certification / Diploma Details</span>
+                </div>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-1">
+                  <div>
+                    <span className="text-[10px] text-emerald-800/80 font-bold uppercase tracking-wider block">Degree / Diploma Title</span>
+                    <span className="text-xs font-bold text-emerald-950">{application.certificationTitle || 'Professional Diploma'}</span>
+                  </div>
+                  <div>
+                    <span className="text-[10px] text-emerald-800/80 font-bold uppercase tracking-wider block">Issuing Institution</span>
+                    <span className="text-xs font-bold text-emerald-950">{application.certificationInstitution || 'Not specified'}</span>
+                  </div>
+                </div>
+                {application.certificationNotes && (
+                  <div className="pt-2 border-t border-emerald-200/60">
+                    <span className="text-[10px] text-emerald-800/80 font-bold uppercase tracking-wider block">Applicant Notes</span>
+                    <p className="text-xs text-emerald-900 mt-0.5 leading-relaxed">{application.certificationNotes}</p>
+                  </div>
+                )}
+              </div>
+            )}
             
             {/* Personal Information */}
             <div className="space-y-3.5">
@@ -391,10 +431,14 @@ export default function ReviewApplicationModal({
             </div>
 
             {/* Verification action alert message */}
-            <div className="bg-blue-50 border border-blue-200 rounded-2xl p-4 space-y-2">
-              <h4 className="font-bold text-blue-900">Upon approval, the provider will receive:</h4>
-              <p className="text-blue-800 leading-relaxed italic text-[11px]">
-                &ldquo;Your profile has been verified and approved. Please proceed to subscription payment to activate your account and become visible to clients.&rdquo;
+            <div className={`border rounded-2xl p-4 space-y-2 ${isCert ? 'bg-emerald-50 border-emerald-200' : 'bg-blue-50 border-blue-200'}`}>
+              <h4 className={`font-bold ${isCert ? 'text-emerald-900' : 'text-blue-900'}`}>
+                {isCert ? 'Upon certification approval, the provider will receive:' : 'Upon approval, the provider will receive:'}
+              </h4>
+              <p className={`leading-relaxed italic text-[11px] ${isCert ? 'text-emerald-800' : 'text-blue-800'}`}>
+                {isCert
+                  ? '\u201cCongratulations! Your professional certification has been approved by admin. Please pay the 25 XAF badge activation fee to display the Certified badge on your profile.\u201d'
+                  : '\u201cYour profile has been verified and approved. Please proceed to subscription payment to activate your account and become visible to clients.\u201d'}
               </p>
             </div>
 
@@ -409,14 +453,14 @@ export default function ReviewApplicationModal({
             className="border border-[#FCA5A5] bg-white text-red-600 hover:bg-red-50 font-bold text-xs px-4 py-2.5 rounded-xl transition-all flex items-center gap-1.5 cursor-pointer shadow-sm"
           >
             <XCircle size={14} />
-            Reject
+            {isCert ? 'Reject Certification' : 'Reject'}
           </button>
           <button
             onClick={() => onApprove(application.id)}
             className="bg-[#1D6F42] hover:bg-[#155231] text-white font-bold text-xs px-5 py-2.5 rounded-xl transition-all flex items-center gap-1.5 cursor-pointer shadow-sm"
           >
             <CheckCircle2 size={14} />
-            Approve Account
+            {isCert ? 'Approve Certification' : 'Approve Account'}
           </button>
         </div>
 

@@ -1,19 +1,26 @@
 import React, { useState } from 'react';
 import {
   Search, Check, MessageSquare, Clock, Filter, SlidersHorizontal,
-  ChevronLeft, ChevronRight, CheckCircle2, XCircle, Banknote, Compass
+  ChevronLeft, ChevronRight, CheckCircle2, XCircle, Banknote, Compass,
+  Award, FileText, Eye, Download, ShieldCheck
 } from 'lucide-react';
+
+const API_ORIGIN = import.meta.env.VITE_API_URL || 'http://localhost:5000';
 
 export default function ApplicationsTab({
   applications = [],
+  certApplications = [],
   setSelectedApplication,
   appSearchQuery = '',
   setAppSearchQuery = () => {},
   appStatusFilter = 'all',
   setAppStatusFilter,
   appServiceFilter,
-  setAppServiceFilter
+  setAppServiceFilter,
+  onApproveCert,
+  onRejectCert
 }) {
+  const [activePanel, setActivePanel] = useState('verification'); // 'verification' | 'certification'
   const [sortOrder, setSortOrder] = useState('oldest'); // 'oldest' or 'newest'
   const [currentPage, setCurrentPage] = useState(1);
   const [pageSize, setPageSize] = useState(5);
@@ -26,13 +33,23 @@ export default function ApplicationsTab({
     setCurrentPage(1);
   };
 
-  // Status counts across all loaded applications
-  const counts = {
+  // Status counts across all loaded applications for both panels
+  const verificationCounts = {
     all: applications.length,
     pending: applications.filter(a => (a.approvalStatus || a.status || 'pending').toLowerCase() === 'pending').length,
     approved: applications.filter(a => (a.approvalStatus || a.status || '').toLowerCase() === 'approved').length,
     rejected: applications.filter(a => (a.approvalStatus || a.status || '').toLowerCase() === 'rejected').length,
   };
+
+  const certificationCounts = {
+    all: certApplications.length,
+    pending: certApplications.filter(a => (a.approvalStatus || a.certificationStatus || a.status || 'pending').toLowerCase() === 'pending').length,
+    approved: certApplications.filter(a => (a.approvalStatus || a.certificationStatus || a.status || '').toLowerCase() === 'approved').length,
+    rejected: certApplications.filter(a => (a.approvalStatus || a.certificationStatus || a.status || '').toLowerCase() === 'rejected').length,
+  };
+
+  const currentList = activePanel === 'verification' ? applications : certApplications;
+  const counts = activePanel === 'verification' ? verificationCounts : certificationCounts;
 
   // Status options for the filtering dropdown
   const statusOptions = [
@@ -42,9 +59,9 @@ export default function ApplicationsTab({
     { value: 'rejected', label: 'Rejected' }
   ];
 
-  // Filter and Search logic (filtered strictly by status, not services)
-  const filtered = applications.filter(app => {
-    const appStatus = (app.approvalStatus || app.status || 'pending').toLowerCase();
+  // Filter and Search logic
+  const filtered = currentList.filter(app => {
+    const appStatus = (app.approvalStatus || app.certificationStatus || app.status || 'pending').toLowerCase();
     const matchesStatus = (activeFilter === 'all' || activeFilter === 'all applications' || !activeFilter)
       ? true
       : appStatus === activeFilter;
@@ -55,7 +72,9 @@ export default function ApplicationsTab({
       (app.category && app.category.toLowerCase().includes(q)) ||
       (app.location && app.location.toLowerCase().includes(q)) ||
       (app.email && app.email.toLowerCase().includes(q)) ||
-      (app.phone && app.phone.toLowerCase().includes(q))
+      (app.phone && app.phone.toLowerCase().includes(q)) ||
+      (app.certificationTitle && app.certificationTitle.toLowerCase().includes(q)) ||
+      (app.certificationInstitution && app.certificationInstitution.toLowerCase().includes(q))
     );
 
     return matchesStatus && matchesSearch;
@@ -80,16 +99,50 @@ export default function ApplicationsTab({
 
   return (
     <div className="space-y-6">
+      {/* Dual Panel Toggle Bar (Inspired by CareCreditTab) */}
+      <div className="bg-white border border-[#E2D9CF] rounded-3xl overflow-hidden shadow-sm">
+        <div className="flex border-b border-[#E2D9CF]">
+          {[
+            { id: 'verification', label: 'Provider Verification', count: verificationCounts.pending },
+            { id: 'certification', label: 'Provider Certification', count: certificationCounts.pending }
+          ].map(t => (
+            <button
+              key={t.id}
+              onClick={() => {
+                setActivePanel(t.id);
+                setCurrentPage(1);
+              }}
+              className={`flex-1 py-3.5 text-xs font-bold transition-all cursor-pointer flex items-center justify-center gap-2 ${
+                activePanel === t.id ? 'bg-[#1E4030] text-white' : 'text-[#8A7E74] hover:text-[#1C1A17] hover:bg-[#FAF8F5]'
+              }`}
+            >
+              <span>{t.label}</span>
+              {t.count > 0 && (
+                <span className={`text-[10px] px-2 py-0.5 rounded-full font-bold ${
+                  activePanel === t.id ? 'bg-white/20 text-white' : 'bg-amber-100 text-amber-900 border border-amber-200'
+                }`}>
+                  {t.count} pending
+                </span>
+              )}
+            </button>
+          ))}
+        </div>
+      </div>
+
       {/* Tab Header */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
           <h2 className="text-[#1C1A17] font-display text-xl font-bold flex items-center gap-2">
-            Provider Verification
+            {activePanel === 'verification' ? 'Provider Verification' : 'Provider Certification'}
             <span className="bg-[#FEF3C7] text-amber-800 text-[10px] font-bold px-2.5 py-0.5 rounded-full border border-amber-200">
               {counts.pending} pending
             </span>
           </h2>
-          <p className="text-xs text-[#8A7E74]">Review, filter and manage provider applications and credential approvals.</p>
+          <p className="text-xs text-[#8A7E74]">
+            {activePanel === 'verification'
+              ? 'Review, filter and manage mandatory provider signup applications and credentials.'
+              : 'Review educational certificates and diplomas to grant the official [✓ Certified] quality badge.'}
+          </p>
         </div>
       </div>
 
@@ -210,15 +263,130 @@ export default function ApplicationsTab({
         <div className="divide-y divide-[#EFECE6]">
           {paginated.length === 0 ? (
             <div className="p-12 text-center text-xs text-[#8A7E74]">
-              No applications match your status and search criteria.
+              {activePanel === 'verification'
+                ? 'No verification applications match your status and search criteria.'
+                : 'No certification applications match your status and search criteria.'}
             </div>
           ) : (
             paginated.map((app) => {
-              const statusLower = (app.approvalStatus || app.status || 'pending').toLowerCase();
+              const statusLower = (app.approvalStatus || app.certificationStatus || app.status || 'pending').toLowerCase();
               const isApproved = statusLower === 'approved';
               const isRejected = statusLower === 'rejected';
               const isPending = !isApproved && !isRejected;
 
+              if (activePanel === 'certification') {
+                return (
+                  <div key={app.id} className="p-5 flex flex-col md:flex-row md:items-center justify-between gap-4 transition-colors hover:bg-[#FAF8F5]/30">
+                    <div className="flex items-start gap-4">
+                      {/* Initials Avatar */}
+                      <div className="w-11 h-11 rounded-full bg-emerald-100 text-emerald-800 flex items-center justify-center font-bold text-sm shrink-0 border border-emerald-200 shadow-sm">
+                        {app.initials}
+                      </div>
+
+                      <div className="space-y-1">
+                        <div className="flex flex-wrap items-center gap-2">
+                          <h4 className="font-semibold text-xs text-[#1C1A17]">{app.name}</h4>
+
+                          {/* Status Badge */}
+                          {isApproved && (
+                            <span className="bg-[#EDF7F2] text-[#1D6F42] border border-green-200 text-[9px] font-bold px-2 py-0.5 rounded-full inline-flex items-center gap-1">
+                              <CheckCircle2 size={10} /> Approved
+                            </span>
+                          )}
+                          {isRejected && (
+                            <span className="bg-red-50 text-red-700 border border-red-200 text-[9px] font-bold px-2 py-0.5 rounded-full inline-flex items-center gap-1">
+                              <XCircle size={10} /> Rejected
+                            </span>
+                          )}
+                          {isPending && (
+                            <span className="bg-[#FEF3C7] text-amber-800 border border-amber-200 text-[9px] font-bold px-2 py-0.5 rounded-full inline-flex items-center gap-1">
+                              <Clock size={10} /> Pending
+                            </span>
+                          )}
+
+                          {app.isCertified ? (
+                            <span className="bg-emerald-600 text-white text-[9px] font-bold px-2 py-0.5 rounded-full inline-flex items-center gap-1 shadow-2xs">
+                              <CheckCircle2 size={10} /> Certified Active
+                            </span>
+                          ) : isApproved ? (
+                            <span className="bg-amber-100 text-amber-800 border border-amber-300 text-[9px] font-semibold px-2 py-0.5 rounded-full">
+                              Awaiting 25 XAF Badge Fee
+                            </span>
+                          ) : null}
+
+                          <span className="bg-[#EDE8E1] text-[#1E4030] text-[10px] font-bold px-2.5 py-0.5 rounded-full">
+                            {app.category}
+                          </span>
+
+                          <span className="text-[10px] text-[#8A7E74]">
+                            &middot; {app.location}
+                          </span>
+                        </div>
+
+                        {/* Certification details badges */}
+                        <div className="flex flex-wrap items-center gap-1.5 pt-1">
+                          <span className="inline-flex items-center gap-1 text-[9px] font-semibold px-2 py-0.5 rounded-md bg-green-50 text-green-700 border border-green-200">
+                            <Check size={10} /> ID Verified
+                          </span>
+                          <span className="inline-flex items-center gap-1 text-[9px] font-bold px-2 py-0.5 rounded-md bg-emerald-50 text-emerald-800 border border-emerald-200">
+                            <Award size={10} /> {app.certificationTitle || 'Educational Diploma'}
+                          </span>
+                          {app.certificationInstitution && (
+                            <span className="inline-flex items-center gap-1 text-[9px] font-medium px-2 py-0.5 rounded-md bg-gray-50 text-gray-700 border border-gray-200">
+                              {app.certificationInstitution}
+                            </span>
+                          )}
+                          {app.certificateUrl && (
+                            <a
+                              href={app.certificateUrl.startsWith('http') ? app.certificateUrl : `${API_ORIGIN}${app.certificateUrl}`}
+                              target="_blank"
+                              rel="noreferrer"
+                              className="inline-flex items-center gap-1 text-[9px] font-bold px-2 py-0.5 rounded-md bg-blue-50 text-blue-700 hover:bg-blue-100 border border-blue-200 transition-colors"
+                            >
+                              <FileText size={10} />
+                              <span>View Document</span>
+                            </a>
+                          )}
+                        </div>
+
+                        <p className="text-[10px] text-[#8A7E74] pt-0.5">Applied {app.submissionTime}</p>
+                      </div>
+                    </div>
+
+                    <div className="flex items-center gap-2 self-end md:self-center shrink-0">
+                      <button
+                        onClick={() => setSelectedApplication(app)}
+                        className="bg-[#1E4030] hover:bg-[#152e22] text-white font-bold text-xs px-4 py-2 rounded-xl transition-all flex items-center gap-1 shadow-sm cursor-pointer"
+                      >
+                        <Check size={12} />
+                        Review
+                      </button>
+                      {isPending && onApproveCert && (
+                        <button
+                          onClick={() => onApproveCert(app.id)}
+                          className="bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs px-3.5 py-2 rounded-xl transition-all flex items-center gap-1 cursor-pointer shadow-sm"
+                          title="Quick Approve"
+                        >
+                          <CheckCircle2 size={12} />
+                          Approve
+                        </button>
+                      )}
+                      {isPending && onRejectCert && (
+                        <button
+                          onClick={() => onRejectCert(app.id)}
+                          className="border border-[#FCA5A5] bg-white text-red-600 hover:bg-red-50 font-bold text-xs px-3.5 py-2 rounded-xl transition-all flex items-center gap-1 cursor-pointer"
+                          title="Quick Reject"
+                        >
+                          <XCircle size={12} />
+                          Reject
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                );
+              }
+
+              // Default: activePanel === 'verification'
               return (
                 <div key={app.id} className="p-5 flex flex-col md:flex-row md:items-center justify-between gap-4 transition-colors hover:bg-[#FAF8F5]/30">
                   <div className="flex items-start gap-4">
