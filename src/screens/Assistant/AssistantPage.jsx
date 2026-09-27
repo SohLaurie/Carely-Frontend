@@ -240,7 +240,7 @@ export default function AssistantPage({ open, expanded, onClose, onToggleExpand,
 
   // ── Mini (floating window) Layout ────────────────────────────────────────────
   return (
-    <div className="w-80 sm:w-96 h-[480px] bg-white border border-[#E2D9CF] rounded-2xl shadow-xl flex flex-col overflow-hidden mb-4 animate-fadeIn">
+    <div className="fixed bottom-24 right-4 sm:right-6 z-[9999] w-[calc(100vw-2rem)] sm:w-96 h-[520px] max-h-[calc(100vh-7.5rem)] bg-white border border-[#E2D9CF] rounded-2xl shadow-2xl flex flex-col overflow-hidden animate-fadeIn">
       {/* Header */}
       <div className="bg-[#1E4030] text-white flex items-center justify-between p-4">
         <div className="flex items-center gap-3">

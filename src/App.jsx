@@ -127,7 +127,7 @@ export default function App() {
 
       {/* ── Floating toggle button (hidden when fullscreen) ── */}
       {!chatExpanded && (
-        <div className="fixed bottom-6 right-6 z-[999]">
+        <div className="fixed bottom-6 right-4 sm:right-6 z-[9999]">
           <button
             onClick={() => setChatOpen(p => !p)}
             className="w-14 h-14 bg-[#1E4030] hover:bg-[#152e22] text-white rounded-full flex items-center justify-center shadow-lg transition-transform hover:scale-105 active:scale-95 duration-200 cursor-pointer"
