@@ -19,6 +19,7 @@ import {
   listConversations,
   getMessages,
   sendMessage,
+  sendGuestMessage,
 } from '../../services/assistantApi'
 import { getStoredUser } from '../../services/api'
 
@@ -56,7 +57,7 @@ export default function AssistantPage({ open, expanded, onClose, onToggleExpand,
   const loadConversations = async () => {
     try {
       const list = await listConversations()
-      setConversations(list)
+      setConversations(Array.isArray(list) ? list : [])
     } catch {}
   }
 
@@ -115,11 +116,13 @@ export default function AssistantPage({ open, expanded, onClose, onToggleExpand,
         } catch (authErr) {
           // Auth/conversation error — fall back to stateless guest mode
           console.warn('[Assistant] Authenticated route failed, falling back to guest:', authErr.message)
-          reply = await sendGuestMessage(text, messages.filter(m => m.id !== 'welcome'))
+          const guestRes = await sendGuestMessage(text, messages.filter(m => m.id !== 'welcome'))
+          reply = guestRes?.content || guestRes?.reply || (typeof guestRes === 'string' ? guestRes : '')
         }
       } else {
         // Guest mode
-        reply = await sendGuestMessage(text, messages.filter(m => m.id !== 'welcome'))
+        const guestRes = await sendGuestMessage(text, messages.filter(m => m.id !== 'welcome'))
+        reply = guestRes?.content || guestRes?.reply || (typeof guestRes === 'string' ? guestRes : '')
       }
 
       if (reply) {
@@ -280,24 +283,3 @@ export default function AssistantPage({ open, expanded, onClose, onToggleExpand,
   )
 }
 
-// ── Guest fallback (no auth token) ──────────────────────────────────────────
-// Calls the backend without a conversation ID; backend returns a one-off reply.
-// For now we do a direct Gemini call via the backend's stateless guest route.
-// If that fails, return a helpful canned response.
-async function sendGuestMessage(text, history) {
-  try {
-    const res = await fetch(
-      `${import.meta.env.VITE_API_URL || 'http://localhost:5000'}/api/assistant/guest`,
-      {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ content: text, history: history.map(m => ({ role: m.role, content: m.content })) }),
-      }
-    )
-    if (!res.ok) throw new Error()
-    const data = await res.json()
-    return data.content || data.reply || "I'm here to help! Please log in to get personalised answers."
-  } catch {
-    return "I'm here to help with Carely questions! Log in to unlock personalised answers about your bookings and CareCredits."
-  }
-}

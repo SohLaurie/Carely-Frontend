@@ -35,3 +35,8 @@ export async function deleteConversation(conversationId) {
 export async function renameConversation(conversationId, title) {
   return apiPatch(`${BASE}/${conversationId}`, { title })
 }
+
+// Guest message fallback (stateless one-off query, no auth needed)
+export async function sendGuestMessage(content, history = []) {
+  return apiPost('/assistant/guest', { content, history }, null)
+}
