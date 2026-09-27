@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
-import { Star, MapPin, Clock, ShieldCheck, ArrowRight } from 'lucide-react';
+import { Star, MapPin, Clock, ShieldCheck, ArrowRight, Sparkles } from 'lucide-react';
 import { apiGet, getAvatarUrl } from '../../../../services/api';
+import { getTopQualifiedProviders, providerOffersService } from '../../../../utils/careMatching';
 
 function getInitials(name) {
   const parts = (name || '').trim().split(/\s+/);
@@ -39,6 +40,7 @@ export default function ProviderMatchStep({ data, onSelectProvider, onBack }) {
             pricePerHour: Number(p.price_per_hour) || 50,
             location: p.location || p.city || 'Yaoundé',
             experience: p.experience || (p.experience_yrs ? `${p.experience_yrs} yrs` : '1+ yrs'),
+            experience_yrs: p.experience_yrs,
             bio: p.bio || '',
             rating: parseFloat(p.rating) > 0 ? parseFloat(p.rating) : 5.0,
             reviewCount: p.review_count || 0,
@@ -49,6 +51,7 @@ export default function ProviderMatchStep({ data, onSelectProvider, onBack }) {
               : ['ID Verified', 'Background Checked'],
             approvalStatus: p.approval_status || 'approved',
             subscriptionPaid: Boolean(p.subscription_paid),
+            isCertified: Boolean(p.is_certified),
           }));
           setProviders(list);
         }
@@ -62,14 +65,18 @@ export default function ProviderMatchStep({ data, onSelectProvider, onBack }) {
     return () => { isMounted = false; };
   }, []);
 
-  const displayList = providers.filter(p => {
-    if (!service) return true;
-    const target = (service.specialty || service.id || '').toLowerCase();
-    if (p.specialty && p.specialty.toLowerCase().includes(target)) return true;
-    if (p.specialties?.some(s => s.toLowerCase().includes(target))) return true;
-    if (p.profession && p.profession.toLowerCase().includes(target)) return true;
-    return true;
-  });
+  const serviceKey = service?.specialty || (service?.id ? service.id.replace(/-/g, '_') : null);
+  const locationCity = address?.address?.city || (address?.address?.full ? address.address.full.split(',').pop().trim() : null);
+
+  // 1. Strictly filter providers offering this service (never show cleaners for babysitting)
+  const matchedList = providers.filter(p => providerOffersService(p, serviceKey));
+
+  // 2. Rank by qualification/proficiency in descending order (certified, highest rating, experience)
+  // Max 5 recommendations as requested!
+  const displayList = getTopQualifiedProviders(matchedList, {
+    serviceKey,
+    location: locationCity,
+  }, 5);
 
   const handleRequest = (provider) => {
     setSelected(provider.id);
@@ -79,84 +86,114 @@ export default function ProviderMatchStep({ data, onSelectProvider, onBack }) {
   return (
     <div className="pms-root">
       <div className="pms-header">
-        <h2 className="pms-title">Available Providers</h2>
+        <h2 className="pms-title">Recommended Providers</h2>
         {service && (
           <p className="pms-sub">
-            {displayList.length} provider{displayList.length !== 1 ? 's' : ''} found for{' '}
+            {displayList.length} top-ranked provider{displayList.length !== 1 ? 's' : ''} recommended for{' '}
             <strong>{service.label}</strong>
-            {address?.address?.city ? ` in ${address.address.city}` : ''}
+            {locationCity ? ` in ${locationCity}` : ''} (ordered by qualification)
           </p>
         )}
       </div>
 
       <div className="pms-list">
-        {displayList.map((p, idx) => {
-          const [from, to] = AVATAR_COLORS[idx % AVATAR_COLORS.length];
-          const isSelected = selected === p.id;
-          return (
-            <div key={p.id} className={`pms-card ${isSelected ? 'pms-card--selected' : ''}`}>
-              {/* Avatar */}
-              <div
-                className="pms-avatar overflow-hidden relative"
-                style={{ background: `linear-gradient(135deg, ${from}, ${to})` }}
-              >
-                {p.photo ? (
-                  <img
-                    src={getAvatarUrl(p.photo)}
-                    alt={p.name}
-                    className="w-full h-full object-cover"
-                    onError={(e) => { e.currentTarget.style.display = 'none'; }}
-                  />
-                ) : (
-                  getInitials(p.name)
-                )}
-              </div>
-
-              {/* Info */}
-              <div className="pms-info">
-                <div className="pms-name-row">
-                  <span className="pms-name">{p.name}</span>
-                  {p.available && <span className="pms-badge">Available</span>}
-                </div>
-                <div className="pms-meta">
-                  <span className="pms-meta-item">
-                    <Star size={11} className="pms-star" />
-                    {p.rating}
-                  </span>
-                  <span className="pms-meta-item">
-                    <Clock size={11} />
-                    {p.experience}y exp.
-                  </span>
-                  <span className="pms-meta-item">
-                    <MapPin size={11} />
-                    {p.location.split(',')[0]}
-                  </span>
-                </div>
-                {p.verified && (
-                  <div className="pms-verified">
-                    <ShieldCheck size={11} />
-                    Background checked
-                  </div>
-                )}
-              </div>
-
-              {/* Rate + CTA */}
-              <div className="pms-right">
-                <div className="pms-rate">
-                  <span className="pms-rate-amount">{p.pricePerHour.toLocaleString()}</span>
-                  <span className="pms-rate-unit">FCFA/hr</span>
-                </div>
-                <button
-                  className={`pms-btn ${isSelected ? 'pms-btn--selected' : ''}`}
-                  onClick={() => handleRequest(p)}
+        {displayList.length === 0 ? (
+          <div className="pms-empty-state">
+            <p className="pms-empty-title">
+              No approved providers for {service?.label || 'this service'} available in {locationCity || 'this area'} yet.
+            </p>
+            <p className="pms-empty-desc">
+              To guarantee safety and quality, Carely strictly verifies credentials and never substitutes with unqualified providers (e.g. cleaners for babysitting).
+            </p>
+          </div>
+        ) : (
+          displayList.map((p, idx) => {
+            const [from, to] = AVATAR_COLORS[idx % AVATAR_COLORS.length];
+            const isSelected = selected === p.id;
+            return (
+              <div key={p.id} className={`pms-card ${isSelected ? 'pms-card--selected' : ''}`}>
+                {/* Avatar */}
+                <div
+                  className="pms-avatar overflow-hidden relative"
+                  style={{ background: `linear-gradient(135deg, ${from}, ${to})` }}
                 >
-                  {isSelected ? 'Selected ✓' : 'Request'}
-                  {!isSelected && <ArrowRight size={13} />}
-                </button>
+                  {p.photo ? (
+                    <img
+                      src={getAvatarUrl(p.photo)}
+                      alt={p.name}
+                      className="w-full h-full object-cover"
+                      onError={(e) => { e.currentTarget.style.display = 'none'; }}
+                    />
+                  ) : (
+                    getInitials(p.name)
+                  )}
+                </div>
+
+                {/* Info */}
+                <div className="pms-info">
+                  <div className="pms-name-row flex-wrap">
+                    <span className="pms-name">{p.name}</span>
+                    {idx === 0 && (
+                      <span className="pms-rank-badge pms-rank-badge--top">
+                        <Sparkles size={10} /> #1 Most Qualified
+                      </span>
+                    )}
+                    {idx === 1 && (
+                      <span className="pms-rank-badge">
+                        #2 High Proficiency
+                      </span>
+                    )}
+                    {idx > 1 && (
+                      <span className="pms-rank-badge">
+                        #{idx + 1} Recommended
+                      </span>
+                    )}
+                    {p.isCertified && (
+                      <span className="pms-certified-badge">
+                        <ShieldCheck size={10} /> Certified
+                      </span>
+                    )}
+                    {p.available && <span className="pms-badge">Available</span>}
+                  </div>
+                  <div className="pms-meta">
+                    <span className="pms-meta-item">
+                      <Star size={11} className="pms-star" />
+                      {p.rating}
+                    </span>
+                    <span className="pms-meta-item">
+                      <Clock size={11} />
+                      {p.experience}y exp.
+                    </span>
+                    <span className="pms-meta-item">
+                      <MapPin size={11} />
+                      {p.location ? p.location.split(',')[0] : 'Cameroon'}
+                    </span>
+                  </div>
+                  {p.profession && (
+                    <div className="text-[11px] text-[#5A5248] font-medium truncate">
+                      {p.profession}
+                    </div>
+                  )}
+                </div>
+
+                {/* Rate + CTA */}
+                <div className="pms-right">
+                  <div className="pms-rate">
+                    <span className="pms-rate-amount">{p.pricePerHour.toLocaleString()}</span>
+                    <span className="pms-rate-unit">FCFA/hr</span>
+                  </div>
+                  <button
+                    className={`pms-btn ${isSelected ? 'pms-btn--selected' : ''}`}
+                    onClick={() => handleRequest(p)}
+                  >
+                    {isSelected ? 'Selected ✓' : 'Request'}
+                    {!isSelected && <ArrowRight size={13} />}
+                  </button>
+                </div>
               </div>
-            </div>
-          );
-        })}
+            );
+          })
+        )}
       </div>
 
       <button className="pms-back" onClick={onBack}>← Back</button>
@@ -191,6 +228,32 @@ export default function ProviderMatchStep({ data, onSelectProvider, onBack }) {
           font-size: 0.6rem; font-weight: 700; color: #2D6A4F;
           background: rgba(45,106,79,0.10); border: 1px solid rgba(45,106,79,0.2);
           border-radius: 999px; padding: 1px 7px;
+        }
+        .pms-rank-badge {
+          font-size: 0.6rem; font-weight: 700; color: #5A5248;
+          background: #F5F1EC; border: 1px solid #E2D9CF;
+          border-radius: 999px; padding: 1px 7px;
+          display: inline-flex; align-items: center; gap: 3px;
+        }
+        .pms-rank-badge--top {
+          color: #1E4030; background: #EDF7F2; border-color: #A3D9BE;
+          font-weight: 800;
+        }
+        .pms-certified-badge {
+          font-size: 0.6rem; font-weight: 700; color: #047857;
+          background: #ECFDF5; border: 1px solid #A7F3D0;
+          border-radius: 999px; padding: 1px 7px;
+          display: inline-flex; align-items: center; gap: 3px;
+        }
+        .pms-empty-state {
+          background: #FAF8F5; border: 1.5px dashed #E2D9CF; border-radius: 16px;
+          padding: 2.2rem 1.25rem; text-align: center; margin: 0.5rem 0;
+        }
+        .pms-empty-title {
+          font-size: 0.88rem; font-weight: 700; color: #1C1A17; margin: 0 0 6px;
+        }
+        .pms-empty-desc {
+          font-size: 0.75rem; color: #8A7E74; margin: 0; line-height: 1.5;
         }
         .pms-meta {
           display: flex; flex-wrap: wrap; gap: 7px;

@@ -18,6 +18,7 @@ import {
   toggleArchiveNotification,
   deleteNotificationApi
 } from '../../../services/notificationsApi';
+import { parseUserNeeds, getTopQualifiedProviders } from '../../../utils/careMatching';
 
 function formatNotificationTime(dateStr) {
   if (!dateStr) return 'Recently';
@@ -274,44 +275,82 @@ export function useHouseholdDashboard(screenParams) {
 
     try {
       const data = await apiGet('/providers');
-      const list = (data?.providers || []).filter(p => p.approval_status === 'approved' && p.subscription_paid);
-      const query = aiPrompt.toLowerCase();
-
-      let matched = list[0];
-      if (list.length > 0) {
-        const found = list.find(p => {
-          const prof = (p.profession || '').toLowerCase();
-          const spec = (Array.isArray(p.specialties) ? p.specialties.join(' ') : String(p.specialties || '')).toLowerCase();
-          const loc = (p.location || p.city || '').toLowerCase();
-          const bio = (p.bio || '').toLowerCase();
-          return query.split(' ').some(w => w.length > 3 && (prof.includes(w) || spec.includes(w) || loc.includes(w) || bio.includes(w)));
+      const rawList = data?.providers || [];
+      const mappedList = rawList
+        .filter(p => p.approval_status === 'approved' && p.subscription_paid)
+        .map(p => {
+          const rawSpecialties = Array.isArray(p.specialties)
+            ? p.specialties
+            : (typeof p.specialties === 'string'
+                ? p.specialties.replace(/[{}]/g, '').split(',').map(s => s.trim()).filter(Boolean)
+                : []);
+          return {
+            id: p.id,
+            name: `${p.first_name || ''} ${p.last_name || ''}`.trim() || 'Verified Provider',
+            firstName: p.first_name || '',
+            lastName: p.last_name || '',
+            profession: p.profession || 'Care Provider',
+            specialty: rawSpecialties[0] || (p.profession ? p.profession.toLowerCase().replace(/\s+/g, '_') : 'cleaning'),
+            specialties: rawSpecialties,
+            pricePerHour: Number(p.price_per_hour) || 50,
+            location: p.location || p.city || 'Yaoundé',
+            serviceArea: p.service_area || p.location || p.city || 'Yaoundé',
+            experience: p.experience || (p.experience_yrs ? `${p.experience_yrs} yrs` : '1+ yrs'),
+            experience_yrs: p.experience_yrs,
+            bio: p.bio || '',
+            rating: parseFloat(p.rating) > 0 ? parseFloat(p.rating) : 5.0,
+            reviewCount: p.review_count || 0,
+            photo: p.photo_url || null,
+            available: p.is_available !== false,
+            approvalStatus: p.approval_status || 'approved',
+            subscriptionPaid: Boolean(p.subscription_paid),
+            isCertified: Boolean(p.is_certified),
+            certificationStatus: p.certification_status || 'none',
+          };
         });
-        if (found) matched = found;
-      }
 
-      if (matched) {
-        const matchedName = `${matched.first_name || ''} ${matched.last_name || ''}`.trim() || 'Verified Provider';
-        const matchedProf = matched.profession || 'Care Provider';
-        const matchedLoc = matched.location || matched.city || 'Yaoundé';
-        const matchedExp = matched.experience || (matched.experience_yrs ? `${matched.experience_yrs} yrs` : 'experienced');
-        const reason = `Based on your request, we recommend ${matchedName} (${matchedProf} in ${matchedLoc}, ${matchedExp} experience). Verified and registered on Carely.`;
+      const criteria = parseUserNeeds(aiPrompt);
+      const recommendations = getTopQualifiedProviders(mappedList, criteria, 5);
 
-        setAiLoading(false);
-        setAiResult({ matchedId: matched.id, message: reason });
-        setSelectedId(matched.id);
-        if (matched.specialties?.[0] || matched.profession) {
-          setFilterSpecialty((matched.specialties?.[0] || matched.profession).toLowerCase().replace(/\s+/g, '_'));
+      if (recommendations.length > 0) {
+        const topMatch = recommendations[0];
+        setAiResult({
+          criteria,
+          matchedId: topMatch.id,
+          recommendations, // Array of up to 5 qualified providers in descending order!
+          message: `Found ${recommendations.length} verified provider${recommendations.length > 1 ? 's' : ''} for ${criteria.serviceLabel || 'your needs'}${criteria.location ? ` in ${criteria.location}` : ''}, ranked from most qualified to least.`,
+        });
+
+        setSelectedId(topMatch.id);
+        if (criteria.serviceKey) {
+          setFilterSpecialty(criteria.serviceKey);
         }
-        if (matched.location || matched.city) {
-          setFilterLocation(matched.location || matched.city);
+        if (criteria.location) {
+          setFilterLocation(criteria.location);
+        }
+        if (criteria.budget) {
+          setMaxBudget(String(criteria.budget));
         }
       } else {
-        setAiLoading(false);
-        setAiResult({ message: 'No registered providers match your query. Explore all verified providers below.' });
+        const reason = criteria.serviceLabel
+          ? `No approved providers strictly match "${criteria.serviceLabel}"${criteria.location ? ` in ${criteria.location}` : ''} yet. To protect your family, we never substitute with an unqualified service (e.g. cleaners for babysitting).`
+          : 'No registered providers match your query. Explore all verified providers below.';
+        setAiResult({
+          criteria,
+          matchedId: null,
+          recommendations: [],
+          message: reason,
+        });
       }
     } catch (err) {
+      setAiResult({
+        criteria: null,
+        matchedId: null,
+        recommendations: [],
+        message: 'Unable to match right now. Please explore registered providers below.',
+      });
+    } finally {
       setAiLoading(false);
-      setAiResult({ message: 'Unable to match right now. Please explore registered providers below.' });
     }
   };
 

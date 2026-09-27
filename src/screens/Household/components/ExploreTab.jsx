@@ -347,29 +347,120 @@ export default function ExploreTab({
 
         {/* AI Matching Result Block */}
         {aiResult && (
-          <div className="w-full bg-[#EDF7F2] border border-green-200 rounded-2xl p-5 shadow-sm space-y-3 animate-fadeIn">
-            <div className="flex items-center gap-2 text-xs font-bold text-green-800">
-              <div className="w-5 h-5 rounded-full bg-green-200 flex items-center justify-center shrink-0">
-                <Check size={12} strokeWidth={3} className="text-green-800" />
+          <div className="w-full bg-[#FAF8F5] border-2 border-emerald-300 rounded-3xl p-5 sm:p-6 shadow-sm space-y-4 animate-fadeIn">
+            <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2 border-b border-[#E2D9CF] pb-3">
+              <div className="flex items-center gap-2 text-xs font-bold text-emerald-800">
+                <div className="w-6 h-6 rounded-full bg-emerald-100 flex items-center justify-center shrink-0">
+                  <Sparkles size={14} className="text-emerald-700" />
+                </div>
+                <span>Carely AI Top Recommendations (Ranked by Qualification)</span>
               </div>
-              Carely AI Best Match Recommendation
+              {aiResult.criteria?.serviceLabel && (
+                <span className="text-[11px] font-semibold bg-emerald-100/70 text-emerald-900 px-2.5 py-0.5 rounded-full border border-emerald-300">
+                  Service: {aiResult.criteria.serviceLabel}
+                </span>
+              )}
             </div>
-            <p className="text-xs text-[#1C1A17] leading-relaxed font-medium">
+
+            <p className="text-xs text-[#5A5248] leading-relaxed font-medium">
               {aiResult.message}
             </p>
-            {aiResult.matchedId && (
-              <div className="pt-1 flex items-center gap-3">
-                <button
-                  onClick={() => {
-                    const matched = providers.find(c => c.id === aiResult.matchedId) || providers[0];
-                    if (matched) {
-                      setModalCaregiver(matched);
-                    }
-                  }}
-                  className="bg-[#1E4030] hover:bg-[#152e22] text-white text-xs font-bold px-4 py-2 rounded-xl transition-colors inline-flex items-center gap-1.5 cursor-pointer shadow-xs"
-                >
-                  View Matched Profile &rarr;
-                </button>
+
+            {Array.isArray(aiResult.recommendations) && aiResult.recommendations.length > 0 && (
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3.5 pt-1">
+                {aiResult.recommendations.map((p, idx) => (
+                  <div
+                    key={p.id}
+                    className="bg-white border-1.5 border-[#E2D9CF] hover:border-[#1E4030] rounded-2xl p-4 shadow-xs hover:shadow-md transition-all flex flex-col justify-between space-y-3 relative overflow-hidden group"
+                  >
+                    <div className="flex items-center justify-between gap-2">
+                      <span className={`inline-flex items-center gap-1 text-[10px] font-extrabold px-2 py-0.5 rounded-full ${
+                        idx === 0
+                          ? 'bg-[#1E4030] text-white shadow-xs'
+                          : idx === 1
+                          ? 'bg-emerald-100 text-emerald-900 border border-emerald-300 font-bold'
+                          : 'bg-[#FAF8F5] text-[#5A5248] border border-[#E2D9CF]'
+                      }`}>
+                        {idx === 0 && <Sparkles size={10} className="text-amber-300" />}
+                        #{idx + 1} {idx === 0 ? 'Top Match' : idx === 1 ? 'High Qualification' : 'Recommended'}
+                      </span>
+                      {p.isCertified && (
+                        <span className="inline-flex items-center gap-1 text-[10px] font-bold text-emerald-700 bg-emerald-50 border border-emerald-200 px-2 py-0.5 rounded-full">
+                          <ShieldCheck size={11} /> Certified
+                        </span>
+                      )}
+                    </div>
+
+                    <div className="flex items-start gap-3">
+                      <div className="w-12 h-12 rounded-xl overflow-hidden bg-[#EDF7F2] text-[#1E4030] font-bold text-sm shrink-0 border border-[#E2D9CF] flex items-center justify-center">
+                        {p.photo ? (
+                          <img
+                            src={getAvatarUrl(p.photo)}
+                            alt={p.name}
+                            className="w-full h-full object-cover"
+                            onError={(e) => { e.currentTarget.style.display = 'none'; }}
+                          />
+                        ) : (
+                          getInitials(p.name)
+                        )}
+                      </div>
+
+                      <div className="min-w-0 flex-1 space-y-0.5">
+                        <h4 className="font-bold text-sm text-[#1C1A17] group-hover:text-[#1E4030] transition-colors truncate">
+                          {p.name}
+                        </h4>
+                        <div className="text-[11px] font-semibold text-[#1E4030] truncate">
+                          {p.profession}
+                        </div>
+                        <div className="flex items-center gap-2 text-[11px] text-[#8A7E74]">
+                          <span className="flex items-center gap-0.5 font-bold text-[#1C1A17]">
+                            <Star size={11} className="text-amber-400 fill-amber-400" />
+                            {p.rating} ({p.reviewCount || 0})
+                          </span>
+                          <span>&middot;</span>
+                          <span>{p.experience}</span>
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="flex items-center justify-between text-xs pt-2 border-t border-[#F5F1EC]">
+                      <span className="flex items-center gap-1 text-[#8A7E74] truncate">
+                        <MapPin size={11} className="text-[#1E4030] shrink-0" />
+                        <span className="truncate">{p.location ? p.location.split(',')[0] : 'Cameroon'}</span>
+                      </span>
+                      <span className="font-extrabold text-[#1E4030] shrink-0">
+                        {p.pricePerHour.toLocaleString()} XAF/hr
+                      </span>
+                    </div>
+
+                    <div className="flex items-center gap-2 pt-1">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setSelectedId(p.id);
+                          setModalCaregiver(p);
+                        }}
+                        className="flex-1 bg-[#FAF8F5] hover:bg-[#EDF7F2] text-[#1E4030] border border-[#E2D9CF] text-xs font-semibold py-1.5 rounded-xl transition-colors cursor-pointer text-center"
+                      >
+                        Profile
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setSelectedId(p.id);
+                          if (openBookingWizard) {
+                            openBookingWizard({ initialProvider: p });
+                          } else if (onNavigate) {
+                            onNavigate('booking', { caregiver: p });
+                          }
+                        }}
+                        className="flex-1 bg-[#1E4030] hover:bg-[#152e22] text-white text-xs font-bold py-1.5 rounded-xl transition-all shadow-xs cursor-pointer text-center"
+                      >
+                        Book Now &rarr;
+                      </button>
+                    </div>
+                  </div>
+                ))}
               </div>
             )}
           </div>
