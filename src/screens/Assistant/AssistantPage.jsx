@@ -89,33 +89,44 @@ export default function AssistantPage({ open, expanded, onClose, onToggleExpand,
 
     try {
       let convoId = activeConvoId
+      let reply = null
 
-      // Create a new conversation if needed (logged-in users)
-      if (!convoId && isLoggedIn) {
-        const convo = await createConversation(text)
-        convoId = convo.id
-        setActiveConvoId(convoId)
-        setConversations(prev => [convo, ...prev])
+      if (isLoggedIn) {
+        try {
+          // Create a new conversation if needed (logged-in users)
+          if (!convoId) {
+            const convo = await createConversation(text)
+            convoId = convo.id
+            setActiveConvoId(convoId)
+            setConversations(prev => [convo, ...prev])
+          }
+
+          // Send via API — backend calls Gemini and persists both messages
+          const apiReply = await sendMessage(convoId, text)
+          reply = apiReply.content
+
+          // Bump conversation to top
+          setConversations(prev => {
+            const updated = prev.map(c =>
+              c.id === convoId ? { ...c, updated_at: new Date().toISOString() } : c
+            )
+            return [...updated].sort((a, b) => new Date(b.updated_at) - new Date(a.updated_at))
+          })
+        } catch (authErr) {
+          // Auth/conversation error — fall back to stateless guest mode
+          console.warn('[Assistant] Authenticated route failed, falling back to guest:', authErr.message)
+          reply = await sendGuestMessage(text, messages.filter(m => m.id !== 'welcome'))
+        }
+      } else {
+        // Guest mode
+        reply = await sendGuestMessage(text, messages.filter(m => m.id !== 'welcome'))
       }
 
-      if (isLoggedIn && convoId) {
-        // Send via API — backend calls Gemini and persists both messages
-        const reply = await sendMessage(convoId, text)
-        setMessages(prev => [...prev, reply])
-        // Bump conversation to top
-        setConversations(prev => {
-          const updated = prev.map(c =>
-            c.id === convoId ? { ...c, updated_at: new Date().toISOString() } : c
-          )
-          return [...updated].sort((a, b) => new Date(b.updated_at) - new Date(a.updated_at))
-        })
-      } else {
-        // Guest mode: call the backend guest endpoint (no conversation storage)
-        // Falls back to a simple local mock if user is not logged in
-        const reply = await sendGuestMessage(text, messages.filter(m => m.id !== 'welcome'))
+      if (reply) {
         setMessages(prev => [...prev, { id: `a-${Date.now()}`, role: 'assistant', content: reply }])
       }
     } catch (err) {
+      console.error('[Assistant] Fatal error in handleSend:', err)
       setMessages(prev => [
         ...prev,
         {
