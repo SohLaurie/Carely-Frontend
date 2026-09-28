@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react'
 import { useNavigate, useLocation } from 'react-router-dom'
 import { Bot, X } from 'lucide-react'
 import AssistantPage from './screens/Assistant/AssistantPage'
+import { getStoredUser } from './services/api'
 
 import Landing from './screens/Landing'
 import HouseholdDashboard from './screens/Household/Dashboard'
@@ -90,6 +91,21 @@ export default function App() {
   const nav = { onNavigate: handleNavigate, currentScreen: screen, screenParams }
 
 
+  // Track current logged-in user so components react to login/logout/switch immediately
+  const [currentUser, setCurrentUser] = useState(getStoredUser)
+
+  useEffect(() => {
+    const handleAuthChange = () => setCurrentUser(getStoredUser())
+    window.addEventListener('carely_user_updated', handleAuthChange)
+    window.addEventListener('carely_auth_cleared', handleAuthChange)
+    window.addEventListener('storage', handleAuthChange)
+    return () => {
+      window.removeEventListener('carely_user_updated', handleAuthChange)
+      window.removeEventListener('carely_auth_cleared', handleAuthChange)
+      window.removeEventListener('storage', handleAuthChange)
+    }
+  }, [])
+
   // Carely Assistant state
   const [chatOpen, setChatOpen] = useState(false)
   const [chatExpanded, setChatExpanded] = useState(false)
@@ -118,6 +134,8 @@ export default function App() {
 
       {/* ── Carely Assistant (fullscreen or mini floating) ── */}
       <AssistantPage
+        key={currentUser?.id || 'guest'}
+        currentUser={currentUser}
         open={chatOpen}
         expanded={chatExpanded}
         onClose={() => { setChatOpen(false); setChatExpanded(false) }}

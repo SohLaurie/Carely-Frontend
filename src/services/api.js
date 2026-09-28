@@ -41,6 +41,10 @@ export function clearAuth() {
   localStorage.removeItem('carely_access_token')
   localStorage.removeItem('carely_refresh_token')
   localStorage.removeItem('carely_user')
+  if (typeof window !== 'undefined') {
+    window.dispatchEvent(new CustomEvent('carely_auth_cleared'))
+    window.dispatchEvent(new CustomEvent('carely_user_updated', { detail: null }))
+  }
 }
 
 export function getUserInitials(user, fallback = 'U') {

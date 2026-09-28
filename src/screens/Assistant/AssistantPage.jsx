@@ -29,9 +29,31 @@ const WELCOME_MSG = {
   content: "Hello! I'm Carely Assistant 👋 I can help you with bookings, CareCredits, provider info, and anything else about the Carely platform. How can I help you today?",
 }
 
-export default function AssistantPage({ open, expanded, onClose, onToggleExpand, onNavigateLogin }) {
-  const user = getStoredUser()
-  const isLoggedIn = !!user
+export default function AssistantPage({ currentUser: propUser, open, expanded, onClose, onToggleExpand, onNavigateLogin }) {
+  const [currentUser, setCurrentUser] = useState(() => propUser || getStoredUser())
+  const isLoggedIn = !!currentUser
+
+  // Synchronize currentUser with localStorage & auth events
+  useEffect(() => {
+    const handleAuth = () => {
+      setCurrentUser(getStoredUser())
+    }
+    window.addEventListener('carely_user_updated', handleAuth)
+    window.addEventListener('carely_auth_cleared', handleAuth)
+    window.addEventListener('storage', handleAuth)
+    return () => {
+      window.removeEventListener('carely_user_updated', handleAuth)
+      window.removeEventListener('carely_auth_cleared', handleAuth)
+      window.removeEventListener('storage', handleAuth)
+    }
+  }, [])
+
+  // Sync if propUser changes
+  useEffect(() => {
+    if (propUser !== undefined) {
+      setCurrentUser(propUser)
+    }
+  }, [propUser])
 
   const [sidebarOpen, setSidebarOpen] = useState(true)
   const [conversations, setConversations] = useState([])
@@ -40,25 +62,43 @@ export default function AssistantPage({ open, expanded, onClose, onToggleExpand,
   const [loading, setLoading] = useState(false)
   const [convoLoading, setConvoLoading] = useState(false)
 
+  // Critical: Reset chat state completely whenever user identity changes (login, logout, account switch)
+  const currentUserId = currentUser?.id || null
+  const prevUserIdRef = useRef(currentUserId)
+
+  useEffect(() => {
+    if (prevUserIdRef.current !== currentUserId) {
+      prevUserIdRef.current = currentUserId
+      setActiveConvoId(null)
+      setConversations([])
+      setMessages([WELCOME_MSG])
+      if (currentUserId && open) {
+        loadConversations()
+      }
+    }
+  }, [currentUserId, open])
+
   // Load conversations list when opened (logged-in users only)
   useEffect(() => {
-    if (open && isLoggedIn && expanded) {
+    if (open && isLoggedIn) {
       loadConversations()
     }
-  }, [open, isLoggedIn, expanded])
+  }, [open, isLoggedIn])
 
-  // Also load when expanding
+  // Also reload when expanding
   useEffect(() => {
     if (expanded && isLoggedIn) {
       loadConversations()
     }
-  }, [expanded])
+  }, [expanded, isLoggedIn])
 
   const loadConversations = async () => {
     try {
       const list = await listConversations()
       setConversations(Array.isArray(list) ? list : [])
-    } catch {}
+    } catch {
+      setConversations([])
+    }
   }
 
   const handleNewChat = () => {
@@ -99,12 +139,27 @@ export default function AssistantPage({ open, expanded, onClose, onToggleExpand,
             const convo = await createConversation(text)
             convoId = convo.id
             setActiveConvoId(convoId)
-            setConversations(prev => [convo, ...prev])
+            setConversations(prev => [convo, ...prev.filter(c => c.id !== convo.id)])
           }
 
-          // Send via API — backend calls Gemini and persists both messages
-          const apiReply = await sendMessage(convoId, text)
-          reply = apiReply.content
+          let apiReply
+          try {
+            apiReply = await sendMessage(convoId, text)
+          } catch (sendErr) {
+            // If the conversation ID belongs to another session or was deleted (404),
+            // auto-create a new conversation for this user rather than silently dropping to guest!
+            if (sendErr?.status === 404) {
+              const freshConvo = await createConversation(text)
+              convoId = freshConvo.id
+              setActiveConvoId(convoId)
+              setConversations(prev => [freshConvo, ...prev.filter(c => c.id !== freshConvo.id)])
+              apiReply = await sendMessage(convoId, text)
+            } else {
+              throw sendErr
+            }
+          }
+
+          reply = apiReply?.content
 
           // Bump conversation to top
           setConversations(prev => {
@@ -114,10 +169,14 @@ export default function AssistantPage({ open, expanded, onClose, onToggleExpand,
             return [...updated].sort((a, b) => new Date(b.updated_at) - new Date(a.updated_at))
           })
         } catch (authErr) {
-          // Auth/conversation error — fall back to stateless guest mode
-          console.warn('[Assistant] Authenticated route failed, falling back to guest:', authErr.message)
-          const guestRes = await sendGuestMessage(text, messages.filter(m => m.id !== 'welcome'))
-          reply = guestRes?.content || guestRes?.reply || (typeof guestRes === 'string' ? guestRes : '')
+          // If token expired (401), fall back to stateless guest mode
+          if (authErr?.status === 401) {
+            console.warn('[Assistant] Auth expired, falling back to guest:', authErr.message)
+            const guestRes = await sendGuestMessage(text, messages.filter(m => m.id !== 'welcome'))
+            reply = guestRes?.content || guestRes?.reply || (typeof guestRes === 'string' ? guestRes : '')
+          } else {
+            throw authErr
+          }
         }
       } else {
         // Guest mode
