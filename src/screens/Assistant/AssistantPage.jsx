@@ -10,7 +10,7 @@
  *  - Logged-in: conversations persisted to DB, sidebar shows history
  *  - Guest: chat works but history lives in local state only, sidebar shows login prompt
  */
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useRef } from 'react'
 import { Bot, X, Maximize2, Minimize2, PanelLeftOpen, PanelLeftClose } from 'lucide-react'
 import AssistantChat from './AssistantChat'
 import AssistantSidebar from './AssistantSidebar'
