@@ -1,4 +1,4 @@
-﻿import React from 'react'
+import React from 'react'
 import {
   Calendar, Clock, Wallet, ShieldCheck, TrendingUp, X,
   HeartHandshake, AlertCircle, Phone, Sparkles, Check,
@@ -346,13 +346,9 @@ export default function BookingDetailsModal({ details, onClose }) {
                 <span>Rate ({details.rate || 'Rate'} x {details.hours || '1'}h x {details.sessionsCount || '1'} sessions)</span>
                 <span className="text-[#1C1A17] font-semibold">{details.subtotal || details.price}</span>
               </div>
-              <div className="flex justify-between">
-                <span>Carely Platform Fee</span>
-                <span className="text-red-500 font-semibold">- {details.serviceFee || '5 XAF'}</span>
-              </div>
               <div className="flex justify-between border-t border-[#EFECE6] pt-2.5 font-bold text-sm">
-                <span className="text-[#1C1A17]">Your Total Payout</span>
-                <span className="text-[#1E4030]">{details.total || details.price}</span>
+                <span className="text-[#1C1A17]">Your Net Earnings</span>
+                <span className="text-[#1E4030]">{details.subtotal || details.price}</span>
               </div>
             </div>
 

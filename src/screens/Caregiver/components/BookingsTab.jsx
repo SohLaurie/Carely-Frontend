@@ -91,7 +91,9 @@ export default function BookingsTab({
             arrivalOtp: b.sessions?.[0]?.otp_code || '—',
             needsOtp: b.status === 'confirmed',
             photo: (isProvider ? b.booker?.photoUrl : b.provider?.photoUrl) || null,
-            summary: b.notes || 'Carely verified booking session.'
+            notes: b.notes || '',
+            summary: b.notes || 'Carely verified booking session.',
+            rawBooking: b
           };
         });
 
@@ -672,14 +674,9 @@ export default function BookingsTab({
                     <span className="font-semibold text-[#1C1A17]">{subtotal.toLocaleString()} XAF</span>
                   </div>
 
-                  <div className="flex justify-between text-[#8A7E74]">
-                    <span>Platform Fee (Escrow Protection)</span>
-                    <span className="font-semibold text-[#1E4030]">{fee.toLocaleString()} XAF</span>
-                  </div>
-
                   <div className="pt-2 border-t border-[#E2D9CF] flex justify-between font-bold text-sm text-[#1E4030]">
-                    <span className="text-[#1C1A17]">Total Escrow Amount</span>
-                    <span className="text-base">{total.toLocaleString()} XAF</span>
+                    <span className="text-[#1C1A17]">Your Net Earnings</span>
+                    <span className="text-base">{subtotal.toLocaleString()} XAF</span>
                   </div>
                 </div>
 

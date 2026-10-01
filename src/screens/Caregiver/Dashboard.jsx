@@ -1294,18 +1294,20 @@ export default function CaregiverDashboard({ onNavigate }) {
                       </div>
                     ) : (
                       /* If session is ARRIVED or in_progress: Show Mark Job Complete and Report Unable to Complete buttons */
-                      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pt-2 bg-[#EDF7F2]/60 p-4 rounded-2xl border border-green-200">
-                        <div className="space-y-0.5">
-                          <span className="text-xs font-bold text-[#1E4030] flex items-center gap-1.5">
-                            <CheckCircle2 size={14} className="text-[#1E4030]" />
-                            Arrival Confirmed &middot; On-Site Work In Progress
+                      <div className="pt-2 bg-[#EDF7F2]/60 p-5 rounded-2xl border border-green-200 space-y-4">
+                        {/* Status Text — full width */}
+                        <div className="space-y-1">
+                          <span className="text-sm font-bold text-[#1E4030] flex items-center gap-2">
+                            <CheckCircle2 size={16} className="text-[#1E4030] shrink-0" />
+                            Arrival Confirmed · On-Site Work In Progress
                           </span>
-                          <p className="text-[11px] text-[#5A5248]">
-                            When service is finished, mark complete below, or report early departure if an emergency arose.
+                          <p className="text-xs text-[#5A5248] leading-relaxed pl-6">
+                            When the service is finished, mark the job complete below. If an emergency arose and you had to leave early, use the report button.
                           </p>
                         </div>
 
-                        <div className="flex items-center gap-2 flex-wrap sm:flex-nowrap">
+                        {/* Action Buttons — clean row */}
+                        <div className="flex items-center gap-3 flex-wrap">
                           <button
                             type="button"
                             disabled={completingJob}
@@ -1314,9 +1316,9 @@ export default function CaregiverDashboard({ onNavigate }) {
                               setReportUnableError('')
                               setReportUnableOpen(true)
                             }}
-                            className="border border-amber-300 bg-white hover:bg-amber-50 text-amber-800 font-bold text-xs px-3.5 py-2.5 rounded-xl transition-all flex items-center justify-center gap-1.5 shadow-2xs cursor-pointer active:scale-95 whitespace-nowrap disabled:opacity-50"
+                            className="flex-1 sm:flex-none border border-amber-300 bg-white hover:bg-amber-50 text-amber-800 font-bold text-xs px-4 py-2.5 rounded-xl transition-all flex items-center justify-center gap-1.5 shadow-2xs cursor-pointer active:scale-95 disabled:opacity-50"
                           >
-                            <AlertTriangle size={13} className="text-amber-600" />
+                            <AlertTriangle size={13} className="text-amber-600 shrink-0" />
                             <span>Report Unable to Complete</span>
                           </button>
 
@@ -1324,9 +1326,9 @@ export default function CaregiverDashboard({ onNavigate }) {
                             type="button"
                             disabled={completingJob}
                             onClick={handleProviderMarkJobComplete}
-                            className="bg-[#1E4030] hover:bg-[#152e22] text-white font-bold text-xs px-4 py-2.5 rounded-xl transition-all flex items-center justify-center gap-2 shadow-sm cursor-pointer active:scale-95 whitespace-nowrap disabled:opacity-50"
+                            className="flex-1 sm:flex-none bg-[#1E4030] hover:bg-[#152e22] text-white font-bold text-xs px-5 py-2.5 rounded-xl transition-all flex items-center justify-center gap-2 shadow-sm cursor-pointer active:scale-95 disabled:opacity-50"
                           >
-                            <CheckCircle2 size={14} />
+                            <CheckCircle2 size={14} className="shrink-0" />
                             <span>{completingJob ? 'Completing...' : 'Mark Job Complete'}</span>
                           </button>
                         </div>
