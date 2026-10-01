@@ -25,6 +25,7 @@ import HomeTab from '../Household/components/HomeTab'
 import ExploreTab from '../Household/components/ExploreTab'
 import DiscussionsTab from '../Household/components/DiscussionsTab'
 import ReferEarnTab from '../Household/components/ReferEarnTab'
+import SavedTab from '../Household/components/SavedTab'
 import BookingWizard from '../Household/components/booking/BookingWizard'
 import Payment from '../Household/screens/Payment'
 import BookingConfirmed from '../Household/screens/BookingConfirmed'
@@ -815,7 +816,7 @@ export default function CaregiverDashboard({ onNavigate }) {
       openBookingWizard(params)
     } else if (target === 'discussions' && (params?.recipientId || params?.id || params?.caregiver || params?.booker_id || params?.clientName || params?.name)) {
       openDiscussionWithCaregiver(params?.caregiver || params)
-    } else if (['payment', 'confirmed', 'home', 'explore', 'discussions', 'requests', 'bookings', 'calendar', 'earnings', 'carecred', 'reviews', 'notifications', 'refer', 'profile', 'overview'].includes(target)) {
+    } else if (['payment', 'confirmed', 'home', 'explore', 'discussions', 'requests', 'bookings', 'calendar', 'earnings', 'carecred', 'saved', 'reviews', 'notifications', 'refer', 'profile', 'overview'].includes(target)) {
 
       setActiveTab(target)
     } else if (onNavigate) {
@@ -2000,6 +2001,17 @@ export default function CaregiverDashboard({ onNavigate }) {
       {/* ─── 5b. CARECRED TAB ─── */}
       {activeTab === 'carecred' && (
         <CareCreditTab />
+      )}
+
+      {/* ─── 5c. SAVED PROVIDERS TAB ─── */}
+      {activeTab === 'saved' && (
+        <SavedTab
+          setSelectedId={(id) => {
+            setSelectedId(id)
+            setActiveTab('explore')
+          }}
+          setActiveTab={setActiveTab}
+        />
       )}
 
       {/* ─── 6. REVIEWS TAB (FULL WIDTH) ─── */}

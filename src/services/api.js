@@ -81,7 +81,11 @@ async function request(method, path, body, token) {
     path.startsWith('/auth/forgot-password') ||
     path.startsWith('/auth/reset-password')
 
-  const authToken = (token !== false && token !== null && !isPublicAuthRoute) ? (token || getAccessToken()) : token
+  // If an explicit token is passed (even on auth routes like provider upgrade), use it.
+  // Otherwise, default to getAccessToken() for all protected routes.
+  const authToken = token !== undefined
+    ? token
+    : (body?.isUpgrade ? getAccessToken() : (!isPublicAuthRoute ? getAccessToken() : null))
   if (authToken) headers['Authorization'] = `Bearer ${authToken}`
 
 

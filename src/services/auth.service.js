@@ -94,7 +94,12 @@ export async function registerProvider(data) {
   const specialties = Array.from(new Set([primary, ...extras]))
   if (specialties.length === 0) specialties.push('cleaning')
 
+  const storedUser = getStoredUser()
+  const token = getAccessToken()
+  const isUpgrade = Boolean(data.isUpgrade || (storedUser && storedUser.role === 'client' && storedUser.email === data.email))
+
   const payload = {
+    isUpgrade,
     firstName:      data.firstName,
     lastName:       data.lastName,
     email:          data.email,
@@ -114,8 +119,8 @@ export async function registerProvider(data) {
     serviceArea:    data.workingAreas ? data.workingAreas.join(', ') : null,
     serviceRadius:  data.travelDistance || data.serviceRadius || '15 km',
     languages:      data.languages || null,
-    pricePerHour:   data.hourlyRate ? parseFloat(data.hourlyRate) || 50 : 50,
-    hourlyRate:     data.hourlyRate ? parseFloat(data.hourlyRate) || 50 : 50,
+    pricePerHour:   data.hourlyRate ? parseFloat(data.hourlyRate) || 500 : 500,
+    hourlyRate:     data.hourlyRate ? parseFloat(data.hourlyRate) || 500 : 500,
     referenceName:  data.referenceName  || null,
     referencePhone: data.referencePhone || null,
     idDocumentUrl:       data.idDocUrl || null,
@@ -126,8 +131,16 @@ export async function registerProvider(data) {
     certificateName:     data.certDocName || null,
   }
 
-  // POST — provider registration (no token needed, fresh registration)
-  const result = await apiPost('/auth/register/provider', payload, null)
+  // Pass token when upgrading so backend identifies the user
+  const authToken = isUpgrade && token ? token : null
+  const result = await apiPost('/auth/register/provider', payload, authToken)
+  if (result && result.user && (result.accessToken || result.token)) {
+    storeAuth({
+      accessToken: result.accessToken || result.token,
+      refreshToken: result.refreshToken,
+      user: result.user
+    })
+  }
   return result
 }
 

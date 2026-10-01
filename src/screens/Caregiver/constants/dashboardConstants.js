@@ -19,7 +19,7 @@ export const NAVIGATION_ITEMS = [
   { id: 'calendar', label: 'Calendar', badge: null },
   { id: 'earnings', label: 'Earnings', badge: null },
   { id: 'carecred', label: 'CareCred', badge: null },
-
+  { id: 'saved', label: 'Saved', badge: null },
   { id: 'reviews', label: 'Reviews', badge: null },
   { id: 'notifications', label: 'Notifications', badge: 5 },
   { id: 'refer', label: 'Refer & Earn', badge: null }

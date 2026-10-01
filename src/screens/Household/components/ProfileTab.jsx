@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { User, Mail, Phone, MapPin, ShieldCheck, Check, Save, Camera, Globe, Star, Lock, Loader2, AlertCircle } from 'lucide-react';
+import { User, Mail, Phone, MapPin, ShieldCheck, Check, Save, Camera, Globe, Star, Lock, Loader2, AlertCircle, Briefcase, Sparkles, ArrowRight } from 'lucide-react';
 import { getStoredUser, getUserInitials, getAvatarUrl } from '../../../services/api.js';
 import { fetchCurrentProfile, updateCurrentProfile } from '../../../services/auth.service.js';
 import { compressAndReadImage } from '../../../utils/imageUtils.js';
@@ -240,6 +240,59 @@ export default function ProfileTab({ onNavigate }) {
           </div>
         </div>
       </div>
+
+      {/* ── Upgrade to Pro Account Card (Become a Provider) ── */}
+      {(user?.role === 'client' || storedUser?.role === 'client' || !user?.role) && (
+        <div className="bg-gradient-to-br from-[#FAF8F5] via-white to-[#EDF7F2]/60 border border-[#E2D9CF] rounded-3xl p-6 sm:p-7 shadow-sm space-y-4">
+          <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+            <div className="flex items-start gap-4">
+              <div className="w-12 h-12 rounded-2xl bg-[#EDF7F2] border border-green-200/80 text-[#1E4030] flex items-center justify-center shrink-0 shadow-2xs">
+                <Briefcase size={22} className="text-[#1E4030]" />
+              </div>
+              <div>
+                <div className="flex items-center gap-2">
+                  <span className="text-[10px] font-bold text-[#1E4030] bg-[#EDF7F2] px-2.5 py-0.5 rounded-full border border-green-200/60 uppercase tracking-wider flex items-center gap-1">
+                    <Sparkles size={11} />
+                    Become a Care Provider
+                  </span>
+                </div>
+                <h4 className="font-display text-xl font-bold text-[#1C1A17] mt-1">Upgrade to Pro Account</h4>
+                <p className="text-xs text-[#8A7E74] mt-1 max-w-xl leading-relaxed">
+                  Start offering professional care services (nursing, childcare, housekeeping, or elder care) to verified families across Cameroon. Set your hourly rates and manage your own schedule.
+                </p>
+              </div>
+            </div>
+            <button
+              type="button"
+              onClick={() => {
+                const targetEmail = formData.email || user?.email || storedUser?.email || '';
+                if (onNavigate) {
+                  onNavigate('registerpro', { email: targetEmail, isUpgrade: true });
+                }
+              }}
+              className="w-full sm:w-auto bg-[#1E4030] hover:bg-[#152e22] text-white text-xs sm:text-sm font-bold px-6 py-3 rounded-xl transition-all shadow-sm flex items-center justify-center gap-2 cursor-pointer active:scale-95 shrink-0"
+            >
+              <span>Upgrade Plan</span>
+              <ArrowRight size={14} />
+            </button>
+          </div>
+
+          <div className="pt-3 border-t border-[#E2D9CF]/60 flex flex-wrap items-center gap-y-2 gap-x-5 text-[11px] text-[#5A5248]">
+            <div className="flex items-center gap-1.5 font-medium">
+              <Check size={13} className="text-emerald-600" />
+              <span>Use existing email: <strong className="text-[#1C1A17]">{formData.email || user?.email || 'Your account email'}</strong></span>
+            </div>
+            <div className="flex items-center gap-1.5 font-medium">
+              <Check size={13} className="text-emerald-600" />
+              <span>Define hourly rates, profession & skills</span>
+            </div>
+            <div className="flex items-center gap-1.5 font-medium">
+              <Check size={13} className="text-emerald-600" />
+              <span>Admin review before 25 XAF activation fee</span>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Personal Information Form */}
       <form onSubmit={handleSave} className="bg-white border border-[#E2D9CF] rounded-3xl p-6 sm:p-8 shadow-sm space-y-6">

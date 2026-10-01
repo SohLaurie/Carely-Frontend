@@ -1,10 +1,10 @@
-import { useState, useRef } from 'react'
+import { useState, useRef, useEffect } from 'react'
 import {
   ArrowRight, ArrowLeft, ShieldCheck, Heart, Check,
   Pencil, Camera, Upload, Eye, EyeOff, FileText, X, Loader2
 } from 'lucide-react'
 import { registerProvider } from '../../../services/auth.service.js'
-import { uploadDocument } from '../../../services/api.js'
+import { uploadDocument, getStoredUser } from '../../../services/api.js'
 
 // ── Shared Primitives ──────────────────────────────────────────────────────────
 
@@ -890,14 +890,46 @@ function Step8({ data, set }) {
 
   return (
     <div className="space-y-5">
+      {data.isUpgrade && (
+        <div className="bg-[#EDF7F2] border border-green-200/80 rounded-2xl p-4 flex items-start gap-3">
+          <ShieldCheck size={18} className="text-[#1E4030] shrink-0 mt-0.5" />
+          <div className="space-y-1">
+            <h4 className="text-xs font-bold text-[#1E4030]">Upgrading Client Account to Pro Provider</h4>
+            <p className="text-[11px] text-[#5A5248] leading-relaxed">
+              Your registered email is linked to your existing Carely client account. Upon approval, your account role will be changed to Care Provider with full provider dashboard access.
+            </p>
+          </div>
+        </div>
+      )}
+
       <div>
-        <FieldLabel required>Email address</FieldLabel>
+        <div className="flex items-center justify-between">
+          <FieldLabel required>Email address</FieldLabel>
+          {data.isUpgrade && (
+            <span className="text-[10px] font-bold text-[#1E4030] bg-[#EDF7F2] border border-green-200/60 px-2 py-0.5 rounded-full mb-1">
+              Account Email (Prefilled)
+            </span>
+          )}
+        </div>
         <TextInput
           type="email"
-          placeholder="laurienoubissie@gmail.com"
+          placeholder="your.email@example.com"
           value={data.email}
-          onChange={e => set('email', e.target.value)}
+          readOnly={Boolean(data.isUpgrade)}
+          onChange={e => {
+            if (!data.isUpgrade) set('email', e.target.value)
+          }}
+          className={`w-full px-4 py-3 border border-[#E2D9CF] rounded-xl text-sm transition-all ${
+            data.isUpgrade
+              ? 'bg-[#FAF8F5] text-[#5A5248] font-semibold cursor-not-allowed select-none'
+              : 'text-[#1C1A17] bg-white focus:outline-none focus:ring-2 focus:ring-[#1E4030]/30 focus:border-[#1E4030]'
+          }`}
         />
+        {data.isUpgrade && (
+          <p className="text-[10px] text-[#8A7E74] mt-1">
+            Your existing client email is locked for upgrade continuity.
+          </p>
+        )}
       </div>
 
       <div>
@@ -1068,15 +1100,41 @@ const initialData = {
   confirmPassword: '',
   agreedTerms: false,
   agreedAccurate: false,
-  agreedChecks: false,
+  isUpgrade: false,
 }
 
-export default function RegisterPro({ onNavigate }) {
+export default function RegisterPro({ onNavigate, screenParams }) {
+  const storedUser = getStoredUser()
+  const isUpgradeMode = Boolean(
+    screenParams?.isUpgrade ||
+    (storedUser && storedUser.role === 'client')
+  )
+  const initialEmail = screenParams?.email || storedUser?.email || ''
+
   const [step, setStep] = useState(1)
-  const [data, setData] = useState(initialData)
+  const [data, setData] = useState(() => ({
+    ...initialData,
+    email: initialEmail,
+    firstName: storedUser?.firstName || storedUser?.first_name || '',
+    lastName: storedUser?.lastName || storedUser?.last_name || '',
+    phone: storedUser?.phone || '',
+    city: storedUser?.city || '',
+    address: storedUser?.address || '',
+    isUpgrade: isUpgradeMode,
+  }))
   const [submitted, setSubmitted] = useState(false)
   const [submitting, setSubmitting] = useState(false)
   const [submitError, setSubmitError] = useState('')
+
+  useEffect(() => {
+    if (screenParams?.email) {
+      setData(prev => ({
+        ...prev,
+        email: screenParams.email,
+        isUpgrade: Boolean(screenParams.isUpgrade ?? prev.isUpgrade)
+      }))
+    }
+  }, [screenParams])
 
   const set = (key, value) => setData(prev => ({ ...prev, [key]: value }))
   const next = () => setStep(s => Math.min(s + 1, 8))
@@ -1100,18 +1158,22 @@ export default function RegisterPro({ onNavigate }) {
 
   if (submitted) {
     return (
-      <div className="min-h-screen bg-[#FAF8F5] flex items-center justify-center">
-        <div className="text-center space-y-4 p-8 max-w-sm">
+      <div className="min-h-screen bg-[#FAF8F5] flex items-center justify-center p-4">
+        <div className="text-center space-y-4 p-8 max-w-md bg-white border border-[#E2D9CF] rounded-3xl shadow-sm">
           <div className="w-16 h-16 bg-[#EDF7F2] rounded-full flex items-center justify-center mx-auto border border-green-200">
             <Check size={28} className="text-[#1E4030]" strokeWidth={2.5} />
           </div>
-          <h2 className="font-display text-2xl font-bold text-[#1E4030]">Application submitted!</h2>
+          <h2 className="font-display text-2xl font-bold text-[#1E4030]">
+            {data.isUpgrade ? 'Pro Upgrade Submitted!' : 'Application submitted!'}
+          </h2>
           <p className="text-sm text-[#8A7E74] leading-relaxed">
-            Your provider profile is now under review by our team. Once approved, you will receive a payment notification to activate your account with a 25 XAF subscription fee.
+            {data.isUpgrade
+              ? 'Your profile information, hourly rate, and provider attributes have been submitted for admin verification. Once verified, your account role will be changed to Care Provider and you will be prompted to pay the 25 XAF activation fee.'
+              : 'Your provider profile is now under review by our team. Once approved, you will receive a payment notification to activate your account with a 25 XAF subscription fee.'}
           </p>
           <button
             onClick={() => onNavigate('login')}
-            className="mt-4 text-sm font-bold text-[#1E4030] underline cursor-pointer hover:text-[#152e22]"
+            className="mt-4 px-6 py-2.5 bg-[#1E4030] hover:bg-[#152e22] text-white text-sm font-bold rounded-xl transition-all shadow-sm cursor-pointer"
           >
             Back to login
           </button>

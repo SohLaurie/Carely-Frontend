@@ -1,5 +1,5 @@
 import React from 'react'
-import { LogOut, User, CheckCircle2, ClipboardList, Calendar, Clock, Wallet, Star, Bell, X, Home, Compass, MessageSquare, Gift, Coins } from 'lucide-react'
+import { LogOut, User, CheckCircle2, ClipboardList, Calendar, Clock, Wallet, Star, Bell, X, Home, Compass, MessageSquare, Gift, Coins, Heart } from 'lucide-react'
 import { NAVIGATION_ITEMS, CAREGIVER_CONSTANTS } from '../constants/dashboardConstants'
 
 
@@ -25,6 +25,7 @@ export default function Sidebar({
     calendar: Clock,
     earnings: Wallet,
     carecred: Coins,
+    saved: Heart,
     reviews: Star,
     notifications: Bell,
     refer: Gift
