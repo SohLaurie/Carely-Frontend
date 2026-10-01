@@ -828,18 +828,45 @@ export default function CaregiverDashboard({ onNavigate }) {
   const unreadNotificationsCount = notifications.filter(n => n.unread && !n.archived).length
   const unreadMessagesCount = (discussions || []).reduce((acc, d) => acc + (Number(d.unreadCount) || 0), 0)
 
-  // Derive active session: any in_progress session, or the earliest confirmed session awaiting arrival check-in
+  const isBookingSessionPast = (b) => {
+    if (!b) return false;
+    if (b.isPast) return true;
+    if (['completed', 'missed', 'cancelled', 'declined'].includes(b.rawStatus)) return true;
+    if (['COMPLETED', 'MISSED', 'CANCELLED', 'SKIPPED'].includes(b.sessionStatus)) return true;
+    if (b.status === 'Missed' || b.status === 'Completed') return true;
+
+    const dateStr = b.startDate || b.rawBooking?.start_date || b.date;
+    const timeStr = b.endTime || b.rawBooking?.end_time;
+    if (dateStr && timeStr) {
+      try {
+        const datePart = typeof dateStr === 'string' ? dateStr.split('T')[0] : '';
+        if (datePart && datePart.includes('-')) {
+          const [y, m, d] = datePart.split('-').map(Number);
+          const [hh, mm] = String(timeStr).split(':').map(Number);
+          if (!isNaN(y) && !isNaN(m) && !isNaN(d) && !isNaN(hh) && !isNaN(mm)) {
+            const endDateTime = new Date(y, m - 1, d, hh, mm, 0);
+            if (endDateTime < new Date()) return true;
+          }
+        }
+      } catch {}
+    }
+    return false;
+  };
+
+  // Derive active session: only non-expired sessions
   const activeBooking = (incomingBookings || []).find(b =>
-    b.rawStatus === 'in_progress' ||
-    b.sessionStatus === 'ARRIVED' ||
-    b.sessionStatus === 'AWAITING_CONFIRMATION'
+    !isBookingSessionPast(b) && (
+      b.rawStatus === 'in_progress' ||
+      b.sessionStatus === 'ARRIVED' ||
+      b.sessionStatus === 'AWAITING_CONFIRMATION'
+    )
   ) || (incomingBookings || []).find(b =>
-    b.rawStatus === 'confirmed'
+    !isBookingSessionPast(b) && b.rawStatus === 'confirmed'
   ) || null
 
-  // Confirmed bookings list derived from real incoming bookings, excluding active session
+  // Confirmed bookings list derived from real incoming bookings, excluding active session and past/missed sessions
   const upcomingBookings = (incomingBookings || [])
-    .filter(b => b.id !== activeBooking?.id && b.rawStatus !== 'completed')
+    .filter(b => b.id !== activeBooking?.id && !isBookingSessionPast(b))
     .map(b => ({
       name: b.clientName || b.name || 'Household Client',
       initials: b.initials || 'HC',

@@ -350,7 +350,7 @@ export default function DayScheduleSelector({ data, onChange, onSubmit, onBack }
           onClick={handleSubmit}
           disabled={!canSubmit}
         >
-          Find a Provider
+          {data.provider ? 'Continue' : 'Find a Provider'}
         </button>
       </div>
 

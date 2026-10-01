@@ -45,13 +45,33 @@ export default function BookingsTab({
           const subtotal = Number(b.subtotal || 0);
           const serviceFee = Number(b.service_fee || 5);
           const totalPrice = Number(b.total_price || 0);
-          const priceFormatted = `${totalPrice.toLocaleString()} XAF`;
+          const netEarnings = subtotal > 0 ? subtotal : (totalPrice > serviceFee ? totalPrice - serviceFee : totalPrice);
+          const priceFormatted = isProvider
+            ? `${netEarnings.toLocaleString()} XAF`
+            : `${totalPrice.toLocaleString()} XAF`;
           const rateFormatted = `${pricePerHour.toLocaleString()} XAF/hr`;
 
+          const now = new Date();
+          let isPast = false;
+          if (b.start_date && b.end_time) {
+            try {
+              const datePart = typeof b.start_date === 'string' ? b.start_date.split('T')[0] : '';
+              if (datePart) {
+                const [y, m, d] = datePart.split('-').map(Number);
+                const [hh, mm] = b.end_time.split(':').map(Number);
+                if (!isNaN(y) && !isNaN(m) && !isNaN(d) && !isNaN(hh) && !isNaN(mm)) {
+                  const sessionEnd = new Date(y, m - 1, d, hh, mm, 0);
+                  if (sessionEnd < now) isPast = true;
+                }
+              }
+            } catch {}
+          }
+
           let statusLabel = 'Scheduled';
-          if (b.status === 'in_progress') statusLabel = 'In Progress';
+          if (b.status === 'completed') statusLabel = 'Completed';
+          else if (isPast) statusLabel = 'Missed';
+          else if (b.status === 'in_progress') statusLabel = 'In Progress';
           else if (b.status === 'confirmed') statusLabel = 'Awaiting OTP';
-          else if (b.status === 'completed') statusLabel = 'Completed';
 
           let dateFormatted = b.start_date || 'Upcoming';
           if (b.start_date && typeof b.start_date === 'string' && b.start_date.includes('T')) {
@@ -81,7 +101,8 @@ export default function BookingsTab({
             location: b.provider?.location || 'Yaoundé / Douala',
             price: priceFormatted,
             totalPrice,
-            subtotal,
+            subtotal: netEarnings,
+            isPast,
             serviceFee,
             pricePerHour,
             rate: rateFormatted,

@@ -5,9 +5,10 @@ import ServiceQuestions from './ServiceQuestions';
 
 export default function SingleSessionForm({ data, onChange, onSubmit, onBack }) {
   const extraTasks = getExtraTasksForService(data.service?.id);
-  const [date, setDate]           = useState(data.date || '');
-  const [startTime, setStartTime] = useState(data.startTime || '');
-  const [endTime, setEndTime]     = useState(data.endTime || '');
+  const todayDefault = new Date().toISOString().split('T')[0];
+  const [date, setDate]           = useState(data.date || todayDefault);
+  const [startTime, setStartTime] = useState(data.startTime || '09:00');
+  const [endTime, setEndTime]     = useState(data.endTime || '12:00');
   const [extras, setExtras]       = useState(data.extras || []);
   const [serviceQuestions, setServiceQuestions] = useState(data.serviceQuestions || {});
   const [notes, setNotes]         = useState(data.notes || '');
@@ -145,7 +146,7 @@ export default function SingleSessionForm({ data, onChange, onSubmit, onBack }) 
           onClick={handleSubmit}
           disabled={!canSubmit}
         >
-          Find a Provider
+          {data.provider ? 'Continue' : 'Find a Provider'}
         </button>
       </div>
 

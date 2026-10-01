@@ -95,11 +95,32 @@ export function useDashboard() {
           } catch {}
         }
 
-        const priceFormatted = `${Number(b.total_price || 0).toLocaleString()} XAF`;
         const pricePerHour = Number(b.provider?.pricePerHour || b.provider?.price_per_hour) || 50;
         const subtotal = Number(b.subtotal || 0);
         const serviceFee = Number(b.service_fee || 5);
         const totalPrice = Number(b.total_price || 0);
+        const netEarnings = subtotal > 0 ? subtotal : (totalPrice > serviceFee ? totalPrice - serviceFee : totalPrice);
+        const priceFormatted = isProvider
+          ? `${netEarnings.toLocaleString()} XAF`
+          : `${totalPrice.toLocaleString()} XAF`;
+
+        const now = new Date();
+        let isPast = false;
+        if (b.start_date && b.end_time) {
+          try {
+            const datePart = typeof b.start_date === 'string' ? b.start_date.split('T')[0] : '';
+            if (datePart) {
+              const [y, m, d] = datePart.split('-').map(Number);
+              const [hh, mm] = b.end_time.split(':').map(Number);
+              if (!isNaN(y) && !isNaN(m) && !isNaN(d) && !isNaN(hh) && !isNaN(mm)) {
+                const sessionEnd = new Date(y, m - 1, d, hh, mm, 0);
+                if (sessionEnd < now) {
+                  isPast = true;
+                }
+              }
+            }
+          } catch {}
+        }
 
         const item = {
           id: b.id,
@@ -124,20 +145,23 @@ export function useDashboard() {
           bookingType: b.session_type,
           price: priceFormatted,
           pricePerHour,
-          subtotal,
+          subtotal: netEarnings,
           serviceFee,
           totalPrice,
           totalSessions: b.total_sessions || 1,
           durationWeeks: b.duration_weeks || 1,
           initials,
-          status: b.status === 'pending' ? 'Pending' : (b.status === 'accepted' ? 'Accepted' : (b.status === 'declined' ? 'Declined' : (b.status === 'confirmed' ? 'Confirmed' : (b.status === 'in_progress' ? 'In Progress' : (b.status === 'completed' ? 'Completed' : b.status))))),
+          status: isPast && !['completed'].includes(b.status) && b.sessions?.[0]?.status !== 'COMPLETED'
+            ? 'Missed'
+            : (b.status === 'pending' ? 'Pending' : (b.status === 'accepted' ? 'Accepted' : (b.status === 'declined' ? 'Declined' : (b.status === 'confirmed' ? 'Confirmed' : (b.status === 'in_progress' ? 'In Progress' : (b.status === 'completed' ? 'Completed' : b.status)))))),
           rawStatus: b.status,
+          isPast,
           sessionStatus: b.sessions?.[0]?.status || 'SCHEDULED',
           sessions: b.sessions || [],
           rate: `${pricePerHour.toLocaleString()} XAF/hr`,
           escrowStatus: b.payment_status === 'paid' ? '100% Funded & Secured' : (b.status === 'accepted' ? 'Awaiting Payment' : 'Unpaid'),
           arrivalOtp: b.sessions?.[0]?.otp_code || '—',
-          needsOtp: b.status === 'confirmed' && b.sessions?.[0]?.status === 'SCHEDULED',
+          needsOtp: b.status === 'confirmed' && b.sessions?.[0]?.status === 'SCHEDULED' && !isPast,
           notes: b.notes || '',
           summary: b.notes || 'Household booking request submitted via Carely.',
           rawBooking: b,
