@@ -1,4 +1,4 @@
-﻿// ── Booking Metadata Serializer & Parser ───────────────────────────────────────
+// ── Booking Metadata Serializer & Parser ───────────────────────────────────────
 
 export const ALL_EXTRA_TASKS_LABELS = {
   // Indoor Cleaning
@@ -143,4 +143,48 @@ export function parseBookingMetadata(notesString) {
   }
 
   return fallback;
+}
+
+/**
+ * Parses a session date and time into a reliable local Date object,
+ * handling UTC ISO strings (e.g. 2026-10-01T23:00:00.000Z), plain 'YYYY-MM-DD', or Date objects.
+ */
+export function parseSessionDateTime(dateVal, timeVal) {
+  if (!dateVal) return null;
+  let y, m, d;
+
+  if (typeof dateVal === 'string' && dateVal.includes('T')) {
+    const dt = new Date(dateVal);
+    if (!isNaN(dt.getTime())) {
+      y = dt.getFullYear();
+      m = dt.getMonth() + 1;
+      d = dt.getDate();
+    }
+  }
+
+  if (!y || !m || !d) {
+    if (typeof dateVal === 'string') {
+      const clean = dateVal.split('T')[0];
+      const parts = clean.split('-').map(Number);
+      if (parts.length === 3 && !isNaN(parts[0]) && !isNaN(parts[1]) && !isNaN(parts[2])) {
+        [y, m, d] = parts;
+      }
+    } else if (dateVal instanceof Date && !isNaN(dateVal.getTime())) {
+      y = dateVal.getFullYear();
+      m = dateVal.getMonth() + 1;
+      d = dateVal.getDate();
+    }
+  }
+
+  if (!y || !m || !d) return null;
+
+  let hh = 0, mm = 0, ss = 0;
+  if (timeVal) {
+    const tParts = String(timeVal).split(':').map(Number);
+    hh = isNaN(tParts[0]) ? 0 : tParts[0];
+    mm = isNaN(tParts[1]) ? 0 : tParts[1];
+    ss = isNaN(tParts[2]) ? 0 : tParts[2];
+  }
+
+  return new Date(y, m - 1, d, hh, mm, ss);
 }

@@ -6,7 +6,7 @@ import {
 } from 'lucide-react';
 import { fetchMyBookings, verifySessionOtp } from '../../../services/bookingApi';
 import { getStoredUser } from '../../../services/api';
-import { parseBookingMetadata, getExtraTaskLabel, DAY_FULL_LABELS } from '../../../utils/bookingMetadata';
+import { parseBookingMetadata, getExtraTaskLabel, DAY_FULL_LABELS, parseSessionDateTime } from '../../../utils/bookingMetadata';
 
 export default function BookingsTab({
   clientBookings = [],
@@ -53,30 +53,25 @@ export default function BookingsTab({
           const rateFormatted = `${pricePerHour.toLocaleString()} XAF/hr`;
 
           const now = new Date();
+          const sessionStart = parseSessionDateTime(b.start_date, b.start_time);
+          const sessionEnd = parseSessionDateTime(b.start_date, b.end_time);
+          const isStarted = sessionStart ? now >= sessionStart : false;
+          const isEnded = sessionEnd ? now > sessionEnd : false;
+
           let isPast = false;
-          const rawSt = b.status;
+          const rawSt = (b.status || '').toLowerCase();
           const isPaid = b.payment_status === 'paid';
-          // Only compute "missed" for sessions that were confirmed/in_progress but time has elapsed
-          const canBeMissed = !['pending', 'accepted', 'completed', 'declined'].includes(rawSt) && !isPaid;
-          if (canBeMissed && b.start_date && b.end_time) {
-            try {
-              const datePart = typeof b.start_date === 'string' ? b.start_date.split('T')[0] : '';
-              if (datePart) {
-                const [y, m, d] = datePart.split('-').map(Number);
-                const [hh, mm] = b.end_time.split(':').map(Number);
-                if (!isNaN(y) && !isNaN(m) && !isNaN(d) && !isNaN(hh) && !isNaN(mm)) {
-                  const sessionEnd = new Date(y, m - 1, d, hh, mm, 0);
-                  if (sessionEnd < now) isPast = true;
-                }
-              }
-            } catch {}
+          const isCompleted = rawSt === 'completed' || b.sessions?.[0]?.status === 'COMPLETED';
+          const canBeMissed = !['pending', 'accepted', 'completed', 'declined'].includes(rawSt) && !isCompleted;
+          if (canBeMissed && isEnded && !['ARRIVED', 'AWAITING_CONFIRMATION', 'IN_PROGRESS'].includes(b.sessions?.[0]?.status)) {
+            isPast = true;
           }
 
-          let statusLabel = 'Scheduled';
-          if (rawSt === 'completed' || b.sessions?.[0]?.status === 'COMPLETED') statusLabel = 'Completed';
+          let statusLabel = 'Confirmed';
+          if (isCompleted) statusLabel = 'Completed';
+          else if (rawSt === 'in_progress' || b.sessions?.[0]?.status === 'ARRIVED') statusLabel = 'In Progress';
           else if (isPast) statusLabel = 'Missed';
-          else if (rawSt === 'in_progress') statusLabel = 'In Progress';
-          else if (rawSt === 'confirmed') statusLabel = 'Awaiting OTP';
+          else if (rawSt === 'confirmed') statusLabel = isStarted ? 'Awaiting OTP' : 'Confirmed';
 
           let dateFormatted = b.start_date || 'Upcoming';
           if (b.start_date && typeof b.start_date === 'string' && b.start_date.includes('T')) {
@@ -103,6 +98,9 @@ export default function BookingsTab({
             time: timeFormatted,
             startTime: b.start_time,
             endTime: b.end_time,
+            sessionStart,
+            sessionEnd,
+            isStarted,
             location: b.provider?.location || 'Yaoundé / Douala',
             price: priceFormatted,
             totalPrice,

@@ -6,6 +6,7 @@ import {
 import { fetchMyBookings, acceptBooking, declineBooking } from '../../../services/bookingApi';
 import { fetchNotifications } from '../../../services/notificationsApi';
 import { getStoredUser } from '../../../services/api';
+import { parseSessionDateTime } from '../../../utils/bookingMetadata';
 
 function formatNotificationTime(dateStr) {
   if (!dateStr) return 'Recently';
@@ -110,21 +111,14 @@ export function useDashboard() {
         const canBeMissed = !['pending', 'accepted', 'completed', 'declined'].includes(rawSt) && !isCompleted;
 
         const now = new Date();
+        const sessionStart = parseSessionDateTime(b.start_date, b.start_time);
+        const sessionEnd = parseSessionDateTime(b.start_date, b.end_time);
+        const isStarted = sessionStart ? now >= sessionStart : false;
+        const isEnded = sessionEnd ? now > sessionEnd : false;
+
         let isPast = false;
-        if (canBeMissed && b.start_date && b.end_time) {
-          try {
-            const datePart = typeof b.start_date === 'string' ? b.start_date.split('T')[0] : '';
-            if (datePart) {
-              const [y, m, d] = datePart.split('-').map(Number);
-              const [hh, mm] = b.end_time.split(':').map(Number);
-              if (!isNaN(y) && !isNaN(m) && !isNaN(d) && !isNaN(hh) && !isNaN(mm)) {
-                const sessionEnd = new Date(y, m - 1, d, hh, mm, 0);
-                if (sessionEnd < now) {
-                  isPast = true;
-                }
-              }
-            }
-          } catch {}
+        if (canBeMissed && isEnded && !['ARRIVED', 'AWAITING_CONFIRMATION', 'IN_PROGRESS'].includes(b.sessions?.[0]?.status)) {
+          isPast = true;
         }
 
         let computedStatus = 'Pending';
@@ -136,12 +130,12 @@ export function useDashboard() {
           computedStatus = 'Declined';
         } else if (isCompleted) {
           computedStatus = 'Completed';
+        } else if (rawSt === 'in_progress' || ['ARRIVED', 'AWAITING_CONFIRMATION', 'IN_PROGRESS'].includes(b.sessions?.[0]?.status)) {
+          computedStatus = 'In Progress';
         } else if (isMissed || isPast) {
           computedStatus = 'Missed';
-        } else if (rawSt === 'in_progress') {
-          computedStatus = 'In Progress';
         } else if (rawSt === 'confirmed') {
-          computedStatus = 'Confirmed';
+          computedStatus = isStarted ? 'Awaiting OTP' : 'Confirmed';
         } else {
           computedStatus = b.status || 'Pending';
         }
@@ -164,6 +158,9 @@ export function useDashboard() {
           time: timeFormatted,
           startTime: b.start_time,
           endTime: b.end_time,
+          sessionStart,
+          sessionEnd,
+          isStarted,
           location: b.provider?.location || 'Yaoundé / Douala',
           sessionType: b.session_type === 'once' ? 'One-off session' : `Recurring · ${b.duration_weeks || 1} weeks`,
           bookingType: b.session_type,

@@ -36,6 +36,7 @@ import SubscriptionPaymentModal from './components/SubscriptionPaymentModal'
 import CertificationPaymentModal from './components/CertificationPaymentModal'
 import CareCreditTab from './components/CareCreditTab'
 import { getCareCreditWallet } from '../../services/carecreditApi.js'
+import { parseSessionDateTime } from '../../utils/bookingMetadata'
 
 import { getStoredUser, apiGet } from '../../services/api.js'
 import { verifySessionOtp, providerCompleteSession, fetchProviderReviews, reportUnableToComplete } from '../../services/bookingApi.js'
@@ -830,54 +831,61 @@ export default function CaregiverDashboard({ onNavigate }) {
 
   const isBookingSessionPast = (b) => {
     if (!b) return false;
-    if (b.isPast) return true;
-    if (['completed', 'missed', 'cancelled', 'declined'].includes(b.rawStatus)) return true;
-    if (['COMPLETED', 'MISSED', 'CANCELLED', 'SKIPPED'].includes(b.sessionStatus)) return true;
-    if (b.status === 'Missed' || b.status === 'Completed') return true;
+    const rawSt = (b.rawStatus || b.status || '').toLowerCase();
+    if (['completed', 'cancelled', 'declined'].includes(rawSt)) return true;
+    if (['COMPLETED', 'CANCELLED', 'SKIPPED'].includes((b.sessionStatus || '').toUpperCase())) return true;
+    if (b.status === 'Completed') return true;
 
-    const dateStr = b.startDate || b.rawBooking?.start_date || b.date;
-    const timeStr = b.endTime || b.rawBooking?.end_time;
-    if (dateStr && timeStr) {
-      try {
-        const datePart = typeof dateStr === 'string' ? dateStr.split('T')[0] : '';
-        if (datePart && datePart.includes('-')) {
-          const [y, m, d] = datePart.split('-').map(Number);
-          const [hh, mm] = String(timeStr).split(':').map(Number);
-          if (!isNaN(y) && !isNaN(m) && !isNaN(d) && !isNaN(hh) && !isNaN(mm)) {
-            const endDateTime = new Date(y, m - 1, d, hh, mm, 0);
-            if (endDateTime < new Date()) return true;
-          }
-        }
-      } catch {}
+    // Check if session has actually elapsed past end_time
+    const dateVal = b.startDate || b.rawBooking?.start_date || b.start_date;
+    const timeVal = b.endTime || b.rawBooking?.end_time || b.end_time;
+    const sessionEnd = parseSessionDateTime(dateVal, timeVal);
+    if (sessionEnd && new Date() > sessionEnd && !['in_progress', 'ARRIVED', 'AWAITING_CONFIRMATION'].includes(b.sessionStatus)) {
+      return true;
+    }
+    if (rawSt === 'missed' || b.status === 'Missed') return true;
+    return false;
+  };
+
+  const isBookingSessionStarted = (b) => {
+    if (!b) return false;
+    const rawSt = (b.rawStatus || b.status || '').toLowerCase();
+    if (rawSt === 'in_progress') return true;
+    if (['ARRIVED', 'AWAITING_CONFIRMATION', 'IN_PROGRESS'].includes(b.sessionStatus)) return true;
+
+    const dateVal = b.startDate || b.rawBooking?.start_date || b.start_date;
+    const timeVal = b.startTime || b.rawBooking?.start_time || b.start_time;
+    const sessionStart = parseSessionDateTime(dateVal, timeVal);
+    if (sessionStart) {
+      return new Date() >= sessionStart;
     }
     return false;
   };
 
-  // Derive active session: only non-expired sessions
+  // Derive active session: only non-expired sessions whose scheduled start time has arrived or are already in progress
   const activeBooking = (incomingBookings || []).find(b =>
     !isBookingSessionPast(b) && (
       b.rawStatus === 'in_progress' ||
-      b.sessionStatus === 'ARRIVED' ||
-      b.sessionStatus === 'AWAITING_CONFIRMATION'
+      ['ARRIVED', 'AWAITING_CONFIRMATION', 'IN_PROGRESS'].includes(b.sessionStatus) ||
+      (b.rawStatus === 'confirmed' && isBookingSessionStarted(b))
     )
-  ) || (incomingBookings || []).find(b =>
-    !isBookingSessionPast(b) && b.rawStatus === 'confirmed'
   ) || null
 
   // Confirmed bookings list derived from real incoming bookings, excluding active session and past/missed sessions
   const upcomingBookings = (incomingBookings || [])
-    .filter(b => b.id !== activeBooking?.id && !isBookingSessionPast(b))
+    .filter(b => b.id !== activeBooking?.id && !isBookingSessionPast(b) && ['confirmed', 'accepted'].includes(b.rawStatus))
     .map(b => ({
+      ...b,
       name: b.clientName || b.name || 'Household Client',
       initials: b.initials || 'HC',
       location: b.location || 'Yaoundé / Douala',
       time: b.date ? `${b.date} · ${b.time}` : (b.time || 'Upcoming Shift'),
-      status: b.status || 'Confirmed',
+      status: isBookingSessionStarted(b) ? 'Awaiting OTP' : 'Upcoming',
       statusColor: b.status === 'In Progress'
         ? 'bg-green-50 text-green-700 border-green-200'
-        : b.status === 'Awaiting OTP'
+        : isBookingSessionStarted(b)
         ? 'bg-amber-50 text-amber-700 border-amber-200'
-        : 'bg-gray-50 text-gray-700 border-gray-200'
+        : 'bg-emerald-50 text-emerald-700 border-emerald-200'
     }))
 
   const handleVerifyActiveSessionOtp = async () => {
