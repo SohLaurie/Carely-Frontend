@@ -2,10 +2,11 @@ import React, { useState, useEffect } from 'react';
 import {
   Clock, MapPin, ShieldCheck, Key, Eye, Check, X, Send, ArrowDownLeft,
   ChevronLeft, ChevronRight, MessageSquare, Download, CheckCircle2,
-  CalendarCheck, User, Calendar, DollarSign
+  CalendarCheck, User, Calendar, DollarSign, Sparkles
 } from 'lucide-react';
 import { fetchMyBookings, verifySessionOtp } from '../../../services/bookingApi';
 import { getStoredUser } from '../../../services/api';
+import { parseBookingMetadata, getExtraTaskLabel, DAY_FULL_LABELS } from '../../../utils/bookingMetadata';
 
 export default function BookingsTab({
   clientBookings = [],
@@ -53,7 +54,11 @@ export default function BookingsTab({
 
           const now = new Date();
           let isPast = false;
-          if (b.start_date && b.end_time) {
+          const rawSt = b.status;
+          const isPaid = b.payment_status === 'paid';
+          // Only compute "missed" for sessions that were confirmed/in_progress but time has elapsed
+          const canBeMissed = !['pending', 'accepted', 'completed', 'declined'].includes(rawSt) && !isPaid;
+          if (canBeMissed && b.start_date && b.end_time) {
             try {
               const datePart = typeof b.start_date === 'string' ? b.start_date.split('T')[0] : '';
               if (datePart) {
@@ -68,10 +73,10 @@ export default function BookingsTab({
           }
 
           let statusLabel = 'Scheduled';
-          if (b.status === 'completed') statusLabel = 'Completed';
+          if (rawSt === 'completed' || b.sessions?.[0]?.status === 'COMPLETED') statusLabel = 'Completed';
           else if (isPast) statusLabel = 'Missed';
-          else if (b.status === 'in_progress') statusLabel = 'In Progress';
-          else if (b.status === 'confirmed') statusLabel = 'Awaiting OTP';
+          else if (rawSt === 'in_progress') statusLabel = 'In Progress';
+          else if (rawSt === 'confirmed') statusLabel = 'Awaiting OTP';
 
           let dateFormatted = b.start_date || 'Upcoming';
           if (b.start_date && typeof b.start_date === 'string' && b.start_date.includes('T')) {
@@ -91,7 +96,7 @@ export default function BookingsTab({
             initials: isProvider
               ? `${b.booker?.firstName?.[0] || 'C'}${b.booker?.lastName?.[0] || 'H'}`
               : `${b.provider?.firstName?.[0] || 'P'}${b.provider?.lastName?.[0] || 'R'}`,
-            specialty: b.provider?.profession || b.provider?.professionOther || (Array.isArray(b.provider?.specialties) ? b.provider?.specialties[0] : b.provider?.specialties) || 'Cleaner',
+            specialty: isProvider ? 'Client' : (b.provider?.profession || b.provider?.professionOther || (Array.isArray(b.provider?.specialties) ? b.provider?.specialties[0] : b.provider?.specialties) || 'Caregiver'),
             status: statusLabel,
             rawStatus: b.status,
             date: `${dateFormatted} · ${timeFormatted}`,
@@ -651,12 +656,20 @@ export default function BookingsTab({
                     </span>
                   </div>
 
-                  <div className="bg-[#FAF8F5] border border-[#E2D9CF] rounded-xl p-3.5 space-y-1">
-                    <span className="text-[10px] font-bold text-[#8A7E74] uppercase tracking-wider block">Arrival OTP Key</span>
-                    <span className="font-mono text-sm font-extrabold text-[#1E4030]">
-                      {b.arrivalOtp || '—'}
-                    </span>
-                  </div>
+                  {activeSubTab === 'client_bookings' ? (
+                    /* Provider view: OTP is shared verbally — do not display it here */
+                    <div className="bg-[#FFF8ED] border border-amber-200 rounded-xl p-3.5 space-y-1">
+                      <span className="text-[10px] font-bold text-[#8A7E74] uppercase tracking-wider block">Arrival OTP Key</span>
+                      <span className="text-[11px] text-amber-700 italic">Shared verbally by client</span>
+                    </div>
+                  ) : (
+                    <div className="bg-[#FAF8F5] border border-[#E2D9CF] rounded-xl p-3.5 space-y-1">
+                      <span className="text-[10px] font-bold text-[#8A7E74] uppercase tracking-wider block">Arrival OTP Key</span>
+                      <span className="font-mono text-sm font-extrabold text-[#1E4030]">
+                        {b.arrivalOtp || '—'}
+                      </span>
+                    </div>
+                  )}
                 </div>
 
                 {/* Price Breakdown */}
@@ -701,13 +714,137 @@ export default function BookingsTab({
                   </div>
                 </div>
 
-                {/* Summary */}
-                <div className="bg-[#FAF8F5] border border-[#E2D9CF] rounded-2xl p-4 space-y-1.5">
-                  <span className="text-[10px] font-bold text-[#8A7E74] uppercase tracking-wider block">Session Summary</span>
-                  <p className="text-xs text-[#1C1A17] leading-relaxed">
-                    {b.summary || 'Confirmed booking session on Carely. Escrow funds secured and released upon arrival OTP presence verification and completion confirmation.'}
-                  </p>
-                </div>
+                {/* Session Summary & Tasks Breakdown */}
+                {(() => {
+                  const notesRaw = b.notes || b.summary || b.rawBooking?.notes || '';
+                  const meta = parseBookingMetadata(notesRaw);
+                  const hasElder = Boolean(meta.elderProfile && (meta.elderProfile.recipient || meta.elderProfile.emergency || meta.elderProfile.medications));
+                  const hasQuestions = Boolean(meta.serviceQuestions && Object.keys(meta.serviceQuestions).length > 0);
+                  const extrasList = Array.isArray(meta.singleExtras) && meta.singleExtras.length > 0
+                    ? meta.singleExtras
+                    : (meta.selectedDays ? Object.values(meta.selectedDays).flatMap(d => d.extras || []) : []);
+                  const uniqueExtras = [...new Set(extrasList)];
+
+                  return (
+                    <div className="bg-[#FAF8F5] border border-[#E2D9CF] rounded-2xl p-4 space-y-3">
+                      <div className="flex items-center justify-between border-b border-[#E2D9CF] pb-2">
+                        <span className="text-[10px] font-bold text-[#8A7E74] uppercase tracking-wider block">
+                          Session Summary & Task Details
+                        </span>
+                        {meta.serviceLabel && (
+                          <span className="text-[10px] font-bold px-2.5 py-0.5 rounded-full bg-white text-[#1E4030] border border-[#2D6A4F]/20">
+                            {meta.serviceLabel}
+                          </span>
+                        )}
+                      </div>
+
+                      {/* Time Details */}
+                      <div className="flex items-center gap-2 text-xs text-[#1C1A17] bg-white p-2.5 rounded-xl border border-[#E2D9CF]/60">
+                        <Clock size={13} className="text-[#1E4030] shrink-0" />
+                        <span className="font-semibold">{b.date}</span>
+                        {(b.startTime || b.time) && (
+                          <span className="text-[#8A7E74] font-mono text-[11px] ml-auto">
+                            {b.startTime && b.endTime ? `${b.startTime} – ${b.endTime}` : b.time}
+                          </span>
+                        )}
+                      </div>
+
+                      {/* Extra Tasks */}
+                      {uniqueExtras.length > 0 && (
+                        <div className="space-y-1.5">
+                          <span className="text-[10px] font-bold text-[#8A7E74] uppercase tracking-wider block">
+                            Extra Tasks Included ({uniqueExtras.length})
+                          </span>
+                          <div className="flex flex-wrap gap-1.5">
+                            {uniqueExtras.map(taskId => (
+                              <span
+                                key={taskId}
+                                className="inline-flex items-center gap-1 text-[11px] bg-[#EDF7F2] text-[#1E4030] border border-green-200 px-2.5 py-0.5 rounded-full font-bold"
+                              >
+                                <Sparkles size={11} className="text-[#2D6A4F]" />
+                                {getExtraTaskLabel(taskId)}
+                              </span>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+
+                      {/* Elderly Care Details */}
+                      {hasElder && (
+                        <div className="p-3 bg-white border border-[#DFCBB9] rounded-xl space-y-2 text-xs">
+                          <span className="text-[10px] font-bold text-[#8A7E74] uppercase tracking-wider block">
+                            Elderly Care Profile
+                          </span>
+                          <div className="grid grid-cols-2 gap-2 text-[11px]">
+                            {meta.elderProfile.recipient && (
+                              <div>
+                                <span className="text-[#8A7E74] block">Recipient:</span>
+                                <span className="font-bold text-[#1C1A17]">{meta.elderProfile.recipient}</span>
+                              </div>
+                            )}
+                            {meta.elderProfile.emergency && (
+                              <div>
+                                <span className="text-[#8A7E74] block">Emergency:</span>
+                                <span className="font-bold text-[#1C1A17]">{meta.elderProfile.emergency}</span>
+                              </div>
+                            )}
+                            {meta.elderProfile.medications && (
+                              <div className="col-span-2">
+                                <span className="text-[#8A7E74] block">Medications:</span>
+                                <span className="font-medium text-[#1E4030]">{meta.elderProfile.medications}</span>
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                      )}
+
+                      {/* Service Questions */}
+                      {hasQuestions && (
+                        <div className="p-3 bg-white border border-[#E2D9CF] rounded-xl space-y-1.5 text-xs">
+                          <span className="text-[10px] font-bold text-[#8A7E74] uppercase tracking-wider block">
+                            Service Specifications
+                          </span>
+                          <div className="grid grid-cols-2 gap-2 text-[11px]">
+                            {meta.serviceQuestions.childrenCount && (
+                              <div>
+                                <span className="text-[#8A7E74] block">Children:</span>
+                                <span className="font-bold text-[#1C1A17]">{meta.serviceQuestions.childrenCount}</span>
+                              </div>
+                            )}
+                            {meta.serviceQuestions.machineWashLoads && (
+                              <div>
+                                <span className="text-[#8A7E74] block">Machine Wash:</span>
+                                <span className="font-bold text-[#1C1A17]">{meta.serviceQuestions.machineWashLoads} loads</span>
+                              </div>
+                            )}
+                            {meta.serviceQuestions.ironClothesLoads && (
+                              <div>
+                                <span className="text-[#8A7E74] block">Ironing:</span>
+                                <span className="font-bold text-[#1C1A17]">{meta.serviceQuestions.ironClothesLoads} loads</span>
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                      )}
+
+                      {/* Special Instructions */}
+                      {meta.userNote ? (
+                        <div className="space-y-1">
+                          <span className="text-[10px] font-bold text-[#8A7E74] uppercase tracking-wider block">
+                            Special Instructions
+                          </span>
+                          <p className="text-xs text-[#5A5248] italic bg-white p-2.5 rounded-xl border border-[#E2D9CF]/60 leading-relaxed">
+                            "{meta.userNote}"
+                          </p>
+                        </div>
+                      ) : (
+                        <p className="text-[11px] text-[#8A7E74] italic">
+                          No special instructions provided by client.
+                        </p>
+                      )}
+                    </div>
+                  );
+                })()}
 
                 {/* Escrow Guarantee */}
                 <div className="p-3.5 bg-[#EDF7F2] border border-green-200 rounded-2xl flex items-center gap-2 text-xs text-[#1E4030]">

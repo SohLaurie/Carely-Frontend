@@ -68,9 +68,14 @@ export default function BookingDetailsModal({ details, onClose }) {
               <div>
                 <h4 className="font-bold text-sm text-[#1C1A17]">{details.clientName || 'Household Client'}</h4>
                 <div className="flex items-center gap-2 mt-1 flex-wrap">
-                  <span className="text-[11px] bg-[#FAF8F5] text-[#1E4030] border border-[#E2D9CF] px-2.5 py-0.5 rounded-full font-bold">
-                    {details.specialty || meta.serviceLabel || 'Care Service'}
+                  <span className="text-[11px] bg-[#EDF7F2] text-[#1E4030] border border-green-200 px-2.5 py-0.5 rounded-full font-bold">
+                    Client
                   </span>
+                  {(meta.serviceLabel || details.profession || details.specialty) && (meta.serviceLabel !== 'Client' && details.specialty !== 'Client') && (
+                    <span className="text-[11px] bg-[#FAF8F5] text-[#78716C] border border-[#E2D9CF] px-2 py-0.5 rounded-full font-medium">
+                      {meta.serviceLabel || details.specialty || details.profession}
+                    </span>
+                  )}
                   <span className="text-[11px] text-[#8A7E74] font-medium">
                     &middot; {details.location || 'Yaoundé / Douala'}
                   </span>
@@ -79,7 +84,13 @@ export default function BookingDetailsModal({ details, onClose }) {
             </div>
             <div className="text-right">
               <span className="text-[10px] text-[#8A7E74] font-bold block uppercase tracking-wider">Status</span>
-              <span className="text-[10px] text-[#1D6F42] font-extrabold bg-[#EDF7F2] border border-green-200 px-2.5 py-0.5 rounded-full mt-0.5 inline-block">
+              <span className={`text-[10px] font-extrabold px-2.5 py-0.5 rounded-full mt-0.5 inline-block ${
+                details.status === 'Missed'
+                  ? 'text-red-700 bg-red-50 border border-red-200'
+                  : details.status === 'Completed'
+                  ? 'text-blue-700 bg-blue-50 border border-blue-200'
+                  : 'text-[#1D6F42] bg-[#EDF7F2] border border-green-200'
+              }`}>
                 {details.status || 'Confirmed'}
               </span>
             </div>

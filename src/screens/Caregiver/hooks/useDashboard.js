@@ -104,9 +104,14 @@ export function useDashboard() {
           ? `${netEarnings.toLocaleString()} XAF`
           : `${totalPrice.toLocaleString()} XAF`;
 
+        const rawSt = (b.status || '').toLowerCase();
+        const isCompleted = rawSt === 'completed' || b.sessions?.some(s => (s.status || '').toUpperCase() === 'COMPLETED');
+        const isMissed = rawSt === 'missed' || (b.sessions && b.sessions.length > 0 && b.sessions.every(s => (s.status || '').toUpperCase() === 'MISSED'));
+        const canBeMissed = !['pending', 'accepted', 'completed', 'declined'].includes(rawSt) && !isCompleted;
+
         const now = new Date();
         let isPast = false;
-        if (b.start_date && b.end_time) {
+        if (canBeMissed && b.start_date && b.end_time) {
           try {
             const datePart = typeof b.start_date === 'string' ? b.start_date.split('T')[0] : '';
             if (datePart) {
@@ -122,6 +127,25 @@ export function useDashboard() {
           } catch {}
         }
 
+        let computedStatus = 'Pending';
+        if (rawSt === 'pending') {
+          computedStatus = 'Pending';
+        } else if (rawSt === 'accepted') {
+          computedStatus = 'Accepted';
+        } else if (rawSt === 'declined') {
+          computedStatus = 'Declined';
+        } else if (isCompleted) {
+          computedStatus = 'Completed';
+        } else if (isMissed || isPast) {
+          computedStatus = 'Missed';
+        } else if (rawSt === 'in_progress') {
+          computedStatus = 'In Progress';
+        } else if (rawSt === 'confirmed') {
+          computedStatus = 'Confirmed';
+        } else {
+          computedStatus = b.status || 'Pending';
+        }
+
         const item = {
           id: b.id,
           bookingId: b.id,
@@ -132,8 +156,8 @@ export function useDashboard() {
           sessionId: b.sessions?.[0]?.id,
           clientName,
           name: isProvider ? clientName : providerName,
-          profession: b.provider?.profession || b.provider?.professionOther || (Array.isArray(b.provider?.specialties) ? b.provider?.specialties[0] : b.provider?.specialties) || 'Cleaner',
-          specialty: b.provider?.profession || b.provider?.professionOther || (Array.isArray(b.provider?.specialties) ? b.provider?.specialties[0] : b.provider?.specialties) || 'Cleaner',
+          profession: isProvider ? 'Client' : (b.provider?.profession || b.provider?.professionOther || (Array.isArray(b.provider?.specialties) ? b.provider?.specialties[0] : b.provider?.specialties) || 'Caregiver'),
+          specialty: isProvider ? 'Client' : (b.provider?.profession || b.provider?.professionOther || (Array.isArray(b.provider?.specialties) ? b.provider?.specialties[0] : b.provider?.specialties) || 'Caregiver'),
           timeLeft: 'Respond within 24h',
           date: dateFormatted,
           startDate: b.start_date,
@@ -151,17 +175,15 @@ export function useDashboard() {
           totalSessions: b.total_sessions || 1,
           durationWeeks: b.duration_weeks || 1,
           initials,
-          status: isPast && !['completed'].includes(b.status) && b.sessions?.[0]?.status !== 'COMPLETED'
-            ? 'Missed'
-            : (b.status === 'pending' ? 'Pending' : (b.status === 'accepted' ? 'Accepted' : (b.status === 'declined' ? 'Declined' : (b.status === 'confirmed' ? 'Confirmed' : (b.status === 'in_progress' ? 'In Progress' : (b.status === 'completed' ? 'Completed' : b.status)))))),
+          status: computedStatus,
           rawStatus: b.status,
-          isPast,
+          isPast: isPast || isMissed,
           sessionStatus: b.sessions?.[0]?.status || 'SCHEDULED',
           sessions: b.sessions || [],
           rate: `${pricePerHour.toLocaleString()} XAF/hr`,
           escrowStatus: b.payment_status === 'paid' ? '100% Funded & Secured' : (b.status === 'accepted' ? 'Awaiting Payment' : 'Unpaid'),
-          arrivalOtp: b.sessions?.[0]?.otp_code || '—',
-          needsOtp: b.status === 'confirmed' && b.sessions?.[0]?.status === 'SCHEDULED' && !isPast,
+          arrivalOtp: isProvider ? '—' : (b.sessions?.[0]?.otp_code || '—'),
+          needsOtp: !isProvider && b.status === 'confirmed' && b.sessions?.[0]?.status === 'SCHEDULED' && !isPast,
           notes: b.notes || '',
           summary: b.notes || 'Household booking request submitted via Carely.',
           rawBooking: b,
