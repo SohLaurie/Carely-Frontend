@@ -274,7 +274,9 @@ export function useHouseholdDashboard(screenParams) {
     setAiResult(null);
 
     try {
-      const data = await apiGet('/providers');
+      const criteria = parseUserNeeds(aiPrompt);
+      const queryUrl = criteria.date ? `/providers?date=${encodeURIComponent(criteria.date)}` : '/providers';
+      const data = await apiGet(queryUrl);
       const rawList = data?.providers || [];
       const mappedList = rawList
         .filter(p => p.approval_status === 'approved' && p.subscription_paid)
@@ -309,32 +311,47 @@ export function useHouseholdDashboard(screenParams) {
           };
         });
 
-      const criteria = parseUserNeeds(aiPrompt);
       const recommendations = getTopQualifiedProviders(mappedList, criteria, 5);
 
       if (recommendations.length > 0) {
         const topMatch = recommendations[0];
+        const datePart = criteria.dateText ? ` for ${criteria.dateText}` : '';
+        const locPart = criteria.location ? ` in ${criteria.location}` : '';
+        const servPart = criteria.serviceLabel || 'your needs';
         setAiResult({
           criteria,
           matchedId: topMatch.id,
           recommendations, // Array of up to 5 qualified providers in descending order!
-          message: `Found ${recommendations.length} verified provider${recommendations.length > 1 ? 's' : ''} for ${criteria.serviceLabel || 'your needs'}${criteria.location ? ` in ${criteria.location}` : ''}, ranked from most qualified to least.`,
+          message: `Found ${recommendations.length} verified & available provider${recommendations.length > 1 ? 's' : ''} for ${servPart}${locPart}${datePart}, ranked from most qualified to least.`,
         });
 
         setSelectedId(topMatch.id);
+        if (criteria.date) {
+          setDate(criteria.date);
+        }
         if (criteria.serviceKey) {
           setFilterSpecialty(criteria.serviceKey);
         }
         if (criteria.location) {
           setFilterLocation(criteria.location);
         }
-        if (criteria.budget) {
+        if (criteria.minBudget && typeof setMinBudget === 'function') {
+          setMinBudget(String(criteria.minBudget));
+        }
+        if (criteria.maxBudget && typeof setMaxBudget === 'function') {
+          setMaxBudget(String(criteria.maxBudget));
+        } else if (criteria.budget && typeof setMaxBudget === 'function') {
           setMaxBudget(String(criteria.budget));
         }
       } else {
-        const reason = criteria.serviceLabel
-          ? `No approved providers strictly match "${criteria.serviceLabel}"${criteria.location ? ` in ${criteria.location}` : ''} yet. To protect your family, we never substitute with an unqualified service (e.g. cleaners for babysitting).`
-          : 'No registered providers match your query. Explore all verified providers below.';
+        let reason;
+        if (criteria.dateText) {
+          reason = `No available providers found for ${criteria.serviceLabel || 'your request'}${criteria.location ? ` in ${criteria.location}` : ''} on ${criteria.dateText}. Providers may have blocked this date or do not work on this day. Explore other dates or registered providers below.`;
+        } else if (criteria.serviceLabel) {
+          reason = `No approved providers strictly match "${criteria.serviceLabel}"${criteria.location ? ` in ${criteria.location}` : ''} yet. To protect your family, we never substitute with an unqualified service (e.g. cleaners for babysitting).`;
+        } else {
+          reason = 'No registered providers match your query. Explore all verified providers below.';
+        }
         setAiResult({
           criteria,
           matchedId: null,

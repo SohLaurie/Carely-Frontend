@@ -27,7 +27,23 @@ export default function ProviderMatchStep({ data, onSelectProvider, onBack }) {
     let isMounted = true;
     async function load() {
       try {
-        const res = await apiGet('/providers');
+        const params = new URLSearchParams();
+        const targetDate = data.date || data.startDate;
+        if (targetDate) params.append('date', targetDate);
+        if (data.startTime) params.append('startTime', data.startTime);
+        if (data.endTime) params.append('endTime', data.endTime);
+
+        if (data.selectedDays && typeof data.selectedDays === 'object') {
+          const DAY_KEY_TO_INDEX = { mon: 0, tue: 1, wed: 2, thu: 3, fri: 4, sat: 5, sun: 6 };
+          const dayKeys = Object.keys(data.selectedDays);
+          const dayIndices = dayKeys.map(k => DAY_KEY_TO_INDEX[k] !== undefined ? DAY_KEY_TO_INDEX[k] : Number(k)).filter(n => !isNaN(n));
+          if (dayIndices.length > 0) {
+            params.append('days', dayIndices.join(','));
+          }
+        }
+
+        const qs = params.toString() ? `?${params.toString()}` : '';
+        const res = await apiGet(`/providers${qs}`);
         if (isMounted && res?.providers) {
           const list = res.providers
             .filter(p => p.approval_status === 'approved' && p.subscription_paid)
@@ -63,7 +79,7 @@ export default function ProviderMatchStep({ data, onSelectProvider, onBack }) {
     }
     load();
     return () => { isMounted = false; };
-  }, []);
+  }, [data.date, data.startDate, data.startTime, data.endTime, data.selectedDays]);
 
   const serviceKey = service?.specialty || (service?.id ? service.id.replace(/-/g, '_') : null);
   const locationCity = address?.address?.city || (address?.address?.full ? address.address.full.split(',').pop().trim() : null);

@@ -1,7 +1,8 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { getExtraTasksForService, TIME_SLOTS } from './bookingData';
 import { TASK_ICON_MAP } from './ExtraTaskIcons';
 import ServiceQuestions from './ServiceQuestions';
+import { fetchProviderSchedule } from '../../../../services/availabilityApi';
 
 export default function SingleSessionForm({ data, onChange, onSubmit, onBack }) {
   const extraTasks = getExtraTasksForService(data.service?.id);
@@ -12,6 +13,27 @@ export default function SingleSessionForm({ data, onChange, onSubmit, onBack }) 
   const [extras, setExtras]       = useState(data.extras || []);
   const [serviceQuestions, setServiceQuestions] = useState(data.serviceQuestions || {});
   const [notes, setNotes]         = useState(data.notes || '');
+
+  // Provider Weekly Schedule validation
+  const [providerSchedule, setProviderSchedule] = useState([]);
+  const [loadingSchedule, setLoadingSchedule] = useState(false);
+
+  useEffect(() => {
+    if (!data.provider?.id) return;
+    let active = true;
+    setLoadingSchedule(true);
+    fetchProviderSchedule(data.provider.id)
+      .then(res => {
+        if (active) setProviderSchedule(Array.isArray(res) ? res : []);
+      })
+      .catch(() => {
+        if (active) setProviderSchedule([]);
+      })
+      .finally(() => {
+        if (active) setLoadingSchedule(false);
+      });
+    return () => { active = false; };
+  }, [data.provider?.id]);
 
   const toggleExtra = (id) => {
     setExtras(prev => prev.includes(id) ? prev.filter(e => e !== id) : [...prev, id]);
@@ -27,7 +49,59 @@ export default function SingleSessionForm({ data, onChange, onSubmit, onBack }) 
   };
 
   const isTimeOrderValid = !startTime || !endTime || endTime > startTime;
-  const canSubmit = Boolean(date && startTime && endTime && isTimeOrderValid);
+
+  const scheduleValidation = useMemo(() => {
+    if (!data.provider?.id || providerSchedule.length === 0 || !date) {
+      return { valid: true, message: null, shiftsText: null };
+    }
+    const [y, m, d] = date.split('-').map(Number);
+    const jsDay = new Date(y, m - 1, d).getDay();
+    const appDay = (jsDay + 6) % 7;
+    const dayNames = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
+    const dayName = dayNames[appDay];
+
+    const dayShifts = providerSchedule.filter(
+      s => Number(s.day_of_week ?? s.dayOfWeek) === appDay && (s.is_active !== false && s.isActive !== false)
+    );
+
+    if (dayShifts.length === 0) {
+      return {
+        valid: false,
+        isDayOff: true,
+        message: `${data.provider.name || 'Provider'} does not work on ${dayName}s (Day Off). Please select another date.`,
+        shiftsText: 'Day Off / Closed'
+      };
+    }
+
+    const shiftsFormatted = dayShifts.map(s => `${String(s.start_time ?? s.startTime).slice(0, 5)} – ${String(s.end_time ?? s.endTime).slice(0, 5)}`).join(', ');
+
+    if (startTime && endTime) {
+      const normStart = normalizeTime(startTime);
+      const normEnd = normalizeTime(endTime);
+      const fits = dayShifts.some(s => {
+        const sStart = String(s.start_time ?? s.startTime).slice(0, 5);
+        const sEnd = String(s.end_time ?? s.endTime).slice(0, 5);
+        return sStart <= normStart && sEnd >= normEnd;
+      });
+
+      if (!fits) {
+        return {
+          valid: false,
+          isOutsideShift: true,
+          message: `Selected hours (${normStart} – ${normEnd}) fall outside ${data.provider.name || 'provider'}'s working shift (${shiftsFormatted}) on ${dayName}.`,
+          shiftsText: shiftsFormatted
+        };
+      }
+    }
+
+    return {
+      valid: true,
+      message: null,
+      shiftsText: shiftsFormatted
+    };
+  }, [data.provider, providerSchedule, date, startTime, endTime]);
+
+  const canSubmit = Boolean(date && startTime && endTime && isTimeOrderValid && scheduleValidation.valid);
 
   const handleSubmit = () => {
     if (!canSubmit) return;
@@ -46,7 +120,22 @@ export default function SingleSessionForm({ data, onChange, onSubmit, onBack }) 
     <div className="ssf-root">
       {/* Date */}
       <div className="ssf-field">
-        <label className="ssf-label">Select date</label>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '0.35rem' }}>
+          <label className="ssf-label" style={{ margin: 0 }}>Select date</label>
+          {data.provider && scheduleValidation.shiftsText && (
+            <span style={{
+              fontSize: '0.72rem',
+              fontWeight: 600,
+              padding: '0.15rem 0.5rem',
+              borderRadius: '999px',
+              background: scheduleValidation.isDayOff ? '#FEE2E2' : '#E8F5E9',
+              color: scheduleValidation.isDayOff ? '#DC2626' : '#2E7D32',
+              border: scheduleValidation.isDayOff ? '1px solid #FCA5A5' : '1px solid #A5D6A7'
+            }}>
+              {scheduleValidation.isDayOff ? '⚠️ Day Off' : `Shift: ${scheduleValidation.shiftsText}`}
+            </span>
+          )}
+        </div>
         <input
           type="date"
           className="ssf-input"
@@ -93,6 +182,27 @@ export default function SingleSessionForm({ data, onChange, onSubmit, onBack }) 
         <p style={{ color: '#E11D48', fontSize: '0.75rem', marginTop: '-0.5rem', marginBottom: '0.75rem', fontWeight: 600 }}>
           End time must be after start time.
         </p>
+      )}
+
+      {/* Schedule Error / Out of shift Warning */}
+      {!scheduleValidation.valid && scheduleValidation.message && (
+        <div style={{
+          padding: '0.65rem 0.85rem',
+          background: '#FFF1F2',
+          border: '1px solid #FECDD3',
+          borderRadius: '0.75rem',
+          color: '#BE123C',
+          fontSize: '0.75rem',
+          fontWeight: 600,
+          marginTop: '-0.25rem',
+          marginBottom: '0.85rem',
+          display: 'flex',
+          alignItems: 'center',
+          gap: '0.5rem'
+        }}>
+          <span style={{ fontSize: '0.9rem' }}>⚠️</span>
+          <span>{scheduleValidation.message}</span>
+        </div>
       )}
 
       {/* Service-specific questions (Babysitting / Laundry & Ironing) */}

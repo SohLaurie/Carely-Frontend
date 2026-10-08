@@ -60,17 +60,18 @@ export default function ConfirmationStep({ data, onConfirm, onBack, isSubmitting
       Object.values(data.selectedDays).forEach(day => {
         const [sh, sm] = (day.startTime || '08:00').split(':').map(Number);
         const [eh, em] = (day.endTime || '12:00').split(':').map(Number);
-        totalHours += Math.max(1, +((eh * 60 + em) - (sh * 60 + sm)) / 60);
+        const diffM = (eh * 60 + (em || 0)) - (sh * 60 + (sm || 0));
+        totalHours += diffM > 0 ? +(diffM / 60).toFixed(2) : 1;
       });
     }
-    hours = totalHours || 3;
+    hours = totalHours ? +totalHours.toFixed(2) : 3;
     sessionFeeLabel = 'Weekly Session Fee';
     hoursLabel = 'Hours per week';
   } else {
     const [sh, sm] = (data.startTime || '09:00').split(':').map(Number);
     const [eh, em] = (data.endTime || '12:00').split(':').map(Number);
     const diffMins = (eh * 60 + (em || 0)) - (sh * 60 + (sm || 0));
-    hours = Math.max(0.25, +(diffMins / 60).toFixed(2));
+    hours = diffMins > 0 ? +(diffMins / 60).toFixed(2) : 0.08;
   }
 
   const sessionFee = Math.round(ratePerHour * hours);
@@ -107,7 +108,8 @@ export default function ConfirmationStep({ data, onConfirm, onBack, isSubmitting
         if (dayConfig) {
           const [sh, sm] = (dayConfig.startTime || '08:00').split(':').map(Number);
           const [eh, em] = (dayConfig.endTime || '12:00').split(':').map(Number);
-          skippedHours += Math.max(1, +((eh * 60 + em) - (sh * 60 + sm)) / 60);
+          const diffM = (eh * 60 + (em || 0)) - (sh * 60 + (sm || 0));
+          skippedHours += diffM > 0 ? +(diffM / 60).toFixed(2) : 1;
         }
       }
     });

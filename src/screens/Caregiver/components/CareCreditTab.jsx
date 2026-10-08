@@ -1,4 +1,4 @@
-﻿import React, { useState, useEffect, useCallback } from 'react'
+import React, { useState, useEffect, useCallback } from 'react'
 import { Coins, TrendingUp, Lock, Gift, ArrowDownToLine, RefreshCw, Phone, CheckCircle2, AlertCircle, Copy, Check } from 'lucide-react'
 import { getCareCreditWallet, withdrawCareCredits } from '../../../services/carecreditApi'
 import CareCreditPaymentModal from './CareCreditPaymentModal'
@@ -124,7 +124,7 @@ export default function CareCreditTab() {
         <StatCard icon={Coins} label="Total in Wallet" value={wallet.balance} sub={`≈ ${wallet.equivalentFcfa} FCFA`} color="green" />
         <StatCard icon={Gift} label="Earned / Referrals" value={monthlyStats.earned} sub="This month" color="blue" />
         <StatCard icon={TrendingUp} label="Consumed" value={monthlyStats.consumed_month} sub="This month (bookings)" color="rose" />
-        <StatCard icon={Lock} label="Pending (On Hold)" value={wallet.held} sub={`${wallet.available} CC available`} color="amber" />
+        <StatCard icon={Lock} label="Pending (On Hold)" value={wallet.held} sub="Reserved for bookings" color="amber" />
       </div>
 
       {/* Panel Tabs */}

@@ -37,6 +37,7 @@ import CertificationPaymentModal from './components/CertificationPaymentModal'
 import CareCreditTab from './components/CareCreditTab'
 import { getCareCreditWallet } from '../../services/carecreditApi.js'
 import { parseSessionDateTime } from '../../utils/bookingMetadata'
+import { parseUserNeeds, getTopQualifiedProviders } from '../../utils/careMatching'
 
 import { getStoredUser, apiGet } from '../../services/api.js'
 import { verifySessionOtp, providerCompleteSession, fetchProviderReviews, reportUnableToComplete } from '../../services/bookingApi.js'
@@ -58,8 +59,10 @@ import {
 import {
   fetchMyCalendar,
   blockDateSlot,
-  unblockByDate
+  unblockByDate,
+  fetchMySchedule
 } from '../../services/availabilityApi.js'
+import WeeklyScheduleModal from './components/WeeklyScheduleModal'
 
 // ── Confirmation Modal ──
 function ConfirmModal({ dialog, onClose }) {
@@ -217,6 +220,10 @@ export default function CaregiverDashboard({ onNavigate }) {
   const [providerReviews, setProviderReviews] = useState([])
   const [ratingStats, setRatingStats] = useState({ rating: 0, count: 0 })
 
+  // Weekly Working Shifts Schedule Modal
+  const [isScheduleModalOpen, setIsScheduleModalOpen] = useState(false)
+  const [providerWeeklySchedule, setProviderWeeklySchedule] = useState([])
+
   const loadReviews = useCallback(async () => {
     const user = getStoredUser()
     if (!user?.id) return
@@ -316,6 +323,12 @@ export default function CaregiverDashboard({ onNavigate }) {
       }
       if (data && data.eventsByDay) {
         setCalendarEvents(data.eventsByDay)
+      }
+      if (data && data.weeklySchedule) {
+        setProviderWeeklySchedule(data.weeklySchedule)
+      } else {
+        const sched = await fetchMySchedule().catch(() => [])
+        setProviderWeeklySchedule(sched || [])
       }
     } catch (err) {
       console.warn('Availability API request failed, building from incomingBookings fallback:', err)
@@ -516,8 +529,18 @@ export default function CaregiverDashboard({ onNavigate }) {
     if (state === 'blocked') return 'blocked'
     if (state === 'recurring') return 'recurring'
     if (state === 'booked') return 'booked'
+
+    if (providerWeeklySchedule.length > 0) {
+      const yr = calendarDate.getFullYear()
+      const mo = calendarDate.getMonth()
+      const selJsDay = new Date(yr, mo, selectedDay).getDay()
+      const selAppDay = (selJsDay + 6) % 7
+      const hasWorkingShift = providerWeeklySchedule.some(s => Number(s.day_of_week ?? s.dayOfWeek) === selAppDay && (s.is_active !== false && s.isActive !== false))
+      if (!hasWorkingShift) return 'off'
+    }
+
     return 'available'
-  }, [selectedDay, dayStates, selectedDaySessions])
+  }, [selectedDay, dayStates, selectedDaySessions, providerWeeklySchedule, calendarDate])
 
 
 
@@ -635,45 +658,92 @@ export default function CaregiverDashboard({ onNavigate }) {
     setAiResult(null)
 
     try {
-      const data = await apiGet('/providers')
-      const list = (data?.providers || []).filter(p => p.approval_status === 'approved' && p.subscription_paid)
-      const query = aiPrompt.toLowerCase()
-
-      let matched = list[0]
-      if (list.length > 0) {
-        const found = list.find(p => {
-          const prof = (p.profession || '').toLowerCase()
-          const spec = (Array.isArray(p.specialties) ? p.specialties.join(' ') : String(p.specialties || '')).toLowerCase()
-          const loc = (p.location || p.city || '').toLowerCase()
-          const bio = (p.bio || '').toLowerCase()
-          return query.split(' ').some(w => w.length > 3 && (prof.includes(w) || spec.includes(w) || loc.includes(w) || bio.includes(w)))
+      const criteria = parseUserNeeds(aiPrompt)
+      const queryUrl = criteria.date ? `/providers?date=${encodeURIComponent(criteria.date)}` : '/providers'
+      const data = await apiGet(queryUrl)
+      const rawList = data?.providers || []
+      const mappedList = rawList
+        .filter(p => p.approval_status === 'approved' && p.subscription_paid)
+        .map(p => {
+          const rawSpecialties = Array.isArray(p.specialties)
+            ? p.specialties
+            : (typeof p.specialties === 'string'
+                ? p.specialties.replace(/[{}]/g, '').split(',').map(s => s.trim()).filter(Boolean)
+                : [])
+          return {
+            id: p.id,
+            name: `${p.first_name || ''} ${p.last_name || ''}`.trim() || 'Verified Provider',
+            firstName: p.first_name || '',
+            lastName: p.last_name || '',
+            profession: p.profession || 'Care Provider',
+            specialty: rawSpecialties[0] || (p.profession ? p.profession.toLowerCase().replace(/\s+/g, '_') : 'cleaning'),
+            specialties: rawSpecialties,
+            pricePerHour: Number(p.price_per_hour) || 50,
+            location: p.location || p.city || 'Yaoundé',
+            serviceArea: p.service_area || p.location || p.city || 'Yaoundé',
+            experience: p.experience || (p.experience_yrs ? `${p.experience_yrs} yrs` : '1+ yrs'),
+            experience_yrs: p.experience_yrs,
+            bio: p.bio || '',
+            rating: parseFloat(p.rating) > 0 ? parseFloat(p.rating) : 5.0,
+            reviewCount: p.review_count || 0,
+            photo: p.photo_url || null,
+            available: p.is_available !== false,
+            approvalStatus: p.approval_status || 'approved',
+            subscriptionPaid: Boolean(p.subscription_paid),
+            isCertified: Boolean(p.is_certified),
+            certificationStatus: p.certification_status || 'none',
+          }
         })
-        if (found) matched = found
-      }
 
-      if (matched) {
-        const matchedName = `${matched.first_name || ''} ${matched.last_name || ''}`.trim() || 'Verified Provider'
-        const matchedProf = matched.profession || 'Care Provider'
-        const matchedLoc = matched.location || matched.city || 'Yaoundé'
-        const matchedExp = matched.experience || (matched.experience_yrs ? `${matched.experience_yrs} yrs` : 'experienced')
-        const reason = `Based on your requirements, we recommend ${matchedName} (${matchedProf} in ${matchedLoc}, ${matchedExp} experience). Verified and registered on Carely.`
+      const recommendations = getTopQualifiedProviders(mappedList, criteria, 5)
 
-        setAiLoading(false)
-        setAiResult({ matchedId: matched.id, message: reason })
-        setSelectedId(matched.id)
-        if (matched.specialties?.[0] || matched.profession) {
-          setFilterSpecialty((matched.specialties?.[0] || matched.profession).toLowerCase().replace(/\s+/g, '_'))
+      if (recommendations.length > 0) {
+        const topMatch = recommendations[0]
+        const datePart = criteria.dateText ? ` for ${criteria.dateText}` : ''
+        const locPart = criteria.location ? ` in ${criteria.location}` : ''
+        const servPart = criteria.serviceLabel || 'your needs'
+
+        setAiResult({
+          criteria,
+          matchedId: topMatch.id,
+          recommendations,
+          message: `Found ${recommendations.length} verified & available provider${recommendations.length > 1 ? 's' : ''} for ${servPart}${locPart}${datePart}, ranked from most qualified to least.`,
+        })
+        setSelectedId(topMatch.id)
+        if (criteria.date && typeof setDate === 'function') {
+          setDate(criteria.date)
         }
-        if (matched.location || matched.city) {
-          setFilterLocation(matched.location || matched.city)
+        if (criteria.serviceKey) {
+          setFilterSpecialty(criteria.serviceKey)
+        }
+        if (criteria.location) {
+          setFilterLocation(criteria.location)
         }
       } else {
-        setAiLoading(false)
-        setAiResult({ message: 'No registered providers match your query. Explore all verified providers below.' })
+        let reason
+        if (criteria.dateText) {
+          reason = `No available providers found for ${criteria.serviceLabel || 'your request'}${criteria.location ? ` in ${criteria.location}` : ''} on ${criteria.dateText}. Providers may have blocked this date or do not work on this day. Explore other dates or registered providers below.`
+        } else if (criteria.serviceLabel) {
+          reason = `No approved providers strictly match "${criteria.serviceLabel}"${criteria.location ? ` in ${criteria.location}` : ''} yet. To protect your family, we never substitute with an unqualified service (e.g. cleaners for babysitting).`
+        } else {
+          reason = 'No registered providers match your query. Explore all verified providers below.'
+        }
+        setAiResult({
+          criteria,
+          matchedId: null,
+          recommendations: [],
+          message: reason,
+        })
       }
     } catch (err) {
+      setAiResult({
+        criteria: null,
+        matchedId: null,
+        recommendations: [],
+        message: 'Unable to match right now. Please explore registered providers below.',
+      })
+    } finally {
       setAiLoading(false)
-      setAiResult({ message: 'Unable to match right now. Please explore registered providers below.' })
     }
   }
 
@@ -983,7 +1053,7 @@ export default function CaregiverDashboard({ onNavigate }) {
       const [eh, em] = r.endTime.split(':').map(Number)
       if (!isNaN(sh) && !isNaN(eh)) {
         const diff = (eh * 60 + (em || 0)) - (sh * 60 + (sm || 0))
-        if (diff > 0) hoursVal = Math.round((diff / 60) * 10) / 10
+        if (diff > 0) hoursVal = +(diff / 60).toFixed(2)
       }
     }
     const sessions = Number(r.totalSessions) || 1
@@ -1551,12 +1621,39 @@ export default function CaregiverDashboard({ onNavigate }) {
                 </button>
               </div>
 
-              <button className="bg-[#1E4030] hover:bg-[#152e22] text-white text-xs font-bold px-4 py-2.5 rounded-xl flex items-center gap-1.5 shadow-sm transition-all cursor-pointer">
-                <Sparkles size={14} />
-                <span>Add Availability</span>
+              <button
+                onClick={() => setIsScheduleModalOpen(true)}
+                className="bg-[#1E4030] hover:bg-[#152e22] text-white text-xs font-bold px-4 py-2.5 rounded-xl flex items-center gap-1.5 shadow-sm transition-all cursor-pointer"
+              >
+                <Clock size={14} />
+                <span>Set Schedule</span>
               </button>
             </div>
           </div>
+
+          {/* Schedule Info / Banner if no schedule defined */}
+          {providerWeeklySchedule.length === 0 && (
+            <div className="bg-amber-50/80 border border-amber-200/80 rounded-2xl p-4 flex items-center justify-between gap-4 flex-wrap">
+              <div className="flex items-center gap-3">
+                <div className="w-9 h-9 rounded-xl bg-amber-100 flex items-center justify-center text-amber-700 shrink-0">
+                  <Clock size={18} />
+                </div>
+                <div>
+                  <h4 className="text-xs font-bold text-amber-900">No Weekly Schedule Set (Open Anytime)</h4>
+                  <p className="text-[11px] text-amber-800/80 mt-0.5">
+                    You are currently bookable at any time. Click <strong>Set Schedule</strong> to define your working shifts (e.g. Mon–Fri 08:00 – 17:00) — once defined, clients will only be able to book you during those shifts.
+                  </p>
+                </div>
+              </div>
+              <button
+                onClick={() => setIsScheduleModalOpen(true)}
+                className="bg-amber-700 hover:bg-amber-800 text-white text-xs font-bold px-4 py-2 rounded-xl transition-all shadow-xs cursor-pointer flex items-center gap-1.5 shrink-0"
+              >
+                <Clock size={13} />
+                <span>Set Weekly Shifts</span>
+              </button>
+            </div>
+          )}
 
           <div className="grid grid-cols-1 lg:grid-cols-[1fr_380px] xl:grid-cols-[1fr_400px] gap-6 items-start">
             {/* Calendar Grid Box */}
@@ -1597,6 +1694,10 @@ export default function CaregiverDashboard({ onNavigate }) {
                     <span className="w-2.5 h-2.5 rounded-full bg-red-400"></span>
                     Blocked
                   </span>
+                  <span className="flex items-center gap-1">
+                    <span className="w-2.5 h-2.5 rounded-full bg-slate-200 border border-slate-300"></span>
+                    Day Off
+                  </span>
                 </div>
               </div>
 
@@ -1634,7 +1735,15 @@ export default function CaregiverDashboard({ onNavigate }) {
                         return false
                       })
 
-                      const status = hasSession ? (sessionEvent?.sessionType === 'recurring' ? 'recurring' : 'booked') : (dayStates[dayNum] || 'available')
+                      let status = hasSession ? (sessionEvent?.sessionType === 'recurring' ? 'recurring' : 'booked') : (dayStates[dayNum] || 'available')
+                      if (!hasSession && status === 'available' && providerWeeklySchedule.length > 0) {
+                        const dJsDay = new Date(calYear, calMonth, dayNum).getDay()
+                        const dAppDay = (dJsDay + 6) % 7
+                        const hasShift = providerWeeklySchedule.some(s => Number(s.day_of_week ?? s.dayOfWeek) === dAppDay && (s.is_active !== false && s.isActive !== false))
+                        if (!hasShift) {
+                          status = 'off'
+                        }
+                      }
                       const isSelected = selectedDay === dayNum
 
                       let dayStyle = 'bg-white text-[#1C1A17] border border-[#E2D9CF]'
@@ -1661,6 +1770,9 @@ export default function CaregiverDashboard({ onNavigate }) {
                       } else if (status === 'blocked') {
                         dayStyle = 'bg-red-50/40 text-red-700/70 border border-dashed border-red-300 line-through'
                         labelText = 'Blocked'
+                      } else if (status === 'off') {
+                        dayStyle = 'bg-slate-50/80 text-slate-400 border border-dashed border-slate-200'
+                        labelText = 'Day Off'
                       }
 
                       if (isSelected) {
@@ -1775,6 +1887,29 @@ export default function CaregiverDashboard({ onNavigate }) {
                                 )
                               }
 
+                              const wJsDay = wDay.date.getDay()
+                              const wAppDay = (wJsDay + 6) % 7
+                              const dayShifts = providerWeeklySchedule.filter(s => Number(s.day_of_week ?? s.dayOfWeek) === wAppDay && (s.is_active !== false && s.isActive !== false))
+                              const isDayOff = providerWeeklySchedule.length > 0 && dayShifts.length === 0
+                              const isOutsideShift = providerWeeklySchedule.length > 0 && !dayShifts.some(s => {
+                                const st = String(s.start_time ?? s.startTime).slice(0, 5)
+                                const et = String(s.end_time ?? s.endTime).slice(0, 5)
+                                return hour >= st && hour < et
+                              })
+
+                              if (isDayOff || isOutsideShift) {
+                                return (
+                                  <div
+                                    key={wDay.label + hour}
+                                    onClick={() => { if (inViewMonth) setSelectedDay(wDay.dayNum) }}
+                                    className="h-10 bg-slate-50/60 border border-slate-100 rounded-lg flex items-center justify-center text-[8px] text-slate-400 font-medium cursor-pointer"
+                                    title={isDayOff ? 'Day Off' : 'Outside Working Shift'}
+                                  >
+                                    {isDayOff ? 'Off' : '—'}
+                                  </div>
+                                )
+                              }
+
                               return (
                                 <div
                                   key={wDay.label + hour}
@@ -1883,6 +2018,27 @@ export default function CaregiverDashboard({ onNavigate }) {
                   </div>
                 )}
 
+                {currentDayStatus === 'off' && (
+                  <div className="space-y-4">
+                    <div className="bg-slate-50 border border-slate-200 text-slate-700 rounded-2xl p-4 text-xs font-medium leading-relaxed flex items-start gap-2.5">
+                      <Clock size={16} className="shrink-0 mt-0.5 text-slate-500" />
+                      <div>
+                        <p className="font-bold text-slate-800">Day Off (No Shifts Configured)</p>
+                        <p className="text-[11px] text-slate-500 mt-0.5">
+                          According to your weekly schedule, you do not work on this day. Clients cannot book sessions with you on this date.
+                        </p>
+                      </div>
+                    </div>
+                    <button
+                      onClick={() => setIsScheduleModalOpen(true)}
+                      className="w-full border border-purple-200 bg-purple-50 hover:bg-purple-100 text-purple-800 font-bold text-xs py-3 rounded-xl transition-all shadow-xs cursor-pointer flex items-center justify-center gap-2"
+                    >
+                      <Clock size={14} className="text-purple-700" />
+                      <span>Edit Weekly Schedule</span>
+                    </button>
+                  </div>
+                )}
+
                 {currentDayStatus === 'recurring' && (
                   <div className="space-y-4">
                     <div className="bg-amber-50 border border-amber-200 text-amber-900 rounded-2xl p-4 space-y-2 relative overflow-hidden">
@@ -1928,37 +2084,68 @@ export default function CaregiverDashboard({ onNavigate }) {
                 )}
               </div>
 
-              {/* Working Hours */}
+              {/* Working Shift Hours for Selected Day */}
               <div className="space-y-3 pt-3 border-t border-[#F0EBE5]">
-                <span className="text-[10px] text-[#8A7E74] font-bold tracking-wider uppercase">Working Hours Range</span>
-                <div className="flex flex-wrap gap-2">
-                  {[
-                    { key: 'morning', label: 'Morning (08:00 – 12:00)' },
-                    { key: 'afternoon', label: 'Afternoon (12:00 – 16:00)' },
-                    { key: 'evening', label: 'Evening (16:00 – 20:00)' },
-                    { key: 'overnight', label: 'Overnight' }
-                  ].map(pill => {
-                    const isBooked = currentDayStatus === 'booked'
-                    const active = isBooked ? pill.key === 'morning' : workingHours[pill.key]
-
-                    return (
-                      <button
-                        key={pill.key}
-                        disabled={isBooked}
-                        onClick={() => {
-                          setWorkingHours({ ...workingHours, [pill.key]: !workingHours[pill.key] })
-                        }}
-                        className={`text-xs font-semibold px-3 py-1.5 rounded-xl border transition-all cursor-pointer ${
-                          active
-                            ? 'bg-[#1E4030] text-white border-[#1E4030] shadow-xs'
-                            : 'bg-[#FAF8F5] text-[#8A7E74] border-[#E2D9CF] hover:border-[#1E4030] hover:text-[#1C1A17]'
-                        } ${isBooked ? 'opacity-85 cursor-not-allowed' : ''}`}
-                      >
-                        {pill.label}
-                      </button>
-                    )
-                  })}
+                <div className="flex items-center justify-between">
+                  <span className="text-[10px] text-[#8A7E74] font-bold tracking-wider uppercase">Working Shift Hours</span>
+                  <button
+                    onClick={() => setIsScheduleModalOpen(true)}
+                    className="text-[11px] font-bold text-purple-700 hover:text-purple-900 flex items-center gap-1 cursor-pointer"
+                  >
+                    <span>Edit Schedule</span>
+                    <ArrowRight size={11} />
+                  </button>
                 </div>
+                {(() => {
+                  if (providerWeeklySchedule.length === 0) {
+                    return (
+                      <div className="p-3 bg-amber-50/80 rounded-xl border border-amber-200/80 text-[11px] text-amber-800">
+                        <p className="font-bold">Flexible / Open Anytime</p>
+                        <p className="text-[10px] text-amber-700/80 mt-0.5">
+                          No shifts saved yet. Clients can book any available time slot.
+                        </p>
+                      </div>
+                    )
+                  }
+
+                  const selJsDay = new Date(calYear, calMonth, selectedDay).getDay()
+                  const selAppDay = (selJsDay + 6) % 7
+                  const activeShifts = providerWeeklySchedule.filter(
+                    s => Number(s.day_of_week ?? s.dayOfWeek) === selAppDay && (s.is_active !== false && s.isActive !== false)
+                  )
+
+                  if (activeShifts.length === 0) {
+                    return (
+                      <div className="p-3 bg-slate-50 rounded-xl border border-slate-200 text-[11px] text-slate-600 flex items-center justify-between">
+                        <span className="italic font-medium text-slate-500">Day Off / Closed</span>
+                        <button
+                          onClick={() => setIsScheduleModalOpen(true)}
+                          className="text-[10px] font-bold text-purple-700 hover:underline cursor-pointer"
+                        >
+                          + Add Shift
+                        </button>
+                      </div>
+                    )
+                  }
+
+                  return (
+                    <div className="flex flex-wrap gap-2">
+                      {activeShifts.map((sh, idx) => {
+                        const st = String(sh.start_time ?? sh.startTime).slice(0, 5)
+                        const et = String(sh.end_time ?? sh.endTime).slice(0, 5)
+                        return (
+                          <div
+                            key={sh.id || idx}
+                            className="bg-purple-50 text-purple-900 border border-purple-200 text-xs font-semibold px-3 py-1.5 rounded-xl flex items-center gap-1.5 shadow-xs"
+                          >
+                            <Clock size={12} className="text-purple-600" />
+                            <span>{st} — {et}</span>
+                          </div>
+                        )
+                      })}
+                    </div>
+                  )
+                })()}
               </div>
             </div>
           </div>
@@ -2535,6 +2722,16 @@ export default function CaregiverDashboard({ onNavigate }) {
         onComplete={handleWizardComplete}
       />
     )}
+
+    {/* ── Weekly Working Shifts Schedule Modal ────────────── */}
+    <WeeklyScheduleModal
+      isOpen={isScheduleModalOpen}
+      onClose={() => setIsScheduleModalOpen(false)}
+      onScheduleSaved={async (savedSchedule) => {
+        setProviderWeeklySchedule(savedSchedule || [])
+        await loadCalendarData(calendarDate)
+      }}
+    />
   </>
   )
 }

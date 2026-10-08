@@ -26,10 +26,10 @@ function BookingDetailsModal({ booking, onClose, onNavigate }) {
   if (booking.startTime && booking.endTime) {
     const [sh, sm] = booking.startTime.split(':').map(Number);
     const [eh, em] = booking.endTime.split(':').map(Number);
-    const diffMin = (eh * 60 + em) - (sh * 60 + sm);
-    if (diffMin > 0) hours = Math.round((diffMin / 60) * 10) / 10;
+    const diffMin = (eh * 60 + (em || 0)) - (sh * 60 + (sm || 0));
+    if (diffMin > 0) hours = +(diffMin / 60).toFixed(2);
   } else if (subtotal > 0 && hourlyRate > 0) {
-    hours = Math.round((subtotal / (hourlyRate * sessions)) * 10) / 10;
+    hours = +(subtotal / (hourlyRate * sessions)).toFixed(2);
   }
   if (hours <= 0) hours = 1;
 

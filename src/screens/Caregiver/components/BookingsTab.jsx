@@ -586,10 +586,10 @@ export default function BookingsTab({
           const [eh, em] = b.endTime.split(':').map(Number);
           if (!isNaN(sh) && !isNaN(eh)) {
             const diff = (eh * 60 + (em || 0)) - (sh * 60 + (sm || 0));
-            if (diff > 0) hours = Math.round((diff / 60) * 10) / 10;
+            if (diff > 0) hours = +(diff / 60).toFixed(2);
           }
         } else if (subtotal && hourlyRate) {
-          hours = Math.max(1, Math.round((subtotal / hourlyRate) * 10) / 10);
+          hours = +(subtotal / (hourlyRate * sessions)).toFixed(2);
         }
         const sessions = Number(b.totalSessions) || 1;
 

@@ -39,8 +39,11 @@ export default function Completion({ onNavigate, screenParams }) {
   // Interruption status & calculations
   const isInterrupted = firstSession?.status === 'INTERRUPTED' || booking.status === 'interrupted' || booking.rawStatus === 'interrupted';
   const totalAmount = Number(booking.totalPrice || firstSession?.session_amount || 11000);
-  const partialAmount = Number(firstSession?.partial_amount || Math.round(totalAmount * 0.5));
-  const refundAmount = Math.max(0, totalAmount - partialAmount);
+  const platformFee = Number(booking.serviceFee ?? 5);
+  const subtotal = Number(booking.subtotal != null ? booking.subtotal : Math.max(0, totalAmount - platformFee));
+  const partialAmount = Number(firstSession?.partial_amount != null ? firstSession.partial_amount : 0);
+  // Platform fee is non-refundable; household refund is the unworked portion of provider subtotal
+  const refundAmount = Math.max(0, subtotal - partialAmount);
   
   const otpVerifiedAt = firstSession?.otp_verified_at
     ? new Date(firstSession.otp_verified_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
@@ -48,12 +51,18 @@ export default function Completion({ onNavigate, screenParams }) {
     
   const interruptedAt = firstSession?.interrupted_at
     ? new Date(firstSession.interrupted_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
-    : '11:15 AM';
+    : (firstSession?.otp_verified_at ? new Date(firstSession.otp_verified_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '11:15 AM');
 
-  // Calculate hours worked for display
-  const hoursWorked = firstSession?.otp_verified_at && firstSession?.interrupted_at
-    ? Math.max(1, Math.floor((new Date(firstSession.interrupted_at) - new Date(firstSession.otp_verified_at)) / 3600000))
-    : 1;
+  // Calculate actual minutes worked for display
+  const minutesWorked = firstSession?.minutes_worked != null
+    ? Number(firstSession.minutes_worked)
+    : (firstSession?.otp_verified_at && firstSession?.interrupted_at
+        ? Math.max(0, Math.floor((new Date(firstSession.interrupted_at) - new Date(firstSession.otp_verified_at)) / 60000))
+        : 0);
+
+  const timeWorkedDisplay = minutesWorked < 60
+    ? `${minutesWorked} min(s)`
+    : `${(minutesWorked / 60).toFixed(1)} hr(s)`;
 
   const interruptionReason = firstSession?.interruption_reason || booking.interruption_reason || '';
 
@@ -280,7 +289,7 @@ export default function Completion({ onNavigate, screenParams }) {
                 </div>
                 <div className="flex justify-between items-center border-b border-[#E2D9CF] pb-2.5">
                   <span className="text-[#8A7E74] font-medium">Calculated Time Worked</span>
-                  <span className="font-bold text-[#1E4030]">{hoursWorked} hour(s)</span>
+                  <span className="font-bold text-[#1E4030]">{timeWorkedDisplay}</span>
                 </div>
                 {interruptionReason && (
                   <div className="border-b border-[#E2D9CF] pb-2.5">

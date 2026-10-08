@@ -1,9 +1,10 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { Check, ChevronDown, ChevronUp } from 'lucide-react';
 import { DAYS_OF_WEEK, TIME_SLOTS, getExtraTasksForService } from './bookingData';
 import CalendarPreview from './CalendarPreview';
 import { TASK_ICON_MAP } from './ExtraTaskIcons';
 import ServiceQuestions from './ServiceQuestions';
+import { fetchProviderSchedule } from '../../../../services/availabilityApi';
 
 // Per-day config shape: { startTime, endTime, extras: [] }
 const defaultDayConfig = () => ({ startTime: '08:00', endTime: '12:00', extras: [] });
@@ -17,6 +18,68 @@ export default function DayScheduleSelector({ data, onChange, onSubmit, onBack }
   const [skippedDates, setSkippedDates] = useState(data.skippedDates || []);
   const [frequency, setFrequency]         = useState(data.frequency || 'weekly');
   const [durationWeeks, setDurationWeeks] = useState(data.durationWeeks || '4');
+
+  // Provider Weekly Schedule validation
+  const [providerSchedule, setProviderSchedule] = useState([]);
+  const [loadingSchedule, setLoadingSchedule] = useState(false);
+
+  useEffect(() => {
+    if (!data.provider?.id) return;
+    let active = true;
+    setLoadingSchedule(true);
+    fetchProviderSchedule(data.provider.id)
+      .then(res => {
+        if (active) setProviderSchedule(Array.isArray(res) ? res : []);
+      })
+      .catch(() => {
+        if (active) setProviderSchedule([]);
+      })
+      .finally(() => {
+        if (active) setLoadingSchedule(false);
+      });
+    return () => { active = false; };
+  }, [data.provider?.id]);
+
+  const DAY_KEY_TO_INDEX = { mon: 0, tue: 1, wed: 2, thu: 3, fri: 4, sat: 5, sun: 6 };
+
+  const normalizeTime = (t) => {
+    if (!t) return '09:00';
+    const parts = t.trim().split(':');
+    if (parts.length === 2) {
+      return `${parts[0].padStart(2, '0')}:${parts[1].padStart(2, '0')}`;
+    }
+    return t;
+  };
+
+  const providerDayErrors = useMemo(() => {
+    if (!data.provider?.id || providerSchedule.length === 0) return {};
+    const errors = {};
+    Object.entries(selectedDays).forEach(([dayId, cfg]) => {
+      const appDay = DAY_KEY_TO_INDEX[dayId];
+      if (appDay === undefined) return;
+      const dayShifts = providerSchedule.filter(
+        s => Number(s.day_of_week ?? s.dayOfWeek) === appDay && (s.is_active !== false && s.isActive !== false)
+      );
+      if (dayShifts.length === 0) {
+        errors[dayId] = `${data.provider.name || 'Provider'} does not work on this day (Day Off).`;
+        return;
+      }
+      if (cfg?.startTime && cfg?.endTime) {
+        const sTime = normalizeTime(cfg.startTime);
+        const eTime = normalizeTime(cfg.endTime);
+        const fits = dayShifts.some(s => {
+          const sStart = String(s.start_time ?? s.startTime).slice(0, 5);
+          const sEnd = String(s.end_time ?? s.endTime).slice(0, 5);
+          return sStart <= sTime && sEnd >= eTime;
+        });
+        if (!fits) {
+          const shiftsTxt = dayShifts.map(s => `${String(s.start_time ?? s.startTime).slice(0, 5)} – ${String(s.end_time ?? s.endTime).slice(0, 5)}`).join(', ');
+          errors[dayId] = `Requested hours (${sTime} – ${eTime}) fall outside shifts (${shiftsTxt}).`;
+        }
+      }
+    });
+    return errors;
+  }, [data.provider, providerSchedule, selectedDays]);
 
   const todayObj = new Date();
   const y = todayObj.getFullYear();
@@ -60,7 +123,8 @@ export default function DayScheduleSelector({ data, onChange, onSubmit, onBack }
     updateDayField(dayId, 'extras', updated);
   };
 
-  const canSubmit = Object.keys(selectedDays).length > 0;
+  const hasScheduleErrors = Object.keys(providerDayErrors).length > 0;
+  const canSubmit = Object.keys(selectedDays).length > 0 && !hasScheduleErrors;
 
   // Calculate End Date and Total Sessions summary
   const startObj = new Date(startDate || todayStr);
@@ -78,15 +142,6 @@ export default function DayScheduleSelector({ data, onChange, onSubmit, onBack }
   const totalSessionsCount = durationWeeks === 'ongoing'
     ? `${activeDaysCount} sessions/week (Ongoing)`
     : Math.max(0, (activeDaysCount * activeWeeksCount) - skippedDates.length);
-
-  const normalizeTime = (t) => {
-    if (!t) return '09:00';
-    const parts = t.trim().split(':');
-    if (parts.length === 2) {
-      return `${parts[0].padStart(2, '0')}:${parts[1].padStart(2, '0')}`;
-    }
-    return t;
-  };
 
   const handleSubmit = () => {
     if (!canSubmit) return;
@@ -196,6 +251,13 @@ export default function DayScheduleSelector({ data, onChange, onSubmit, onBack }
           const isExpanded = expandedDay === day.id && isOn;
           const endSlots  = config ? TIME_SLOTS.filter(t => t > config.startTime) : TIME_SLOTS;
 
+          const appDay = DAY_KEY_TO_INDEX[day.id];
+          const dayShifts = providerSchedule.filter(
+            s => Number(s.day_of_week ?? s.dayOfWeek) === appDay && (s.is_active !== false && s.isActive !== false)
+          );
+          const isProviderDayOff = providerSchedule.length > 0 && dayShifts.length === 0;
+          const providerDayError = providerDayErrors[day.id];
+
           return (
             <div key={day.id} className={`dss-day-wrap ${isOn ? 'dss-day-wrap--on' : ''}`}>
               {/* Row header */}
@@ -209,10 +271,25 @@ export default function DayScheduleSelector({ data, onChange, onSubmit, onBack }
                   {isOn && <Check size={12} strokeWidth={3} />}
                 </button>
 
-                {/* Day name */}
-                <span className={`dss-day-label ${isOn ? 'dss-day-label--on' : ''}`}>
-                  {day.label}
-                </span>
+                {/* Day name & Provider Shift Badge */}
+                <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', flexWrap: 'wrap' }}>
+                  <span className={`dss-day-label ${isOn ? 'dss-day-label--on' : ''}`}>
+                    {day.label}
+                  </span>
+                  {data.provider && providerSchedule.length > 0 && (
+                    <span style={{
+                      fontSize: '0.7rem',
+                      fontWeight: 600,
+                      padding: '0.1rem 0.45rem',
+                      borderRadius: '999px',
+                      background: isProviderDayOff ? '#FEE2E2' : '#E8F5E9',
+                      color: isProviderDayOff ? '#DC2626' : '#2E7D32',
+                      border: isProviderDayOff ? '1px solid #FCA5A5' : '1px solid #A5D6A7'
+                    }}>
+                      {isProviderDayOff ? 'Day Off' : dayShifts.map(s => `${String(s.start_time ?? s.startTime).slice(0, 5)}–${String(s.end_time ?? s.endTime).slice(0, 5)}`).join(', ')}
+                    </span>
+                  )}
+                </div>
 
                 {/* Time summary when on */}
                 {isOn && config && (
@@ -239,6 +316,26 @@ export default function DayScheduleSelector({ data, onChange, onSubmit, onBack }
                   </button>
                 )}
               </div>
+
+              {/* Provider Day Error Banner */}
+              {isOn && providerDayError && (
+                <div style={{
+                  margin: '0.35rem 0.75rem 0.5rem',
+                  padding: '0.4rem 0.65rem',
+                  background: '#FFF1F2',
+                  border: '1px solid #FECDD3',
+                  borderRadius: '0.5rem',
+                  color: '#BE123C',
+                  fontSize: '0.72rem',
+                  fontWeight: 600,
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '0.35rem'
+                }}>
+                  <span style={{ fontSize: '0.85rem' }}>⚠️</span>
+                  <span>{providerDayError}</span>
+                </div>
+              )}
 
               {/* Expanded detail panel */}
               {isExpanded && config && (

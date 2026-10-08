@@ -52,3 +52,41 @@ export async function listMyBlockedSlots() {
   const res = await apiGet('/availability/blocked-slots', token)
   return res.blockedSlots || []
 }
+
+/**
+ * Fetch weekly working schedule for logged-in provider
+ */
+export async function fetchMySchedule() {
+  const token = getAccessToken()
+  const res = await apiGet('/availability/schedule', token)
+  return res.schedule || []
+}
+
+/**
+ * Save/replace weekly working schedule for logged-in provider
+ * schedule: [{ dayOfWeek: 0..6, startTime: '09:00', endTime: '17:00', isActive: true }]
+ */
+export async function saveMySchedule(schedule = []) {
+  const token = getAccessToken()
+  const { apiPut } = await import('./api')
+  const res = await apiPut('/availability/schedule', { schedule }, token)
+  return res.schedule || []
+}
+
+/**
+ * Fetch public weekly schedule of any provider
+ */
+export async function fetchProviderSchedule(providerId) {
+  const res = await apiGet(`/availability/provider/${providerId}/schedule`)
+  return res.schedule || []
+}
+
+/**
+ * Check provider availability for a specific date and time range
+ */
+export async function checkProviderAvailability(providerId, date, startTime, endTime) {
+  const params = new URLSearchParams({ providerId, date })
+  if (startTime) params.append('startTime', startTime)
+  if (endTime) params.append('endTime', endTime)
+  return await apiGet(`/availability/check?${params.toString()}`)
+}

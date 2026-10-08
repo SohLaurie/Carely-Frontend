@@ -6,6 +6,7 @@ import {
 } from 'lucide-react';
 import { SPECIALTY_META } from '../../../data';
 import { apiGet, getAvatarUrl } from '../../../services/api';
+import { providerOffersService } from '../../../utils/careMatching';
 
 export default function ExploreTab({
   selectedId,
@@ -161,28 +162,7 @@ export default function ExploreTab({
   // Category matching helper
   const matchesCategory = (provider, catId) => {
     if (catId === 'all') return true;
-    const target = catId.toLowerCase();
-
-    if (provider.specialty && (provider.specialty.toLowerCase() === target || provider.specialty.toLowerCase().includes(target))) {
-      return true;
-    }
-    if (Array.isArray(provider.specialties) && provider.specialties.some(s => s.toLowerCase() === target || s.toLowerCase().includes(target) || target.includes(s.toLowerCase()))) {
-      return true;
-    }
-    if (provider.profession) {
-      const prof = provider.profession.toLowerCase();
-      if (prof.includes(target) || target.includes(prof)) return true;
-      if (target === 'cleaning' && (prof.includes('clean') || prof.includes('housekeep') || prof.includes('ménage'))) return true;
-      if (target === 'indoor_cleaning' && (prof.includes('clean') || prof.includes('indoor'))) return true;
-      if (target === 'outdoor_cleaning' && (prof.includes('outdoor') || prof.includes('clean'))) return true;
-      if (target === 'nursing' && (prof.includes('nurse') || prof.includes('health') || prof.includes('soin'))) return true;
-      if (target === 'babysitting' && (prof.includes('baby') || prof.includes('child') || prof.includes('nanny') || prof.includes('garde'))) return true;
-      if (target === 'gardening' && (prof.includes('garden') || prof.includes('jardin'))) return true;
-      if (target === 'pet_care' && (prof.includes('pet') || prof.includes('animal') || prof.includes('chien'))) return true;
-      if (target === 'elderly_care' && (prof.includes('elder') || prof.includes('senior') || prof.includes('âgée'))) return true;
-      if (target === 'laundry_ironing' && (prof.includes('laundry') || prof.includes('iron') || prof.includes('repassage') || prof.includes('lessive'))) return true;
-    }
-    return false;
+    return providerOffersService(provider, catId);
   };
 
   // Filter list logic using real registered providers
@@ -355,11 +335,18 @@ export default function ExploreTab({
                 </div>
                 <span>Carely AI Top Recommendations (Ranked by Qualification)</span>
               </div>
-              {aiResult.criteria?.serviceLabel && (
-                <span className="text-[11px] font-semibold bg-emerald-100/70 text-emerald-900 px-2.5 py-0.5 rounded-full border border-emerald-300">
-                  Service: {aiResult.criteria.serviceLabel}
-                </span>
-              )}
+              <div className="flex items-center gap-1.5 flex-wrap">
+                {aiResult.criteria?.serviceLabel && (
+                  <span className="text-[11px] font-semibold bg-emerald-100/70 text-emerald-900 px-2.5 py-0.5 rounded-full border border-emerald-300">
+                    Service: {aiResult.criteria.serviceLabel}
+                  </span>
+                )}
+                {aiResult.criteria?.dateText && (
+                  <span className="text-[11px] font-semibold bg-amber-50 text-amber-900 px-2.5 py-0.5 rounded-full border border-amber-300 flex items-center gap-1">
+                    📅 Date: {aiResult.criteria.dateText}
+                  </span>
+                )}
+              </div>
             </div>
 
             <p className="text-xs text-[#5A5248] leading-relaxed font-medium">

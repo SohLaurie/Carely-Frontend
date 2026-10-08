@@ -49,8 +49,8 @@ export default function BookingForm({ onNavigate, screenParams }) {
     if (!startTime || !endTime) return 3;
     const [sh, sm] = startTime.split(':').map(Number);
     const [eh, em] = endTime.split(':').map(Number);
-    const diff = (eh * 60 + em - sh * 60 - sm) / 60;
-    return diff > 0 ? diff : 3;
+    const diff = (eh * 60 + (em || 0) - sh * 60 - (sm || 0)) / 60;
+    return diff > 0 ? +diff.toFixed(2) : 3;
   };
 
   const hoursPerSession = calculateHours();
@@ -58,13 +58,13 @@ export default function BookingForm({ onNavigate, screenParams }) {
   const serviceFee = 5;
 
   // Single calculation
-  const singleSubtotal = hoursPerSession * pricePerHour;
+  const singleSubtotal = Math.round(hoursPerSession * pricePerHour);
   const singleTotal = singleSubtotal + serviceFee;
 
   // Recurring calculation
   const sessionsPerWeek = selectedDays.length;
   const totalSessionsCount = sessionsPerWeek * durationWeeks;
-  const weeklySubtotal = sessionsPerWeek * hoursPerSession * pricePerHour;
+  const weeklySubtotal = Math.round(sessionsPerWeek * hoursPerSession * pricePerHour);
   const weeklyTotal = weeklySubtotal + serviceFee;
   const overallRecurringTotal = (weeklySubtotal * durationWeeks) + (serviceFee * durationWeeks);
 
